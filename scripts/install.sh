@@ -73,6 +73,9 @@ download_binary() {
 install_sing_box() {
   echo -e "${YELLOW}正在安装 Sing-box 魔改版 (支持 VLESS Fallback)...${NC}"
   
+  # 先停止服务，避免文件被占用
+  systemctl stop sing-box 2>/dev/null
+  
   # 从 StealthForward Release 下载魔改版 sing-box
   SB_URL="https://github.com/$REPO/releases/latest/download/sing-box-mod-$ARCH"
   

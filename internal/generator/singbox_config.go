@@ -142,6 +142,11 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// 3. 构建 Routing
 	rulesList := []interface{}{
+		// 关键：来源是 127.0.0.1 的流量（回落流量）直接走 direct，不转发
+		map[string]interface{}{
+			"source_ip_cidr": []string{"127.0.0.1/32", "::1/128"},
+			"outbound":       "direct",
+		},
 		map[string]interface{}{
 			"ip_cidr":  []string{"127.0.0.1/32", "::1/128"},
 			"outbound": "direct",
