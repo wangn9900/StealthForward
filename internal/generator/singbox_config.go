@@ -84,11 +84,20 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		if cipher, ok := exitOutbound["cipher"]; ok {
 			exitOutbound["method"] = cipher
 		}
+		if pwd, ok := exitOutbound["password"]; ok {
+			exitOutbound["password"] = pwd
+		}
 
 		exitOutbound["type"] = sbType
 		exitOutbound["tag"] = "out-" + exit.Name
 		config.Outbounds = append(config.Outbounds, exitOutbound)
 	}
+
+	// 增加直连出口 (兜底用)
+	config.Outbounds = append(config.Outbounds, map[string]interface{}{
+		"type": "direct",
+		"tag":  "direct",
+	})
 
 	// 3. 构建 Routing (优先根据规则，最后根据默认绑定)
 	rulesList := []interface{}{}
