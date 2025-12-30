@@ -14,13 +14,13 @@ import (
 
 // V2boardUser 对应 UniProxy 接口返回的用户结构
 type V2boardUser struct {
-	ID    uint   `json:"id"`
-	UUID  string `json:"uuid"`
-	Email string `json:"email"`
+	ID   uint   `json:"id"`
+	UUID string `json:"uuid"`
 }
 
 type V2boardResponse struct {
-	Data []V2boardUser `json:"data"`
+	Data  []V2boardUser `json:"data"`
+	Users []V2boardUser `json:"users"` // 适配 V2board 源码中的 users 键
 }
 
 // StartV2boardSync 启动一个后台任务，定时同步用户列表
@@ -55,7 +55,11 @@ func syncAllNodes() {
 }
 
 func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V2boardUser, error) {
-	// 加上 node_type 参数，很多 V2Board 版本没这个会报 500
+	// 如果 URL 以 / 结尾，去掉它
+	if len(apiURL) > 0 && apiURL[len(apiURL)-1] == '/' {
+		apiURL = apiURL[:len(apiURL)-1]
+	}
+
 	fullURL := fmt.Sprintf("%s/api/v1/server/UniProxy/user?node_id=%d&token=%s&node_type=%s", apiURL, nodeID, key, nodeType)
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -65,17 +69,21 @@ func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP error: %d", resp.StatusCode)
+		// 打印出 Body，这就是我们要找的“病根”
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, _ := io.ReadAll(resp.Body)
 	var v2resp V2boardResponse
 	if err := json.Unmarshal(body, &v2resp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("JSON 解析失败: %v", err)
 	}
 
-	return v2resp.Data, nil
+	// 兼容不同的 V2Board 版本
+	allUsers := append(v2resp.Data, v2resp.Users...)
+	return allUsers, nil
 }
 
 func updateRulesForEntry(entry models.EntryNode, users []V2boardUser) {
@@ -85,20 +93,20 @@ func updateRulesForEntry(entry models.EntryNode, users []V2boardUser) {
 
 	for _, user := range users {
 		var rule models.ForwardingRule
-		err := database.DB.Where("user_email = ? AND entry_node_id = ?", user.Email, entry.ID).First(&rule).Error
+		// 改用 UserID (UUID) 作为查重索引
+		err := database.DB.Where("user_id = ? AND entry_node_id = ?", user.UUID, entry.ID).First(&rule).Error
 
 		if err != nil {
 			newRule := models.ForwardingRule{
 				EntryNodeID: entry.ID,
 				ExitNodeID:  targetExit,
-				UserEmail:   user.Email,
+				UserEmail:   fmt.Sprintf("v2b-%s", user.UUID[:8]), // 源码不返回 Email，用 UUID 前缀占位
 				UserID:      user.UUID,
 				Enabled:     targetExit != 0,
 			}
 			database.DB.Create(&newRule)
 		} else {
-			if rule.UserID != user.UUID || rule.ExitNodeID != targetExit {
-				rule.UserID = user.UUID
+			if rule.ExitNodeID != targetExit {
 				rule.ExitNodeID = targetExit
 				rule.Enabled = targetExit != 0
 				database.DB.Save(&rule)
