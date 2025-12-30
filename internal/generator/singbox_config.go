@@ -24,15 +24,13 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// 1. 构建 Inbound (VLESS + Vision + Fallback)
 	vlessInbound := map[string]interface{}{
-		"type":        "vless",
-		"tag":         "vless-in",
-		"listen":      "::",
-		"listen_port": entry.Port,
-		"sniff": map[string]interface{}{
-			"enabled":              true,
-			"override_destination": true,
-		},
-		"users": []interface{}{},
+		"type":                       "vless",
+		"tag":                        "vless-in",
+		"listen":                     "::",
+		"listen_port":                entry.Port,
+		"sniff":                      true,
+		"sniff_override_destination": true,
+		"users":                      []interface{}{},
 	}
 
 	// 添加用户到 Inbound
