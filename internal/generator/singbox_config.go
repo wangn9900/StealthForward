@@ -23,6 +23,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		},
 		DNS: map[string]interface{}{
 			"servers": []interface{}{
+				map[string]interface{}{"address": "1.1.1.1", "tag": "cf"},
 				map[string]interface{}{"address": "8.8.8.8", "tag": "google"},
 			},
 		},
@@ -79,6 +80,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 		if addr, ok := exitOutbound["address"]; ok {
 			exitOutbound["server"] = addr
+		}
+		if cipher, ok := exitOutbound["cipher"]; ok {
+			exitOutbound["method"] = cipher
 		}
 
 		exitOutbound["type"] = sbType
