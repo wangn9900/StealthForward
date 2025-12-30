@@ -63,18 +63,29 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Inbounds = append(config.Inbounds, vlessInbound)
 
-	// 2. 构建 Outbounds (落地节点)
+	// 2. 构建 Outbounds
+	// 按照用户图示：先放 direct，再放代理，最后放 block
+	config.Outbounds = append(config.Outbounds, map[string]interface{}{
+		"type": "direct",
+		"tag":  "direct",
+	})
+
 	for _, exit := range exits {
 		var exitOutbound map[string]interface{}
 		json.Unmarshal([]byte(exit.Config), &exitOutbound)
 
-		// 映射协议类型到 sing-box type
 		sbType := exit.Protocol
 		if sbType == "ss" {
 			sbType = "shadowsocks"
+			// 增加专业参数映射
+			if _, ok := exitOutbound["multiplex"]; !ok {
+				exitOutbound["multiplex"] = map[string]interface{}{
+					"enabled": false,
+					"padding": true,
+				}
+			}
 		}
 
-		// 关键兼容性修复：映射 v2board/通用风格参数到 sing-box
 		if port, ok := exitOutbound["port"]; ok {
 			exitOutbound["server_port"] = port
 		}
@@ -96,14 +107,24 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		config.Outbounds = append(config.Outbounds, exitOutbound)
 	}
 
-	// 增加直连出口 (兜底用)
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{
-		"type": "direct",
-		"tag":  "direct",
+		"type": "block",
+		"tag":  "block",
 	})
 
-	// 3. 构建 Routing (优先根据规则，最后根据默认绑定)
-	rulesList := []interface{}{}
+	// 3. 构建 Routing (增加专业分流规则)
+	rulesList := []interface{}{
+		// 路由规则 1: 确保本地回落流量永不走代理 (修复 ERR_EMPTY_RESPONSE)
+		map[string]interface{}{
+			"ip_cidr":  []string{"127.0.0.1/32", "::1/128"},
+			"outbound": "direct",
+		},
+		// 路由规则 2: DNS 流量直连或走专有出口
+		map[string]interface{}{
+			"protocol": "dns",
+			"outbound": "direct",
+		},
+	}
 
 	// 记录默认出口名称
 	var defaultExitName string
@@ -116,6 +137,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
+	// 路由规则 3: 用户自定义映射
 	for _, rule := range rules {
 		var targetExitName string
 		for _, e := range exits {
@@ -133,14 +155,16 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 最终路由规则
+	// 最终路由配置
 	routeConfig := map[string]interface{}{
 		"rules": rulesList,
 	}
 
-	// 如果有默认绑定落地，则除了显式规则外的所有流量默认走该落地
+	// 如果有默认绑定落地，其余流量走默认落地
 	if defaultExitName != "" {
 		routeConfig["final"] = defaultExitName
+	} else {
+		routeConfig["final"] = "direct"
 	}
 
 	config.Route = routeConfig
