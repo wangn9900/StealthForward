@@ -48,6 +48,10 @@
         input:focus {
             border-color: #6366f1;
         }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.5); }
     </style>
 </head>
 
@@ -145,15 +149,22 @@
             </div>
 
             <!-- Rules List -->
-            <div class="glass-card rounded-3xl p-6">
+            <div class="glass-card rounded-3xl p-6 transition-all duration-300"
+                :class="{'max-h-32 overflow-hidden': collapsedRules}">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-purple-400">转发映射规则</h2>
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-xl font-bold text-purple-400">转发映射规则</h2>
+                        <button @click="collapsedRules = !collapsedRules"
+                            class="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-xs hover:bg-purple-500/20 transition">
+                            {{ collapsedRules ? '展开 (' + rules.length + ')' : '收起' }}
+                        </button>
+                    </div>
                     <button @click="showModal('rule')" class="text-sm text-purple-400 hover:text-purple-300">+
-                        新增规则环境</button>
+                        新增</button>
                 </div>
-                <div class="space-y-4">
+                <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                     <div v-for="rule in rules" :key="rule.id"
-                        class="p-4 bg-purple-500/5 border border-purple-500/10 rounded-2xl flex justify-between items-center">
+                        class="p-4 bg-purple-500/5 border border-purple-500/10 rounded-2xl flex justify-between items-center hover:bg-purple-500/10 transition">
                         <div>
                             <div class="font-bold text-sm">{{ rule.user_email }}</div>
                             <div class="flex items-center gap-2 text-[10px] mt-1">
@@ -358,6 +369,7 @@
                     rules: [],
                     certLoading: false,
                     showFabMenu: false,
+                    collapsedRules: true,
                     modal: { type: null },
                     form: {
                         entry: { id: null, name: '', ip: '', port: null, domain: '', certificate: '', key: '', fallback: '127.0.0.1:8080', target_exit_id: 0, protocol: 'vless', security: 'xtls-rprx-vision', v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },

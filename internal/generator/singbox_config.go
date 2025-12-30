@@ -2,8 +2,10 @@ package generator
 
 import (
 	"encoding/json"
+	"strconv"
+	"strings"
 
-	"github.com/nasstoki/stealthforward/internal/models"
+	"github.com/wangn9900/StealthForward/internal/models"
 )
 
 // SingBoxConfig 定义了简化的 sing-box 配置文件结构
@@ -47,6 +49,26 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"sniff":                      true,
 		"sniff_override_destination": true,
 		"users":                      []interface{}{},
+	}
+
+	// 默认回落到本地 80
+	fallbackHost := "127.0.0.1"
+	fallbackPort := 80
+	if entry.Fallback != "" {
+		parts := strings.Split(entry.Fallback, ":")
+		if len(parts) == 2 {
+			fallbackHost = parts[0]
+			fallbackPort, _ = strconv.Atoi(parts[1])
+		} else {
+			fallbackHost = entry.Fallback
+		}
+	}
+
+	vlessInbound["fallbacks"] = []interface{}{
+		map[string]interface{}{
+			"server":      fallbackHost,
+			"server_port": fallbackPort,
+		},
 	}
 
 	users := []map[string]interface{}{}
