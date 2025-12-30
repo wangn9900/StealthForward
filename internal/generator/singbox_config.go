@@ -23,13 +23,22 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		},
 		DNS: map[string]interface{}{
 			"servers": []interface{}{
-				map[string]interface{}{"address": "1.1.1.1", "tag": "cf"},
-				map[string]interface{}{"address": "8.8.8.8", "tag": "google"},
+				map[string]interface{}{
+					"address": "1.1.1.1",
+					"tag":     "cf",
+					"detour":  "direct",
+				},
+				map[string]interface{}{
+					"address": "8.8.8.8",
+					"tag":     "google",
+					"detour":  "direct",
+				},
 			},
+			"strategy": "prefer_ipv4",
 		},
 	}
 
-	// 1. 构建 Inbound (VLESS + Vision + Fallback)
+	// 1. 构建 Inbound (VLESS + Vision)
 	vlessInbound := map[string]interface{}{
 		"type":                       "vless",
 		"tag":                        "vless-in",
@@ -40,7 +49,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"users":                      []interface{}{},
 	}
 
-	// 添加用户到 Inbound
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
 		users = append(users, map[string]interface{}{
@@ -51,7 +59,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 	vlessInbound["users"] = users
 
-	// 证书与安全配置
 	vlessInbound["tls"] = map[string]interface{}{
 		"enabled":          true,
 		"server_name":      entry.Domain,
@@ -60,11 +67,10 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"min_version":      "1.2",
 		"alpn":             []string{"http/1.1", "h2"},
 	}
-
 	config.Inbounds = append(config.Inbounds, vlessInbound)
 
 	// 2. 构建 Outbounds
-	// 按照用户图示：先放 direct，再放代理，最后放 block
+	// 按照用户图示顺序：direct -> proxies -> block
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{
 		"type": "direct",
 		"tag":  "direct",
@@ -77,7 +83,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		sbType := exit.Protocol
 		if sbType == "ss" {
 			sbType = "shadowsocks"
-			// 增加专业参数映射
+			exitOutbound["tcp_fast_open"] = false
 			if _, ok := exitOutbound["multiplex"]; !ok {
 				exitOutbound["multiplex"] = map[string]interface{}{
 					"enabled": false,
@@ -112,21 +118,21 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"tag":  "block",
 	})
 
-	// 3. 构建 Routing (增加专业分流规则)
+	// 3. 构建 Routing (包含基础分流规则)
 	rulesList := []interface{}{
-		// 路由规则 1: 确保本地回落流量永不走代理 (修复 ERR_EMPTY_RESPONSE)
+		// A. 本地与 DNS 强制直连
 		map[string]interface{}{
 			"ip_cidr":  []string{"127.0.0.1/32", "::1/128"},
 			"outbound": "direct",
 		},
-		// 路由规则 2: DNS 流量直连或走专有出口
 		map[string]interface{}{
 			"protocol": "dns",
 			"outbound": "direct",
 		},
 	}
 
-	// 记录默认出口名称
+	// C. 用户自定义映射 (多对一或多对多)
+	// 记录入口节点的默认绑定落地
 	var defaultExitName string
 	if entry.TargetExitID != 0 {
 		for _, e := range exits {
@@ -137,7 +143,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 路由规则 3: 用户自定义映射
 	for _, rule := range rules {
 		var targetExitName string
 		for _, e := range exits {
@@ -146,7 +151,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				break
 			}
 		}
-
 		if targetExitName != "" {
 			rulesList = append(rulesList, map[string]interface{}{
 				"user":     []string{rule.UserEmail},
@@ -155,18 +159,14 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 最终路由配置
+	// 最终路由策略
 	routeConfig := map[string]interface{}{
 		"rules": rulesList,
+		"final": "direct",
 	}
-
-	// 如果有默认绑定落地，其余流量走默认落地
 	if defaultExitName != "" {
 		routeConfig["final"] = defaultExitName
-	} else {
-		routeConfig["final"] = "direct"
 	}
-
 	config.Route = routeConfig
 
 	res, err := json.MarshalIndent(config, "", "  ")
