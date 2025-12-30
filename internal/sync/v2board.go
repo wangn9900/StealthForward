@@ -12,7 +12,7 @@ import (
 	"github.com/wangn9900/StealthForward/internal/models"
 )
 
-// V2boardUser 对应 UniProxy 接口返回的用户结�?
+// V2boardUser 对应 UniProxy 接口返回的用户结构
 type V2boardUser struct {
 	ID   uint   `json:"id"`
 	UUID string `json:"uuid"`
@@ -20,18 +20,18 @@ type V2boardUser struct {
 
 type V2boardResponse struct {
 	Data  []V2boardUser `json:"data"`
-	Users []V2boardUser `json:"users"` // 适配 V2board 源码中的 users �?
+	Users []V2boardUser `json:"users"` // 适配 V2board 源码中的 users 键
 }
 
 // StartV2boardSync 启动一个后台任务，定时同步用户列表
 func StartV2boardSync() {
-	ticker := time.NewTicker(2 * time.Minute) // �?分钟同步一�?
+	ticker := time.NewTicker(2 * time.Minute) // 每 2 分钟同步一次
 	go func() {
 		for range ticker.C {
 			syncAllNodes()
 		}
 	}()
-	// 启动时先同步一�?
+	// 启动时先同步一次
 	go syncAllNodes()
 }
 
@@ -55,7 +55,7 @@ func syncAllNodes() {
 }
 
 func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V2boardUser, error) {
-	// 如果 URL �?/ 结尾，去掉它
+	// 如果 URL 以 / 结尾，去掉它
 	if len(apiURL) > 0 && apiURL[len(apiURL)-1] == '/' {
 		apiURL = apiURL[:len(apiURL)-1]
 	}
@@ -72,7 +72,6 @@ func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		// 打印�?Body，这就是我们要找的“病根�?
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -81,13 +80,13 @@ func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V
 		return nil, fmt.Errorf("JSON 解析失败: %v", err)
 	}
 
-	// 兼容不同�?V2Board 版本
+	// 兼容不同的 V2Board 版本
 	allUsers := append(v2resp.Data, v2resp.Users...)
 	return allUsers, nil
 }
 
 func updateRulesForEntry(entry models.EntryNode, users []V2boardUser) {
-	log.Printf("Entry #%d [%s]: 开始处理同�? 抓取到用户数: %d", entry.ID, entry.Name, len(users))
+	log.Printf("Entry #%d [%s]: 开始处理同步, 抓取到用户数: %d", entry.ID, entry.Name, len(users))
 
 	targetExit := entry.TargetExitID
 
@@ -100,7 +99,7 @@ func updateRulesForEntry(entry models.EntryNode, users []V2boardUser) {
 			newRule := models.ForwardingRule{
 				EntryNodeID: entry.ID,
 				ExitNodeID:  targetExit,
-				UserEmail:   fmt.Sprintf("v2b-%s", user.UUID[:8]), // 源码不返�?Email，用 UUID 前缀占位
+				UserEmail:   fmt.Sprintf("v2b-%s", user.UUID[:8]), // 源码不返回 Email，用 UUID 前缀占位
 				UserID:      user.UUID,
 				Enabled:     targetExit != 0,
 			}
@@ -115,7 +114,7 @@ func updateRulesForEntry(entry models.EntryNode, users []V2boardUser) {
 	}
 }
 
-// GlobalSyncNow 提供�?API 调用的立即同步接�?
+// GlobalSyncNow 提供给 API 调用的立即同步接口
 func GlobalSyncNow() {
 	go syncAllNodes()
 }

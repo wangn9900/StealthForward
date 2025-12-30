@@ -39,7 +39,7 @@ func NewAgent(cfg Config) *Agent {
 	return &Agent{cfg: cfg}
 }
 
-// FetchConfig �?Controller 获取最新的 Sing-box 配置
+// FetchConfig 从 Controller 获取最新的 Sing-box 配置
 func (a *Agent) FetchConfig() (string, error) {
 	url := fmt.Sprintf("%s/api/v1/node/%d/config", a.cfg.ControllerAddr, a.cfg.NodeID)
 
@@ -71,16 +71,16 @@ func (a *Agent) FetchConfig() (string, error) {
 	return string(body), nil
 }
 
-// ApplyConfig 将配置保存到本地并尝试重�?Sing-box
+// ApplyConfig 将配置保存到本地并尝试重启 Sing-box
 func (a *Agent) ApplyConfig(configStr string) error {
 	configPath := filepath.Join(a.cfg.LocalConfigDir, "config.json")
 
-	// 如果配置没变，跳�?
+	// 如果配置没变，跳过
 	if configStr == a.lastConfig {
 		return nil
 	}
 
-	// 1. 验证 JSON 合法�?
+	// 1. 验证 JSON 合法性
 	var js json.RawMessage
 	if err := json.Unmarshal([]byte(configStr), &js); err != nil {
 		return fmt.Errorf("invalid json config: %v", err)
@@ -105,11 +105,11 @@ func (a *Agent) RestartSingBox() error {
 		return nil
 	}
 
-	// �?Linux 下，我们通常通过 systemd 管理
-	// 假设我们的服务名�?stealthforward-singbox
+	// 在 Linux 下，我们通常通过 systemd 管理
+	// 假设我们的服务名是 stealthforward-singbox
 	cmd := exec.Command("systemctl", "restart", "sing-box")
 	if err := cmd.Run(); err != nil {
-		// 如果没有 systemd，尝试直接重启进程或�?reload
+		// 如果没有 systemd，尝试直接重启进程或者 reload
 		log.Printf("Systemd restart failed, trying direct reload: %v", err)
 		return exec.Command(a.cfg.SingBoxPath, "check", "-c", filepath.Join(a.cfg.LocalConfigDir, "config.json")).Run()
 	}
@@ -136,7 +136,7 @@ func (a *Agent) RunOnce() {
 	}
 }
 
-// EnsureMasquerade 检查并生成唯一的伪装页�?
+// EnsureMasquerade 检查并生成唯一的伪装页面
 func (a *Agent) EnsureMasquerade() {
 	indexFile := filepath.Join(a.cfg.MasqueradeDir, "index.html")
 	if _, err := os.Stat(indexFile); os.IsNotExist(err) {
@@ -146,7 +146,7 @@ func (a *Agent) EnsureMasquerade() {
 	}
 }
 
-// StartMasqueradeServer 在后台启动一个轻量级�?HTTP 服务器用于回�?
+// StartMasqueradeServer 在后台启动一个轻量级的 HTTP 服务器用于回落
 func (a *Agent) StartMasqueradeServer(port int) {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	log.Printf("Starting masquerade server on %s", addr)

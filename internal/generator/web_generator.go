@@ -27,7 +27,7 @@ var accentColors = []string{
 	"#10b981", // Emerald
 }
 
-// GenerateMasqueradeHTML 生成一个独一无二的高端伪装页�?
+// GenerateMasqueradeHTML 生成一个独一无二的高端伪装页面
 func GenerateMasqueradeHTML() string {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	company := companyNames[r.Intn(len(companyNames))]

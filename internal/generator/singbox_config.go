@@ -17,7 +17,7 @@ type SingBoxConfig struct {
 	Route     interface{}   `json:"route"`
 }
 
-// GenerateEntryConfig 生成入口节点�?Sing-box 配置
+// GenerateEntryConfig 生成入口节点的 Sing-box 配置
 func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule, exits []models.ExitNode) (string, error) {
 	config := SingBoxConfig{
 		Log: map[string]interface{}{
@@ -51,7 +51,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"users":                      []interface{}{},
 	}
 
-	// 默认回落到本�?80
+	// 默认回落到本地 80
 	fallbackHost := "127.0.0.1"
 	fallbackPort := 80
 	if entry.Fallback != "" {
@@ -142,7 +142,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// 3. 构建 Routing (包含基础分流规则)
 	rulesList := []interface{}{
-		// A. 本地�?DNS 强制直连
+		// A. 本地与 DNS 强制直连
 		map[string]interface{}{
 			"ip_cidr":  []string{"127.0.0.1/32", "::1/128"},
 			"outbound": "direct",
@@ -153,8 +153,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		},
 	}
 
-	// C. 用户自定义映�?(多对一或多对多)
-	// 记录入口节点的默认绑定落�?	var defaultExitName string
+	// C. 用户自定义映射 (多对一或多对多)
+	// 记录入口节点的默认绑定落地
+	var defaultExitName string
 	if entry.TargetExitID != 0 {
 		for _, e := range exits {
 			if e.ID == entry.TargetExitID {
@@ -180,7 +181,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 最终路由策�?	routeConfig := map[string]interface{}{
+	// 最终路由策略
+	routeConfig := map[string]interface{}{
 		"rules": rulesList,
 		"final": "direct",
 	}

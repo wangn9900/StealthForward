@@ -29,7 +29,7 @@ func GetConfigHandler(c *gin.Context) {
 		return
 	}
 
-	// 2. 获取该节点下的所有有效转发规�?
+	// 2. 获取该节点下的所有有效转发规则
 	var rules []models.ForwardingRule
 	database.DB.Where("entry_node_id = ? AND enabled = ?", nodeID, true).Find(&rules)
 
@@ -64,7 +64,7 @@ func RegisterNodeHandler(c *gin.Context) {
 		return
 	}
 	database.DB.Save(&entry)
-	// 保存成功后立即尝试拉取一�?V2Board 数据
+	// 保存成功后立即尝试拉取一次 V2Board 数据
 	sync.GlobalSyncNow()
 	c.JSON(http.StatusOK, entry)
 }
@@ -134,7 +134,7 @@ func TriggerSyncHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "sync triggered"})
 }
 
-// IssueCertHandler 使用 acme.sh 为指定域名签发证�?
+// IssueCertHandler 使用 acme.sh 为指定域名签发证书
 func IssueCertHandler(c *gin.Context) {
 	var req struct {
 		Domain string `json:"domain"`
@@ -157,7 +157,7 @@ func IssueCertHandler(c *gin.Context) {
 	acmePath := home + "/.acme.sh/acme.sh"
 
 	// 方案 A 增强：全自动探测模式
-	// 常见�?Webroot 路径（按优先级排列）
+	// 常见的 Webroot 路径（按优先级排列）
 	commonWebroots := []string{"/var/www/html", "/usr/share/nginx/html", "/var/www/v2board/public"}
 	var finalWebroot string
 	for _, path := range commonWebroots {
@@ -170,7 +170,7 @@ func IssueCertHandler(c *gin.Context) {
 	var output []byte
 	var err error
 
-	// 检�?80 端口是否被占�?(简易检�?
+	// 检查 80 端口是否被占用 (简易检测)
 	portInUse := false
 	checkCmd := exec.Command("sh", "-c", "lsof -i :80 | grep LISTEN")
 	if errCheck := checkCmd.Run(); errCheck == nil {
@@ -181,7 +181,7 @@ func IssueCertHandler(c *gin.Context) {
 		// 1. 如果 80 占用且有 webroot，走 webroot 模式 (无感)
 		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "-w", finalWebroot, "--force").CombinedOutput()
 	} else if portInUse && finalWebroot == "" {
-		// 2. 如果 80 占用但找不到路径，尝试停�?nginx (后备方案)
+		// 2. 如果 80 占用但找不到路径，尝试停掉 nginx (后备方案)
 		exec.Command("systemctl", "stop", "nginx").Run()
 		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
 		exec.Command("systemctl", "start", "nginx").Run()
@@ -192,13 +192,13 @@ func IssueCertHandler(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "申请失败，请确保域名解析正确�?80 端口可联�?,
+			"error":  "申请失败，请确保域名解析正确且 80 端口可联通",
 			"detail": string(output),
 		})
 		return
 	}
 
-	// 安装证书到指定目�?
+	// 安装证书到指定目录
 	certFile := certDir + "/cert.crt"
 	keyFile := certDir + "/cert.key"
 	_, err = exec.Command(acmePath, "--install-cert", "-d", req.Domain,
@@ -211,7 +211,7 @@ func IssueCertHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "证书申请并安装成�?,
+		"message": "证书申请并安装成功",
 		"cert":    certFile,
 		"key":     keyFile,
 	})
