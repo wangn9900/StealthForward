@@ -165,11 +165,15 @@ EOF
 
 install_agent() {
   # 1. 安装 Nginx（用于托管伪装页和申请证书）
-  echo -e "${YELLOW}正在安装 Nginx (用于伪装页和证书申请)...${NC}"
-  if command -v apt-get &> /dev/null; then
-    apt-get update && apt-get install -y nginx
-  elif command -v yum &> /dev/null; then
-    yum install -y nginx
+  if command -v nginx &> /dev/null; then
+    echo -e "${GREEN}检测到 Nginx 已安装，跳过安装步骤。${NC}"
+  else
+    echo -e "${YELLOW}正在安装 Nginx (用于伪装页和证书申请)...${NC}"
+    if command -v apt-get &> /dev/null; then
+      apt-get update && apt-get install -y nginx
+    elif command -v yum &> /dev/null; then
+      yum install -y nginx
+    fi
   fi
   systemctl enable nginx
   systemctl start nginx
