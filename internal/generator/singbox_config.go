@@ -18,19 +18,21 @@ type SingBoxConfig struct {
 func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule, exits []models.ExitNode) (string, error) {
 	config := SingBoxConfig{
 		Log: map[string]interface{}{
-			"level": "info",
+			"level": "debug",
 		},
 	}
 
 	// 1. 构建 Inbound (VLESS + Vision + Fallback)
 	vlessInbound := map[string]interface{}{
-		"type":                       "vless",
-		"tag":                        "vless-in",
-		"listen":                     "::",
-		"listen_port":                entry.Port,
-		"sniff":                      true,
-		"sniff_override_destination": true,
-		"users":                      []interface{}{},
+		"type":        "vless",
+		"tag":         "vless-in",
+		"listen":      "::",
+		"listen_port": entry.Port,
+		"sniff": map[string]interface{}{
+			"enabled":              true,
+			"override_destination": true,
+		},
+		"users": []interface{}{},
 	}
 
 	// 添加用户到 Inbound
@@ -51,6 +53,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"certificate_path": entry.Certificate,
 		"key_path":         entry.Key,
 		"min_version":      "1.2",
+		"alpn":             []string{"http/1.1", "h2"},
 	}
 
 	// 核心防御：回落设置 (SNI 回落)
