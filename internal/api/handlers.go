@@ -32,6 +32,9 @@ func GetConfigHandler(c *gin.Context) {
 
 	// 3. 获取所有涉及的落地节点
 	exitIDs := []uint{}
+	if entry.TargetExitID != 0 {
+		exitIDs = append(exitIDs, entry.TargetExitID)
+	}
 	for _, r := range rules {
 		exitIDs = append(exitIDs, r.ExitNodeID)
 	}
