@@ -30,21 +30,19 @@ jobs:
 
       - name: Clone and Build Sing-box Mod (with VLESS Fallback)
         run: |
-          # 克隆 V2bX 的魔改版 sing-box (包含 submodules)
-          git clone --depth 1 --recurse-submodules https://github.com/wangn9900/V2bX.git v2bx_temp
+          # 从 wangn9900 的魔改版 sing-box_mod 拉取 (dev-next 分支包含 VLESS fallback)
+          git clone --depth 1 --branch dev-next https://github.com/wangn9900/sing-box_mod.git sing-box_mod
           
-          # 进入 sing-box_mod 目录
-          cd v2bx_temp/sing-box_mod
+          cd sing-box_mod
           
-          # 清理 go.mod 中的 replace 指令（因为我们在单独编译）
-          # 使用 go mod tidy 确保依赖正确
+          # 确保依赖正确
           go mod tidy
           
           # 编译魔改版 sing-box 核心
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../../sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
           
-          cd ../..
-          rm -rf v2bx_temp
+          cd ..
+          rm -rf sing-box_mod
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
