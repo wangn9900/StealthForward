@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/wangn9900/StealthForward/internal/generator"
 )
@@ -81,8 +82,8 @@ func (a *Agent) ApplyConfig(configStr string) error {
 	}
 
 	// 1. 验证 JSON 合法性
-	var js json.RawMessage
-	if err := json.Unmarshal([]byte(configStr), &js); err != nil {
+	var configObj map[string]interface{}
+	if err := json.Unmarshal([]byte(configStr), &configObj); err != nil {
 		return fmt.Errorf("invalid json config: %v", err)
 	}
 
@@ -95,8 +96,86 @@ func (a *Agent) ApplyConfig(configStr string) error {
 	a.lastConfig = configStr
 	log.Printf("New config applied to %s", configPath)
 
-	// 3. 重启 Sing-box 服务 (根据平台不同处理方式不同)
+	// 3. 提取域名并配置 Nginx Sniproxy (仅 Linux)
+	if runtime.GOOS == "linux" {
+		domain := a.extractDomain(configObj)
+		if domain != "" {
+			a.SetupSniproxy(domain)
+		}
+	}
+
+	// 4. 重启 Sing-box 服务
 	return a.RestartSingBox()
+}
+
+func (a *Agent) extractDomain(config map[string]interface{}) string {
+	inbounds, ok := config["inbounds"].([]interface{})
+	if !ok || len(inbounds) == 0 {
+		return ""
+	}
+	for _, in := range inbounds {
+		inMap, ok := in.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if inMap["type"] == "vless" {
+			tls, ok := inMap["tls"].(map[string]interface{})
+			if ok {
+				if sn, ok := tls["server_name"].(string); ok {
+					return sn
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func (a *Agent) SetupSniproxy(domain string) {
+	log.Printf("Setting up Nginx Sniproxy for domain: %s", domain)
+
+	// Nginx Stream 配置块
+	streamConf := fmt.Sprintf(`
+stream {
+    map $ssl_preread_server_name $backend_name {
+        %s  singbox_backend;
+        default      fallback_backend;
+    }
+
+    upstream singbox_backend {
+        server 127.0.0.1:8443;
+    }
+
+    upstream fallback_backend {
+        server 127.0.0.1:8080;
+    }
+
+    server {
+        listen 443;
+        listen [::]:443;
+        proxy_pass $backend_name;
+        ssl_preread on;
+    }
+}
+`, domain)
+
+	const stealthStreamPath = "/etc/nginx/stealth_stream.conf"
+	os.MkdirAll("/etc/nginx", 0755)
+	os.WriteFile(stealthStreamPath, []byte(streamConf), 0644)
+
+	// 尝试在主配置中注入 include (如果还没注入)
+	nginxMainConf := "/etc/nginx/nginx.conf"
+	content, err := os.ReadFile(nginxMainConf)
+	if err == nil {
+		if !strings.Contains(string(content), "include "+stealthStreamPath) {
+			f, err := os.OpenFile(nginxMainConf, os.O_APPEND|os.O_WRONLY, 0644)
+			if err == nil {
+				f.WriteString("\ninclude " + stealthStreamPath + ";\n")
+				f.Close()
+			}
+		}
+	}
+
+	exec.Command("systemctl", "reload", "nginx").Run()
 }
 
 func (a *Agent) RestartSingBox() error {
@@ -105,11 +184,8 @@ func (a *Agent) RestartSingBox() error {
 		return nil
 	}
 
-	// 在 Linux 下，我们通常通过 systemd 管理
-	// 假设我们的服务名是 stealthforward-singbox
 	cmd := exec.Command("systemctl", "restart", "sing-box")
 	if err := cmd.Run(); err != nil {
-		// 如果没有 systemd，尝试直接重启进程或者 reload
 		log.Printf("Systemd restart failed, trying direct reload: %v", err)
 		return exec.Command(a.cfg.SingBoxPath, "check", "-c", filepath.Join(a.cfg.LocalConfigDir, "config.json")).Run()
 	}

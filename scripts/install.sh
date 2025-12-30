@@ -147,6 +147,11 @@ EOF
 }
 
 install_agent() {
+  echo -e "${YELLOW}正在安装 Nginx 及其依赖 (Sniproxy 方案必需)...${NC}"
+  apt-get update && apt-get install -y nginx libnginx-mod-stream || yum install -y nginx nginx-mod-stream
+  systemctl enable nginx
+  systemctl start nginx
+
   install_sing_box
   
   show_logo

@@ -39,11 +39,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// 1. 构建 Inbound (VLESS + Vision)
+	// 注意：此处不设 fallback，由 Agent 侧的前置 Nginx/Sniproxy 进行处理
 	vlessInbound := map[string]interface{}{
 		"type":                       "vless",
 		"tag":                        "vless-in",
 		"listen":                     "::",
-		"listen_port":                entry.Port,
+		"listen_port":                8443, // 改为 8443，由 Nginx 在 443 转发
 		"sniff":                      true,
 		"sniff_override_destination": true,
 	}
