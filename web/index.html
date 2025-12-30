@@ -378,6 +378,8 @@
                         this.fetchData();
                     }
                 },
+                showModal(type) { this.modal.type = type; this.showFabMenu = false; },
+                hideModal() { this.modal.type = null },
                 async submitEntry() {
                     const headers = {
                         'Content-Type': 'application/json',
