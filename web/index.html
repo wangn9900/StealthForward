@@ -356,21 +356,34 @@
             mounted() { this.fetchData() },
             methods: {
                 async fetchData() {
+                    const headers = { 'Authorization': localStorage.getItem('stealth_token') || '' };
                     try {
-                        const [e, ex, r] = await Promise.all([
-                            fetch('/api/v1/entries').then(res => res.json()),
-                            fetch('/api/v1/exits').then(res => res.json()),
-                            fetch('/api/v1/rules').then(res => res.json())
+                        const [e, x, r] = await Promise.all([
+                            fetch('/api/v1/entries', { headers }).then(r => r.json()),
+                            fetch('/api/v1/exits', { headers }).then(r => r.json()),
+                            fetch('/api/v1/rules', { headers }).then(r => r.json())
                         ])
+                        if (e.error === 'unauthorized' || x.error === 'unauthorized' || r.error === 'unauthorized') {
+                            return this.promptLogin();
+                        }
                         this.entries = Array.isArray(e) ? e : []
-                        this.exits = Array.isArray(ex) ? ex : []
+                        this.exits = Array.isArray(x) ? x : []
                         this.rules = Array.isArray(r) ? r : []
                     } catch (err) { alert('数据加载失败: ' + err) }
                 },
-                showModal(type) { this.modal.type = type; this.showFabMenu = false; },
-                hideModal() { this.modal.type = null },
+                promptLogin() {
+                    const token = prompt('此面板受保护，请输入管理口令 (STEALTH_ADMIN_TOKEN):');
+                    if (token) {
+                        localStorage.setItem('stealth_token', token);
+                        this.fetchData();
+                    }
+                },
                 async submitEntry() {
-                    const res = await fetch('/api/v1/entries', { method: 'POST', body: JSON.stringify(this.form.entry), headers: { 'Content-Type': 'application/json' } })
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': localStorage.getItem('stealth_token') || ''
+                    };
+                    const res = await fetch('/api/v1/entries', { method: 'POST', body: JSON.stringify(this.form.entry), headers })
                     if (res.ok) { this.hideModal(); this.fetchData(); }
                 },
                 async submitExit() {
@@ -396,29 +409,42 @@
                         config: JSON.stringify(configObj)
                     };
 
-                    const res = await fetch('/api/v1/exits', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } })
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': localStorage.getItem('stealth_token') || ''
+                    };
+                    const res = await fetch('/api/v1/exits', { method: 'POST', body: JSON.stringify(payload), headers })
                     if (res.ok) { this.hideModal(); this.fetchData(); this.form.exit = { name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' }; }
                 },
                 async submitRule() {
-                    const res = await fetch('/api/v1/rules', { method: 'POST', body: JSON.stringify(this.form.rule), headers: { 'Content-Type': 'application/json' } })
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': localStorage.getItem('stealth_token') || ''
+                    };
+                    const res = await fetch('/api/v1/rules', { method: 'POST', body: JSON.stringify(this.form.rule), headers })
                     if (res.ok) { this.hideModal(); this.fetchData(); }
                 },
                 async deleteItem(type, id) {
                     if (!confirm('确定要删除吗？这将不可撤销。')) return
+                    const headers = { 'Authorization': localStorage.getItem('stealth_token') || '' };
                     try {
-                        const res = await fetch(`/api/v1/${type}/${id}`, { method: 'DELETE' })
+                        const res = await fetch(`/api/v1/${type}/${id}`, { method: 'DELETE', headers })
                         if (res.ok) { this.fetchData() }
                         else { alert('删除失败') }
                     } catch (err) { alert('请求出错: ' + err) }
                 },
                 async requestCert() {
                     if (!this.form.entry.domain) return alert('请先输入解析域名');
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': localStorage.getItem('stealth_token') || ''
+                    };
                     this.certLoading = true;
                     try {
                         const res = await fetch('/api/v1/entries/issue-cert', {
                             method: 'POST',
                             body: JSON.stringify({ domain: this.form.entry.domain }),
-                            headers: { 'Content-Type': 'application/json' }
+                            headers
                         });
                         const data = await res.json();
                         if (res.ok) {

@@ -20,6 +20,20 @@ func main() {
 	// 2. 设置 Gin 路由
 	r := gin.Default()
 
+	// --- 鉴权中间件 ---
+	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
+	authMiddleware := func(c *gin.Context) {
+		if adminToken != "" {
+			token := c.GetHeader("Authorization")
+			if token != adminToken {
+				c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+				return
+			}
+		}
+		c.Next()
+	}
+	// ----------------
+
 	// 静态文件目录 (用于面板)
 	// 增加文件存在性检查，防止 Panic
 	if _, err := os.Stat("./web/index.html"); err == nil {
@@ -32,6 +46,7 @@ func main() {
 
 	// API 分组
 	v1 := r.Group("/api/v1")
+	v1.Use(authMiddleware)
 	{
 		// 节点管理 (Entry)
 		v1.GET("/entries", api.ListEntryNodesHandler)
