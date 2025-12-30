@@ -37,9 +37,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
 		users = append(users, map[string]interface{}{
-			"uuid":  rule.UserID,
-			"email": rule.UserEmail,
-			"flow":  "xtls-rprx-vision",
+			"uuid": rule.UserID,
+			"name": rule.UserEmail,
+			"flow": "xtls-rprx-vision",
 		})
 	}
 	vlessInbound["users"] = users
