@@ -47,15 +47,27 @@ esac
 download_binary() {
   local name=$1
   local target_name=$2
-  echo -e "${YELLOW}正在从 GitHub 下载最新版 $name ($PLATFORM)...${NC}"
-  # 获取最新 Release 的下载 URL
-  URL="https://github.com/$REPO/releases/latest/download/${name}-${PLATFORM}"
-  curl -L -o "$BIN_DIR/$target_name" "$URL"
-  chmod +x "$BIN_DIR/$target_name"
+  echo -e "${YELLOW}正在探测最新版本...${NC}"
+  
+  # 通过 API 获取最新 tag_name
+  LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  
+  if [ -z "$LATEST_TAG" ]; then
+    echo -e "${RED}无法获取最新版本号，请检查网络或仓库是否公开。${NC}"
+    exit 1
+  fi
+
+  echo -e "${YELLOW}正在从 GitHub 下载 $name ($LATEST_TAG | $PLATFORM)...${NC}"
+  URL="https://github.com/$REPO/releases/download/$LATEST_TAG/${name}-${PLATFORM}"
+  
+  # 使用 -f 参数，如果 404 则返回错误而不保存空文件
+  curl -L -f -o "$BIN_DIR/$target_name" "$URL"
+  
   if [ $? -eq 0 ]; then
-    echo -e "${GREEN}$name 下载并安装成功!${NC}"
+    chmod +x "$BIN_DIR/$target_name"
+    echo -e "${GREEN}$name 安装成功!${NC}"
   else
-    echo -e "${RED}$name 下载失败，请检查网络或确认 Release 是否已发布。${NC}"
+    echo -e "${RED}$name 下载失败! URL: $URL${NC}"
     exit 1
   fi
 }
