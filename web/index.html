@@ -198,19 +198,30 @@
         <!-- Add Exit Modal -->
         <div v-if="modal.type === 'exit'" class="fixed inset-0 modal-bg flex items-center justify-center p-4 z-50">
             <div class="glass-card p-8 rounded-3xl w-full max-w-lg shadow-2xl">
-                <h2 class="text-2xl font-bold mb-6">新增落地节点 (小鸡)</h2>
+                <h2 class="text-2xl font-bold mb-6 text-emerald-400">新增落地节点 (小鸡)</h2>
                 <div class="space-y-4 text-sm">
-                    <label>备注名称<input v-model="form.exit.name" placeholder="例如: 日本落地"></label>
+                    <label>备注名称<input v-model="form.exit.name" placeholder="例如: 日本 01"></label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label>服务器地址<input v-model="form.exit.server" placeholder="1.2.3.4"></label>
+                        <label>端口<input type="number" v-model.number="form.exit.server_port"
+                                placeholder="12345"></label>
+                    </div>
                     <label>出口协议
                         <select v-model="form.exit.protocol">
-                            <option value="ss">Shadowsocks</option>
-                            <option value="vless">VLESS</option>
-                            <option value="vmess">VMess</option>
+                            <option value="ss">Shadowsocks (加密转发)</option>
+                            <option value="vless">VLESS (带 TLS)</option>
+                            <option value="socks">SOCKS5</option>
                         </select>
                     </label>
-                    <label>节点配置 JSON (Sing-box Outbound 格式)
-                        <textarea v-model="form.exit.config" rows="5" class="mt-2"
-                            placeholder='{"server":"1.2.3.4", "server_port": 123, ...}'></textarea>
+                    <label v-if="form.exit.protocol === 'ss'">加密方式
+                        <select v-model="form.exit.method">
+                            <option value="aes-256-gcm">aes-256-gcm</option>
+                            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
+                            <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm</option>
+                        </select>
+                    </label>
+                    <label>{{ form.exit.protocol === 'ss' ? '连接密码' : '用户 UUID / 密码' }}
+                        <input v-model="form.exit.password" placeholder="请输入密钥">
                     </label>
                 </div>
                 <div class="flex gap-4 mt-8">
@@ -277,7 +288,7 @@
                     modal: { type: null },
                     form: {
                         entry: { name: '', domain: '', port: 8443, certificate: '/etc/stealthforward/certs/cert.crt', key: '/etc/stealthforward/certs/cert.key', fallback: '127.0.0.1:8080' },
-                        exit: { name: '', protocol: 'ss', config: '' },
+                        exit: { name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' },
                         rule: { user_email: '', user_id: '', entry_node_id: null, exit_node_id: null }
                     }
                 }
@@ -303,8 +314,30 @@
                     if (res.ok) { this.hideModal(); this.fetchData(); }
                 },
                 async submitExit() {
-                    const res = await fetch('/api/v1/exits', { method: 'POST', body: JSON.stringify(this.form.exit), headers: { 'Content-Type': 'application/json' } })
-                    if (res.ok) { this.hideModal(); this.fetchData(); }
+                    // 自动构建 Sing-box 兼容的 JSON 配置
+                    let configObj = {
+                        server: this.form.exit.server,
+                        server_port: this.form.exit.server_port
+                    };
+
+                    if (this.form.exit.protocol === 'ss') {
+                        configObj.method = this.form.exit.method;
+                        configObj.password = this.form.exit.password;
+                    } else if (this.form.exit.protocol === 'vless') {
+                        configObj.uuid = this.form.exit.password;
+                        configObj.tls = { enabled: true, insecure: true }; // 落地通常带 TLS
+                    } else if (this.form.exit.protocol === 'socks') {
+                        configObj.password = this.form.exit.password;
+                    }
+
+                    const payload = {
+                        name: this.form.exit.name,
+                        protocol: this.form.exit.protocol,
+                        config: JSON.stringify(configObj)
+                    };
+
+                    const res = await fetch('/api/v1/exits', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } })
+                    if (res.ok) { this.hideModal(); this.fetchData(); this.form.exit = { name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' }; }
                 },
                 async submitRule() {
                     const res = await fetch('/api/v1/rules', { method: 'POST', body: JSON.stringify(this.form.rule), headers: { 'Content-Type': 'application/json' } })
