@@ -54,7 +54,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// 注入“自研特色”回落配置
 	fallbackHost := "127.0.0.1"
-	fallbackPort := 80
+	fallbackPort := 80 // Nginx 托管伪装页
 	if entry.Fallback != "" {
 		parts := strings.Split(entry.Fallback, ":")
 		if len(parts) == 2 {
