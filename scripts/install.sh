@@ -80,10 +80,17 @@ install_sing_box() {
 install_controller() {
   show_logo
   echo -e "${BLUE}开始安装 StealthForward Controller (中控端)...${NC}"
-  mkdir -p $INSTALL_DIR
+  
+  # 解决 Text file busy：如果服务正在运行，先停止它
+  systemctl stop stealth-controller 2>/dev/null
+  
+  mkdir -p $INSTALL_DIR/web
   download_binary "stealth-controller" "stealth-controller"
   download_binary "stealth-admin" "stealth-admin"
-  # ... (后续 systemd 配置保持不变)
+
+  # 下载 Dashboard 静态文件
+  echo -e "${YELLOW}正在同步可视化面板资源...${NC}"
+  curl -L -o "$INSTALL_DIR/web/index.html" "https://raw.githubusercontent.com/$REPO/main/web/index.html"
   
   cat > /etc/systemd/system/stealth-controller.service <<EOF
 [Unit]
@@ -109,6 +116,9 @@ install_agent() {
   install_sing_box
   
   echo -e "${BLUE}开始安装 StealthForward Agent (由出口机/入口机执行)...${NC}"
+  
+  # 解决 Text file busy
+  systemctl stop stealth-agent 2>/dev/null
   
   mkdir -p $INSTALL_DIR/www
   download_binary "stealth-agent" "stealth-agent"
