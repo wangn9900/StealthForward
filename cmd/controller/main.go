@@ -32,14 +32,17 @@ func main() {
 		// 节点管理 (Entry)
 		v1.GET("/entries", api.ListEntryNodesHandler)
 		v1.POST("/entries", api.RegisterNodeHandler)
+		v1.DELETE("/entries/:id", api.DeleteEntryNodeHandler)
 
 		// 落地管理 (Exit)
 		v1.GET("/exits", api.ListExitNodesHandler)
 		v1.POST("/exits", api.CreateExitNodeHandler)
+		v1.DELETE("/exits/:id", api.DeleteExitNodeHandler)
 
 		// 转发链路管理 (Rules)
 		v1.GET("/rules", api.ListForwardingRulesHandler)
 		v1.POST("/rules", api.CreateForwardingRuleHandler)
+		v1.DELETE("/rules/:id", api.DeleteForwardingRuleHandler)
 
 		// Agent 获取配置的核心接口
 		// 例如: GET /api/v1/node/1/config

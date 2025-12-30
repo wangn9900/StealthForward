@@ -106,3 +106,21 @@ func ListEntryNodesHandler(c *gin.Context) {
 	database.DB.Find(&entries)
 	c.JSON(http.StatusOK, entries)
 }
+
+func DeleteEntryNodeHandler(c *gin.Context) {
+	id := c.Param("id")
+	database.DB.Delete(&models.EntryNode{}, id)
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+func DeleteExitNodeHandler(c *gin.Context) {
+	id := c.Param("id")
+	database.DB.Delete(&models.ExitNode{}, id)
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+func DeleteForwardingRuleHandler(c *gin.Context) {
+	id := c.Param("id")
+	database.DB.Delete(&models.ForwardingRule{}, id)
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
