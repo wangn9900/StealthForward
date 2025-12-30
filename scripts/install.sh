@@ -72,7 +72,31 @@ download_binary() {
 
 install_sing_box() {
   echo -e "${YELLOW}正在安装 Sing-box 核心...${NC}"
+  # 优先尝试官方安装脚本
   bash <(curl -Ls https://raw.githubusercontent.com/SagerNet/sing-box/main/install.sh)
+  
+  # 手动补齐服务文件，确保路径正确
+  cat > /etc/systemd/system/sing-box.service <<EOF
+[Unit]
+Description=sing-box Service
+After=network.target nss-lookup.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/sing-box
+ExecStart=/usr/bin/sing-box run -c /etc/sing-box/config.json
+Restart=on-failure
+RestartSec=10
+LimitNOFILE= infinity
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable sing-box
+  echo -e "${GREEN}Sing-box 核心与服务安装完成！${NC}"
 }
 
 install_controller() {

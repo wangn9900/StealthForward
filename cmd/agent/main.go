@@ -17,6 +17,7 @@ func main() {
 	wwwDir := flag.String("www", "/etc/stealthforward/www", "Directory to store masquerade site")
 	singboxPath := flag.String("sbpath", "/usr/bin/sing-box", "Path to sing-box binary")
 	fallbackPort := flag.Int("fallback-port", 8080, "Port for the local masquerade server")
+	once := flag.Bool("once", false, "Run once and exit")
 
 	flag.Parse()
 
@@ -34,6 +35,12 @@ func main() {
 
 	// 3. 启动本地伪装服务器（用于 SNI 回落目的地）
 	ag.StartMasqueradeServer(*fallbackPort)
+
+	// 如果指定了 -once，运行一次后退出
+	if *once {
+		ag.RunOnce()
+		return
+	}
 
 	// 4. 循环同步任务
 	ticker := time.NewTicker(time.Duration(*syncInterval) * time.Second)
