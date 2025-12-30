@@ -2,8 +2,6 @@ package generator
 
 import (
 	"encoding/json"
-	"strconv"
-	"strings"
 
 	"github.com/wangn9900/StealthForward/internal/models"
 )
@@ -48,27 +46,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"listen_port":                entry.Port,
 		"sniff":                      true,
 		"sniff_override_destination": true,
-		"users":                      []interface{}{},
-	}
-
-	// 默认回落到本地 80
-	fallbackHost := "127.0.0.1"
-	fallbackPort := 80
-	if entry.Fallback != "" {
-		parts := strings.Split(entry.Fallback, ":")
-		if len(parts) == 2 {
-			fallbackHost = parts[0]
-			fallbackPort, _ = strconv.Atoi(parts[1])
-		} else {
-			fallbackHost = entry.Fallback
-		}
-	}
-
-	vlessInbound["fallbacks"] = []interface{}{
-		map[string]interface{}{
-			"server":      fallbackHost,
-			"server_port": fallbackPort,
-		},
 	}
 
 	users := []map[string]interface{}{}
@@ -92,7 +69,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	config.Inbounds = append(config.Inbounds, vlessInbound)
 
 	// 2. 构建 Outbounds
-	// 按照用户图示顺序：direct -> proxies -> block
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{
 		"type": "direct",
 		"tag":  "direct",
@@ -140,9 +116,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"tag":  "block",
 	})
 
-	// 3. 构建 Routing (包含基础分流规则)
+	// 3. 构建 Routing
 	rulesList := []interface{}{
-		// A. 本地与 DNS 强制直连
 		map[string]interface{}{
 			"ip_cidr":  []string{"127.0.0.1/32", "::1/128"},
 			"outbound": "direct",
@@ -153,8 +128,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		},
 	}
 
-	// C. 用户自定义映射 (多对一或多对多)
-	// 记录入口节点的默认绑定落地
 	var defaultExitName string
 	if entry.TargetExitID != 0 {
 		for _, e := range exits {
@@ -181,7 +154,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 最终路由策略
 	routeConfig := map[string]interface{}{
 		"rules": rulesList,
 		"final": "direct",
