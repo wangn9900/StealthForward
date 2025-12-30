@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/wangn9900/StealthForward/internal/agent"
@@ -22,8 +24,23 @@ func main() {
 
 	flag.Parse()
 
+	// 智能探测 Sing-box 路径
+	if _, err := os.Stat(*singboxPath); os.IsNotExist(err) {
+		candidates := []string{"/usr/local/bin/sing-box", "/usr/bin/sing-box"}
+		for _, c := range candidates {
+			if _, err := os.Stat(c); err == nil {
+				*singboxPath = c
+				break
+			}
+		}
+		// 如果还是没找到，尝试从 PATH 环境找
+		if lp, err := exec.LookPath("sing-box"); err == nil {
+			*singboxPath = lp
+		}
+	}
+
 	log.Printf("StealthForward Agent starting for Node ID: %d", *nodeID)
-	log.Printf("Connecting to Controller: %s", *controllerAddr)
+	log.Printf("Sing-box path: %s", *singboxPath)
 
 	// 2. 初始化 Agent
 	ag := agent.NewAgent(agent.Config{
