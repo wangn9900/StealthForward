@@ -20,6 +20,7 @@ type EntryNode struct {
 	V2boardURL    string `json:"v2board_url"`     // V2Board API 地址
 	V2boardKey    string `json:"v2board_key"`     // 通讯密钥
 	V2boardNodeID int    `json:"v2board_node_id"` // V2Board 正式节点的 ID
+	V2boardType   string `json:"v2board_type"`    // v2ray, shadowsocks, trojan
 
 	CreatedAt time.Time `json:"created_at"`
 }

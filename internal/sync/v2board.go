@@ -37,24 +37,26 @@ func StartV2boardSync() {
 
 func syncAllNodes() {
 	var entries []models.EntryNode
-	// 只要配置了 URL 和 KEY 的节点才需要同步
 	database.DB.Where("v2board_url <> '' AND v2board_key <> ''").Find(&entries)
 
 	for _, entry := range entries {
-		users, err := fetchUsersFromV2Board(entry.V2boardURL, entry.V2boardKey, entry.V2boardNodeID)
+		// 如果没填类型，默认为 v2ray
+		nodeType := entry.V2boardType
+		if nodeType == "" {
+			nodeType = "v2ray"
+		}
+		users, err := fetchUsersFromV2Board(entry.V2boardURL, entry.V2boardKey, entry.V2boardNodeID, nodeType)
 		if err != nil {
 			log.Printf("同步失败 (Entry #%d): %v", entry.ID, err)
 			continue
 		}
-
-		// 将获取到的用户写入 ForwardingRule 表
 		updateRulesForEntry(entry, users)
 	}
 }
 
-func fetchUsersFromV2Board(apiURL, key string, nodeID int) ([]V2boardUser, error) {
-	// 使用 UniProxy 标准接口
-	fullURL := fmt.Sprintf("%s/api/v1/server/UniProxy/user?node_id=%d&token=%s", apiURL, nodeID, key)
+func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V2boardUser, error) {
+	// 加上 node_type 参数，很多 V2Board 版本没这个会报 500
+	fullURL := fmt.Sprintf("%s/api/v1/server/UniProxy/user?node_id=%d&token=%s&node_type=%s", apiURL, nodeID, key, nodeType)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(fullURL)
