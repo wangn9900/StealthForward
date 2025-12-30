@@ -64,9 +64,11 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	vlessInbound["fallback"] = map[string]interface{}{
-		"server":      fallbackHost,
-		"server_port": fallbackPort,
+	vlessInbound["fallbacks"] = []interface{}{
+		map[string]interface{}{
+			"server":      fallbackHost,
+			"server_port": fallbackPort,
+		},
 	}
 
 	users := []map[string]interface{}{}
