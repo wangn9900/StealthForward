@@ -4,9 +4,6 @@ import (
 	"log"
 	"os"
 
-	"log"
-	"os"
-
 	"github.com/gin-gonic/gin"
 	"github.com/nasstoki/stealthforward/internal/api"
 	"github.com/nasstoki/stealthforward/internal/database"
