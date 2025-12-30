@@ -9,6 +9,7 @@ import (
 // SingBoxConfig 定义了简化的 sing-box 配置文件结构
 type SingBoxConfig struct {
 	Log       interface{}   `json:"log"`
+	DNS       interface{}   `json:"dns,omitempty"`
 	Inbounds  []interface{} `json:"inbounds"`
 	Outbounds []interface{} `json:"outbounds"`
 	Route     interface{}   `json:"route"`
@@ -19,6 +20,11 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	config := SingBoxConfig{
 		Log: map[string]interface{}{
 			"level": "debug",
+		},
+		DNS: map[string]interface{}{
+			"servers": []interface{}{
+				map[string]interface{}{"address": "8.8.8.8", "tag": "google"},
+			},
 		},
 	}
 
@@ -66,6 +72,15 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		if sbType == "ss" {
 			sbType = "shadowsocks"
 		}
+
+		// 关键兼容性修复：映射 v2board/通用风格参数到 sing-box
+		if port, ok := exitOutbound["port"]; ok {
+			exitOutbound["server_port"] = port
+		}
+		if addr, ok := exitOutbound["address"]; ok {
+			exitOutbound["server"] = addr
+		}
+
 		exitOutbound["type"] = sbType
 		exitOutbound["tag"] = "out-" + exit.Name
 		config.Outbounds = append(config.Outbounds, exitOutbound)
