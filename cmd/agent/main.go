@@ -13,7 +13,7 @@ func main() {
 	controllerAddr := flag.String("controller", "http://your-controller-ip:8080", "Controller API address")
 	nodeID := flag.Int("node", 1, "Node ID for this agent")
 	syncInterval := flag.Int("interval", 60, "Sync interval in seconds")
-	configDir := flag.String("dir", "/etc/stealthforward", "Directory to store config.json")
+	configDir := flag.String("dir", "/etc/sing-box", "Directory to store config.json")
 	wwwDir := flag.String("www", "/etc/stealthforward/www", "Directory to store masquerade site")
 	singboxPath := flag.String("sbpath", "/usr/bin/sing-box", "Path to sing-box binary")
 	fallbackPort := flag.Int("fallback-port", 8080, "Port for the local masquerade server")

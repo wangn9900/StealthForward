@@ -28,14 +28,16 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"tag":         "vless-in",
 		"listen":      "::",
 		"listen_port": entry.Port,
-		"sniff":       true,
-		"users":       []interface{}{},
+		"sniff": map[string]interface{}{
+			"enabled": true,
+		},
+		"users": []interface{}{},
 	}
 
 	// 添加用户到 Inbound
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
-		// 这里强制开启 xtls-rprx-vision 流控
+		// 只有启用的规则才添加
 		users = append(users, map[string]interface{}{
 			"uuid":  rule.UserID,
 			"email": rule.UserEmail,
@@ -51,10 +53,15 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"certificate_path": entry.Certificate,
 		"key_path":         entry.Key,
 		"min_version":      "1.2",
+		"alpn":             []string{"http/1.1", "h2"},
 	}
 
 	// 核心防御：回落设置 (SNI 回落)
-	vlessInbound["dest"] = entry.Fallback
+	vlessInbound["fallbacks"] = []interface{}{
+		map[string]interface{}{
+			"dest": entry.Fallback,
+		},
+	}
 
 	config.Inbounds = append(config.Inbounds, vlessInbound)
 
@@ -63,6 +70,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		var exitOutbound map[string]interface{}
 		json.Unmarshal([]byte(exit.Config), &exitOutbound)
 
+		// 映射协议类型到 sing-box type
+		sbType := exit.Protocol
+		if sbType == "ss" {
+			sbType = "shadowsocks"
+		}
+		exitOutbound["type"] = sbType
 		exitOutbound["tag"] = "out-" + exit.Name
 		config.Outbounds = append(config.Outbounds, exitOutbound)
 	}
