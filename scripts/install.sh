@@ -71,20 +71,25 @@ download_binary() {
 }
 
 install_sing_box() {
-  echo -e "${YELLOW}正在检查/安装 Sing-box 核心...${NC}"
+  echo -e "${YELLOW}正在安装 Sing-box 魔改版 (支持 VLESS Fallback)...${NC}"
   
-  # 强制运行官方安装脚本以确保最新版
-  bash <(curl -Ls https://raw.githubusercontent.com/SagerNet/sing-box/main/install.sh)
+  # 从 StealthForward Release 下载魔改版 sing-box
+  SB_URL="https://github.com/$REPO/releases/latest/download/sing-box-mod-$ARCH"
   
-  # 如果官方脚本没成功，或者想确保最新，可以考虑在这里增加强制下载二进制逻辑
-  # 但通常官方脚本是最稳的，关键是确保它运行了
+  echo -e "${CYAN}正在下载魔改版 Sing-box...${NC}"
+  curl -Lo /usr/local/bin/sing-box "$SB_URL"
+  chmod +x /usr/local/bin/sing-box
   
-  SB_PATH=$(which sing-box)
-  if [ -z "$SB_PATH" ]; then
-    SB_PATH="/usr/local/bin/sing-box"
+  SB_PATH="/usr/local/bin/sing-box"
+  
+  # 验证安装
+  if [ -f "$SB_PATH" ]; then
+    echo -e "${GREEN}魔改版 Sing-box 安装成功!${NC}"
+    echo -e "${CYAN}版本: $($SB_PATH version 2>/dev/null | head -n 1 || echo '魔改版')${NC}"
+  else
+    echo -e "${RED}Sing-box 安装失败!${NC}"
+    exit 1
   fi
-
-  echo -e "${CYAN}当前 Sing-box 路径: $SB_PATH | 版本: $($SB_PATH version | head -n 1)${NC}"
 
   cat > /etc/systemd/system/sing-box.service <<EOF
 [Unit]
@@ -147,11 +152,6 @@ EOF
 }
 
 install_agent() {
-  echo -e "${YELLOW}正在安装 Nginx 及其依赖 (Sniproxy 方案必需)...${NC}"
-  apt-get update && apt-get install -y nginx libnginx-mod-stream || yum install -y nginx nginx-mod-stream
-  systemctl enable nginx
-  systemctl start nginx
-
   install_sing_box
   
   show_logo

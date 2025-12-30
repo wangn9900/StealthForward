@@ -20,19 +20,33 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
 
-      - name: Build Binaries
+      - name: Build StealthForward Binaries
         run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} cmd/agent/main.go
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
 
+      - name: Clone and Build Sing-box Mod (with VLESS Fallback)
+        run: |
+          # 克隆 V2bX 的魔改版 sing-box
+          git clone --depth 1 https://github.com/wangn9900/V2bX.git v2bx_temp
+          cd v2bx_temp/sing-box_mod
+          
+          # 编译魔改版 sing-box 核心
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../../sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
+          
+          cd ../..
+          rm -rf v2bx_temp
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: stealth-binaries-${{ matrix.goarch }}
-          path: stealth-*
+          path: |
+            stealth-*
+            sing-box-mod-*
 
   release:
     needs: build
@@ -51,8 +65,10 @@ jobs:
             stealth-binaries-amd64/stealth-controller-amd64
             stealth-binaries-amd64/stealth-agent-amd64
             stealth-binaries-amd64/stealth-admin-amd64
+            stealth-binaries-amd64/sing-box-mod-amd64
             stealth-binaries-arm64/stealth-controller-arm64
             stealth-binaries-arm64/stealth-agent-arm64
             stealth-binaries-arm64/stealth-admin-arm64
+            stealth-binaries-arm64/sing-box-mod-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

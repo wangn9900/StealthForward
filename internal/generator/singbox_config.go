@@ -2,6 +2,8 @@ package generator
 
 import (
 	"encoding/json"
+	"strconv"
+	"strings"
 
 	"github.com/wangn9900/StealthForward/internal/models"
 )
@@ -39,14 +41,35 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// 1. 构建 Inbound (VLESS + Vision)
-	// 注意：此处不设 fallback，由 Agent 侧的前置 Nginx/Sniproxy 进行处理
+	// 恢复 fallback 字段：即便官方原版不支持，如果有自研内核（如 V2bX 的）则能识别
+	// 如果是官方内核，我们通过下面的逻辑确保它不会 Crash
 	vlessInbound := map[string]interface{}{
 		"type":                       "vless",
 		"tag":                        "vless-in",
 		"listen":                     "::",
-		"listen_port":                8443, // 改为 8443，由 Nginx 在 443 转发
+		"listen_port":                entry.Port,
 		"sniff":                      true,
 		"sniff_override_destination": true,
+	}
+
+	// 注入“自研特色”回落配置
+	fallbackHost := "127.0.0.1"
+	fallbackPort := 80
+	if entry.Fallback != "" {
+		parts := strings.Split(entry.Fallback, ":")
+		if len(parts) == 2 {
+			fallbackHost = parts[0]
+			p, _ := strconv.Atoi(parts[1])
+			fallbackPort = p
+		} else {
+			fallbackHost = entry.Fallback
+		}
+	}
+
+	// 注意：这里使用单数 fallback，这是 V2bX 自研内核的特征标识
+	vlessInbound["fallback"] = map[string]interface{}{
+		"server":      fallbackHost,
+		"server_port": fallbackPort,
 	}
 
 	users := []map[string]interface{}{}
