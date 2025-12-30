@@ -77,34 +77,35 @@ func fetchUsersFromV2Board(apiURL, key string, nodeID int) ([]V2boardUser, error
 }
 
 func updateRulesForEntry(entry models.EntryNode, users []V2boardUser) {
-	// 如果该入口没有绑定落地（TargetExitID 为 0），则同步没意义
-	if entry.TargetExitID == 0 {
-		return
-	}
+	log.Printf("Entry #%d [%s]: 开始处理同步, 抓取到用户数: %d", entry.ID, entry.Name, len(users))
+
+	targetExit := entry.TargetExitID
 
 	for _, user := range users {
 		var rule models.ForwardingRule
-		// 根据 Email 和 EntryID 查重
 		err := database.DB.Where("user_email = ? AND entry_node_id = ?", user.Email, entry.ID).First(&rule).Error
 
 		if err != nil {
-			// 新增用户规则
 			newRule := models.ForwardingRule{
 				EntryNodeID: entry.ID,
-				ExitNodeID:  entry.TargetExitID,
+				ExitNodeID:  targetExit,
 				UserEmail:   user.Email,
 				UserID:      user.UUID,
-				Enabled:     true,
+				Enabled:     targetExit != 0,
 			}
 			database.DB.Create(&newRule)
-			log.Printf("自动添加用户: %s -> Entry #%d", user.Email, entry.ID)
 		} else {
-			// 更新 UUID (防止用户在 V2board 修改了订阅或者定期更换)
-			if rule.UserID != user.UUID {
+			if rule.UserID != user.UUID || rule.ExitNodeID != targetExit {
 				rule.UserID = user.UUID
+				rule.ExitNodeID = targetExit
+				rule.Enabled = targetExit != 0
 				database.DB.Save(&rule)
-				log.Printf("更新用户 UUID: %s", user.Email)
 			}
 		}
 	}
+}
+
+// GlobalSyncNow 提供给 API 调用的立即同步接口
+func GlobalSyncNow() {
+	go syncAllNodes()
 }

@@ -239,7 +239,7 @@
                         <div class="space-y-3 mt-2">
                             <input v-model="form.entry.v2board_url" placeholder="站点 URL: https://v2.example.com">
                             <div class="grid grid-cols-2 gap-4">
-                                <input v-model="form.entry.v2board_key" placeholder="通讯密钥 (Key)">
+                                <input v-model="form.entry.v2board_key" type="password" placeholder="通讯密钥 (Key)">
                                 <input v-model.number="form.entry.v2board_node_id" type="number" placeholder="节点 ID">
                             </div>
                         </div>
@@ -383,8 +383,20 @@
                         'Content-Type': 'application/json',
                         'Authorization': localStorage.getItem('stealth_token') || ''
                     };
-                    const res = await fetch('/api/v1/entries', { method: 'POST', body: JSON.stringify(this.form.entry), headers })
-                    if (res.ok) { this.hideModal(); this.fetchData(); }
+                    try {
+                        const res = await fetch('/api/v1/entries', { method: 'POST', body: JSON.stringify(this.form.entry), headers })
+                        if (res.ok) {
+                            this.hideModal();
+                            this.fetchData();
+                            // 提交后触发一次立即同步
+                            fetch('/api/v1/sync', { method: 'POST', headers });
+                        } else {
+                            const errData = await res.json();
+                            alert('保存失败: ' + (errData.error || '未知错误'));
+                        }
+                    } catch (err) {
+                        alert('网络请求失败: ' + err);
+                    }
                 },
                 async submitExit() {
                     // 自动构建 Sing-box 兼容的 JSON 配置

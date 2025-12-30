@@ -10,6 +10,7 @@ import (
 	"github.com/nasstoki/stealthforward/internal/database"
 	"github.com/nasstoki/stealthforward/internal/generator"
 	"github.com/nasstoki/stealthforward/internal/models"
+	"github.com/nasstoki/stealthforward/internal/sync"
 )
 
 // GetConfigHandler 为指定的入口节点生成 Sing-box 配置
@@ -56,6 +57,18 @@ func GetConfigHandler(c *gin.Context) {
 	c.String(http.StatusOK, config)
 }
 
+func RegisterNodeHandler(c *gin.Context) {
+	var entry models.EntryNode
+	if err := c.ShouldBindJSON(&entry); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	database.DB.Save(&entry)
+	// 保存成功后立即尝试拉取一次 V2Board 数据
+	sync.GlobalSyncNow()
+	c.JSON(http.StatusOK, entry)
+}
+
 // ExitNode 管理接口
 func CreateExitNodeHandler(c *gin.Context) {
 	var exit models.ExitNode
@@ -92,17 +105,6 @@ func ListForwardingRulesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, rules)
 }
 
-// RegisterNodeHandler 注册或更新入口节点的简单实现
-func RegisterNodeHandler(c *gin.Context) {
-	var entry models.EntryNode
-	if err := c.ShouldBindJSON(&entry); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	database.DB.Save(&entry)
-	c.JSON(http.StatusOK, entry)
-}
-
 func ListEntryNodesHandler(c *gin.Context) {
 	var entries []models.EntryNode
 	database.DB.Find(&entries)
@@ -125,6 +127,11 @@ func DeleteForwardingRuleHandler(c *gin.Context) {
 	id := c.Param("id")
 	database.DB.Delete(&models.ForwardingRule{}, id)
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+func TriggerSyncHandler(c *gin.Context) {
+	sync.GlobalSyncNow()
+	c.JSON(http.StatusOK, gin.H{"status": "sync triggered"})
 }
 
 // IssueCertHandler 使用 acme.sh 为指定域名签发证书

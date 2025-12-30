@@ -65,8 +65,10 @@ func main() {
 		v1.DELETE("/rules/:id", api.DeleteForwardingRuleHandler)
 
 		// Agent 获取配置的核心接口
-		// 例如: GET /api/v1/node/1/config
 		v1.GET("/node/:id/config", api.GetConfigHandler)
+
+		// 触发 V2Board 同步
+		v1.POST("/sync", api.TriggerSyncHandler)
 	}
 
 	log.Println("StealthForward Controller is running on :8080")
