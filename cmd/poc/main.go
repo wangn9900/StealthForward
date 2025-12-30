@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/nasstoki/stealthforward/internal/generator"
-	"github.com/nasstoki/stealthforward/internal/models"
+	"github.com/wangn9900/StealthForward/internal/generator"
+	"github.com/wangn9900/StealthForward/internal/models"
 )
 
 func main() {
-	// 1. 模拟一个带 SNI 回落的入口节点 (参考用户截图证据)
+	// 1. 模拟一个带 SNI 回落的入口节�?(参考用户截图证�?
 	entry := &models.EntryNode{
 		ID:          1,
 		Name:        "US-Entry-Fallback",

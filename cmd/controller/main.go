@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nasstoki/stealthforward/internal/api"
-	"github.com/nasstoki/stealthforward/internal/database"
-	"github.com/nasstoki/stealthforward/internal/sync"
+	"github.com/wangn9900/StealthForward/internal/api"
+	"github.com/wangn9900/StealthForward/internal/database"
+	"github.com/wangn9900/StealthForward/internal/sync"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 	// 2. 设置 Gin 路由
 	r := gin.Default()
 
-	// --- 鉴权中间件 ---
+	// --- 鉴权中间�?---
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
 	authMiddleware := func(c *gin.Context) {
 		if adminToken != "" {
@@ -34,14 +34,14 @@ func main() {
 	}
 	// ----------------
 
-	// 静态文件目录 (用于面板)
+	// 静态文件目�?(用于面板)
 	// 增加文件存在性检查，防止 Panic
 	if _, err := os.Stat("./web/index.html"); err == nil {
 		r.Static("/static", "./web/static")
 		r.StaticFile("/dashboard", "./web/index.html")
 		r.StaticFile("/", "./web/index.html")
 	} else {
-		log.Printf("警告: 未找到 Web 面板文件 (./web/index.html)，控制台将不可用。")
+		log.Printf("警告: 未找�?Web 面板文件 (./web/index.html)，控制台将不可用�?)
 	}
 
 	// API 分组
@@ -64,7 +64,7 @@ func main() {
 		v1.POST("/rules", api.CreateForwardingRuleHandler)
 		v1.DELETE("/rules/:id", api.DeleteForwardingRuleHandler)
 
-		// Agent 获取配置的核心接口
+		// Agent 获取配置的核心接�?
 		v1.GET("/node/:id/config", api.GetConfigHandler)
 
 		// 触发 V2Board 同步

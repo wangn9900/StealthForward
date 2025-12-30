@@ -64,7 +64,7 @@ func setForward(args []string) {
 	}
 	email, entryID, exitID, uuid := args[0], args[1], args[2], args[3]
 
-	// 这里简单处理 ID 类型转换
+	// 这里简单处�?ID 类型转换
 	var eid, exid int
 	fmt.Sscanf(entryID, "%d", &eid)
 	fmt.Sscanf(exitID, "%d", &exid)

@@ -5,11 +5,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/nasstoki/stealthforward/internal/agent"
+	"github.com/wangn9900/StealthForward/internal/agent"
 )
 
 func main() {
-	// 1. 定义命令行参数
+	// 1. 定义命令行参�?
 	controllerAddr := flag.String("controller", "http://your-controller-ip:8080", "Controller API address")
 	nodeID := flag.Int("node", 1, "Node ID for this agent")
 	syncInterval := flag.Int("interval", 60, "Sync interval in seconds")
@@ -25,7 +25,7 @@ func main() {
 	log.Printf("StealthForward Agent starting for Node ID: %d", *nodeID)
 	log.Printf("Connecting to Controller: %s", *controllerAddr)
 
-	// 2. 初始化 Agent
+	// 2. 初始�?Agent
 	ag := agent.NewAgent(agent.Config{
 		ControllerAddr: *controllerAddr,
 		NodeID:         *nodeID,
@@ -38,7 +38,7 @@ func main() {
 	// 3. 启动本地伪装服务器（用于 SNI 回落目的地）
 	ag.StartMasqueradeServer(*fallbackPort)
 
-	// 如果指定了 -once，运行一次后退出
+	// 如果指定�?-once，运行一次后退�?
 	if *once {
 		ag.RunOnce()
 		return
@@ -48,7 +48,7 @@ func main() {
 	ticker := time.NewTicker(time.Duration(*syncInterval) * time.Second)
 	defer ticker.Stop()
 
-	// 启动时立即运行一次
+	// 启动时立即运行一�?
 	ag.RunOnce()
 
 	for range ticker.C {

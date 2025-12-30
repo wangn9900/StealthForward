@@ -1,4 +1,4 @@
-module github.com/nasstoki/stealthforward
+module github.com/wangn9900/StealthForward
 
 go 1.25.5
 
