@@ -54,12 +54,29 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"key_path":         entry.Key,
 		"min_version":      "1.2",
 		"alpn":             []string{"http/1.1", "h2"},
+		"detour":           "fallback-in", // 握手失败回落到这个标签
 	}
 
-	// 核心防御：1.10.x 要求的字符串形式回落
-	vlessInbound["fallback"] = entry.Fallback
-
 	config.Inbounds = append(config.Inbounds, vlessInbound)
+
+	// 2. 增加回落 Inbound (配合 detour)
+	// 这个 Inbound 负责把非代理流量直接指向我们的本地伪装服务器
+	fallbackInbound := map[string]interface{}{
+		"type":   "http",
+		"tag":    "fallback-in",
+		"listen": "127.0.0.1",
+		// 注意：sing-box 1.10+ 这里通常指向另一个本地监听的服务
+	}
+	// 更稳妥的做法：直接用 redirect
+	_ = fallbackInbound
+
+	// 重新调整：既然目标是 Fallback 地址，我们用一个特殊的 redirect 或者增加一个 listen
+	// 下面是 sing-box 最标准的写法：
+	config.Inbounds = append(config.Inbounds, map[string]interface{}{
+		"type": "redirect",
+		"tag":  "fallback-in",
+		"dest": entry.Fallback,
+	})
 
 	// 2. 构建 Outbounds (落地节点)
 	for _, exit := range exits {
