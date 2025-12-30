@@ -20,6 +20,7 @@ type Config struct {
 	LocalConfigDir string
 	MasqueradeDir  string
 	SingBoxPath    string
+	AdminToken     string
 }
 
 type Agent struct {
@@ -41,7 +42,18 @@ func NewAgent(cfg Config) *Agent {
 // FetchConfig 从 Controller 获取最新的 Sing-box 配置
 func (a *Agent) FetchConfig() (string, error) {
 	url := fmt.Sprintf("%s/api/v1/node/%d/config", a.cfg.ControllerAddr, a.cfg.NodeID)
-	resp, err := http.Get(url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if a.cfg.AdminToken != "" {
+		req.Header.Set("Authorization", a.cfg.AdminToken)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}

@@ -151,6 +151,7 @@ install_agent() {
   CTRL_ADDR=${CTRL_ADDR:-http://127.0.0.1:8080}
   read -p "请输入当前节点 ID [1]: " NODE_ID
   NODE_ID=${NODE_ID:-1}
+  read -p "请输入管理口令 (STEALTH_ADMIN_TOKEN) [留空则无需鉴权]: " CTRL_TOKEN
 
   cat > /etc/systemd/system/stealth-agent.service <<EOF
 [Unit]
@@ -160,7 +161,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir $INSTALL_DIR -www $INSTALL_DIR/www
+ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir /etc/sing-box -www $INSTALL_DIR/www -token "$CTRL_TOKEN" -fallback-port 8081
 Restart=always
 RestartSec=10
 
