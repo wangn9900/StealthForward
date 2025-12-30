@@ -2,6 +2,7 @@ package generator
 
 import (
 	"encoding/json"
+
 	"github.com/nasstoki/stealthforward/internal/models"
 )
 
@@ -66,8 +67,20 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		config.Outbounds = append(config.Outbounds, exitOutbound)
 	}
 
-	// 3. 构建 Routing (根据 User Email 分流)
+	// 3. 构建 Routing (优先根据规则，最后根据默认绑定)
 	rulesList := []interface{}{}
+
+	// 记录默认出口名称
+	var defaultExitName string
+	if entry.TargetExitID != 0 {
+		for _, e := range exits {
+			if e.ID == entry.TargetExitID {
+				defaultExitName = "out-" + e.Name
+				break
+			}
+		}
+	}
+
 	for _, rule := range rules {
 		var targetExitName string
 		for _, e := range exits {
@@ -85,9 +98,17 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	config.Route = map[string]interface{}{
+	// 最终路由规则
+	routeConfig := map[string]interface{}{
 		"rules": rulesList,
 	}
+
+	// 如果有默认绑定落地，则除了显式规则外的所有流量默认走该落地
+	if defaultExitName != "" {
+		routeConfig["final"] = defaultExitName
+	}
+
+	config.Route = routeConfig
 
 	res, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
