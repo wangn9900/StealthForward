@@ -32,7 +32,7 @@ show_logo() {
 }
 
 # 核心变量
-REPO="nasstoki/stealthforward"
+REPO="wangn9900/StealthForward"
 INSTALL_DIR="/etc/stealthforward"
 BIN_DIR="/usr/local/bin"
 
