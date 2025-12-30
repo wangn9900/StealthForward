@@ -78,21 +78,30 @@ install_sing_box() {
   
   # 从 StealthForward Release 下载魔改版 sing-box
   SB_URL="https://github.com/$REPO/releases/latest/download/sing-box-mod-$ARCH"
-  
-  echo -e "${CYAN}正在下载魔改版 Sing-box...${NC}"
-  curl -Lo /usr/local/bin/sing-box "$SB_URL"
-  chmod +x /usr/local/bin/sing-box
-  
   SB_PATH="/usr/local/bin/sing-box"
   
-  # 验证安装
+  echo -e "${CYAN}正在下载魔改版 Sing-box...${NC}"
+  curl -Lo "$SB_PATH" "$SB_URL"
+  
+  # 关键：验证下载是否成功（文件至少 10MB）
+  MIN_SIZE=$((10 * 1024 * 1024))  # 10MB
   if [ -f "$SB_PATH" ]; then
-    echo -e "${GREEN}魔改版 Sing-box 安装成功!${NC}"
-    echo -e "${CYAN}版本: $($SB_PATH version 2>/dev/null | head -n 1 || echo '魔改版')${NC}"
+    FILE_SIZE=$(stat -c%s "$SB_PATH" 2>/dev/null || stat -f%z "$SB_PATH" 2>/dev/null || echo 0)
+    if [ "$FILE_SIZE" -lt "$MIN_SIZE" ]; then
+      echo -e "${RED}错误: Sing-box 下载失败或文件损坏 (大小: ${FILE_SIZE} 字节)!${NC}"
+      echo -e "${YELLOW}可能原因: 新版本正在编译中，请稍后重试或手动下载。${NC}"
+      echo -e "${CYAN}手动下载命令: curl -Lo /usr/local/bin/sing-box https://github.com/$REPO/releases/download/v1.3.20/sing-box-mod-$ARCH${NC}"
+      rm -f "$SB_PATH"
+      exit 1
+    fi
   else
-    echo -e "${RED}Sing-box 安装失败!${NC}"
+    echo -e "${RED}Sing-box 下载失败!${NC}"
     exit 1
   fi
+  
+  chmod +x "$SB_PATH"
+  echo -e "${GREEN}魔改版 Sing-box 安装成功!${NC}"
+  echo -e "${CYAN}版本: $($SB_PATH version 2>/dev/null | head -n 1 || echo '魔改版')${NC}"
 
   cat > /etc/systemd/system/sing-box.service <<EOF
 [Unit]
@@ -155,6 +164,17 @@ EOF
 }
 
 install_agent() {
+  # 1. 安装 Nginx（用于托管伪装页和申请证书）
+  echo -e "${YELLOW}正在安装 Nginx (用于伪装页和证书申请)...${NC}"
+  if command -v apt-get &> /dev/null; then
+    apt-get update && apt-get install -y nginx
+  elif command -v yum &> /dev/null; then
+    yum install -y nginx
+  fi
+  systemctl enable nginx
+  systemctl start nginx
+  
+  # 2. 安装魔改版 Sing-box
   install_sing_box
   
   show_logo
@@ -164,6 +184,15 @@ install_agent() {
   
   mkdir -p $INSTALL_DIR/www
   download_binary "stealth-agent" "stealth-agent"
+  
+  # 3. 生成并部署伪装页到 Nginx
+  echo -e "${CYAN}正在部署伪装页到 Nginx...${NC}"
+  if [ -d "/var/www/html" ]; then
+    # 如果 Agent 已生成伪装页，复制过去
+    if [ -f "$INSTALL_DIR/www/index.html" ]; then
+      cp "$INSTALL_DIR/www/index.html" /var/www/html/index.html
+    fi
+  fi
   
   read -p "请输入 Controller API 地址 [http://127.0.0.1:8080]: " CTRL_ADDR
   CTRL_ADDR=${CTRL_ADDR:-http://127.0.0.1:8080}
