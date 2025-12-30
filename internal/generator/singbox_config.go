@@ -56,12 +56,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"alpn":             []string{"http/1.1", "h2"},
 	}
 
-	// 核心防御：回落设置 (SNI 回落)
-	vlessInbound["fallbacks"] = []interface{}{
-		map[string]interface{}{
-			"dest": entry.Fallback,
-		},
-	}
+	// 核心防御：1.10.x 要求的字符串形式回落
+	vlessInbound["fallback"] = entry.Fallback
 
 	config.Inbounds = append(config.Inbounds, vlessInbound)
 
