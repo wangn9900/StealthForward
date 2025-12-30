@@ -153,22 +153,52 @@ func IssueCertHandler(c *gin.Context) {
 	certDir := "/etc/stealthforward/certs/" + req.Domain
 	exec.Command("mkdir", "-p", certDir).Run()
 
-	// 执行 acme.sh 签发命令 (使用 standalone 模式，需要 80 端口空闲)
-	// 如果服务器没有 acme.sh，脚本安装时应该已经处理或提示
 	home, _ := os.UserHomeDir()
 	acmePath := home + "/.acme.sh/acme.sh"
 
-	// 1. 尝试签发
-	output, err := exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
+	// 方案 A 增强：全自动探测模式
+	// 常见的 Webroot 路径（按优先级排列）
+	commonWebroots := []string{"/var/www/html", "/usr/share/nginx/html", "/var/www/v2board/public"}
+	var finalWebroot string
+	for _, path := range commonWebroots {
+		if _, err := os.Stat(path); err == nil {
+			finalWebroot = path
+			break
+		}
+	}
+
+	var output []byte
+	var err error
+
+	// 检查 80 端口是否被占用 (简易检测)
+	portInUse := false
+	checkCmd := exec.Command("sh", "-c", "lsof -i :80 | grep LISTEN")
+	if errCheck := checkCmd.Run(); errCheck == nil {
+		portInUse = true
+	}
+
+	if portInUse && finalWebroot != "" {
+		// 1. 如果 80 占用且有 webroot，走 webroot 模式 (无感)
+		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "-w", finalWebroot, "--force").CombinedOutput()
+	} else if portInUse && finalWebroot == "" {
+		// 2. 如果 80 占用但找不到路径，尝试停掉 nginx (后备方案)
+		exec.Command("systemctl", "stop", "nginx").Run()
+		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
+		exec.Command("systemctl", "start", "nginx").Run()
+	} else {
+		// 3. 80 没被占用，直接走 standalone
+		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "申请失败，请确保 80 端口未被占用且域名解析正确",
+			"error":  "申请失败，请确保域名解析正确且 80 端口可联通",
 			"detail": string(output),
 		})
 		return
 	}
 
-	// 2. 安装证书到指定目录
+	// 安装证书到指定目录
 	certFile := certDir + "/cert.crt"
 	keyFile := certDir + "/cert.key"
 	_, err = exec.Command(acmePath, "--install-cert", "-d", req.Domain,
