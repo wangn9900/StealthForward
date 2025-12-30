@@ -2,6 +2,10 @@ package main
 
 import (
 	"log"
+	"os"
+
+	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nasstoki/stealthforward/internal/api"
@@ -16,9 +20,14 @@ func main() {
 	r := gin.Default()
 
 	// 静态文件目录 (用于面板)
-	r.Static("/static", "./web/static")
-	r.StaticFile("/dashboard", "./web/index.html")
-	r.StaticFile("/", "./web/index.html")
+	// 增加文件存在性检查，防止 Panic
+	if _, err := os.Stat("./web/index.html"); err == nil {
+		r.Static("/static", "./web/static")
+		r.StaticFile("/dashboard", "./web/index.html")
+		r.StaticFile("/", "./web/index.html")
+	} else {
+		log.Printf("警告: 未找到 Web 面板文件 (./web/index.html)，控制台将不可用。")
+	}
 
 	// API 分组
 	v1 := r.Group("/api/v1")
