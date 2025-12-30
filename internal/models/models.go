@@ -4,18 +4,24 @@ import "time"
 
 // EntryNode 代表入口服务器（海外机）
 type EntryNode struct {
-	ID           uint      `json:"id"`
-	Name         string    `json:"name"`
-	IP           string    `json:"ip"`
-	Port         int       `json:"port"`           // 通常为 443 或 8443
-	Domain       string    `json:"domain"`         // 用于 TLS
-	Certificate  string    `json:"certificate"`    // 证书文件路径
-	Key          string    `json:"key"`            // 私钥文件路径
-	Fallback     string    `json:"fallback"`       // 回落地址，例如 "127.0.0.1:8080"
-	TargetExitID uint      `json:"target_exit_id"` // 一键中转映射的落地节点 ID
-	Protocol     string    `json:"protocol"`       // vless
-	Security     string    `json:"security"`       // xtls-vision
-	CreatedAt    time.Time `json:"created_at"`
+	ID           uint   `json:"id"`
+	Name         string `json:"name"`
+	IP           string `json:"ip"`
+	Port         int    `json:"port"`           // 通常为 443 或 8443
+	Domain       string `json:"domain"`         // 用于 TLS
+	Certificate  string `json:"certificate"`    // 证书文件路径
+	Key          string `json:"key"`            // 私钥文件路径
+	Fallback     string `json:"fallback"`       // 回落地址，例如 "127.0.0.1:8080"
+	TargetExitID uint   `json:"target_exit_id"` // 一键中转映射的落地节点 ID
+	Protocol     string `json:"protocol"`       // vless
+	Security     string `json:"security"`       // xtls-vision
+
+	// V2Board 同步配置
+	V2boardURL    string `json:"v2board_url"`     // V2Board API 地址
+	V2boardKey    string `json:"v2board_key"`     // 通讯密钥
+	V2boardNodeID int    `json:"v2board_node_id"` // V2Board 正式节点的 ID
+
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ExitNode 代表落地服务器（小鸡）

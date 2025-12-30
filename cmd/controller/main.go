@@ -7,11 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nasstoki/stealthforward/internal/api"
 	"github.com/nasstoki/stealthforward/internal/database"
+	"github.com/nasstoki/stealthforward/internal/sync"
 )
 
 func main() {
 	// 1. 初始化数据库
 	database.InitDB()
+
+	// 2. 启动 V2Board 自动同步任务
+	sync.StartV2boardSync()
 
 	// 2. 设置 Gin 路由
 	r := gin.Default()

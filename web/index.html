@@ -221,6 +221,19 @@
                             <option v-for="ex in exits" :value="ex.id">{{ex.name}} (#{{ex.id}})</option>
                         </select>
                     </label>
+
+                    <div class="border-t border-slate-800 pt-4 mt-4">
+                        <label class="text-indigo-400 font-bold flex justify-between">V2Board 自动同步 (可选)
+                            <span class="text-[10px] font-normal text-slate-500">开启后自动同步用户 UUID</span>
+                        </label>
+                        <div class="space-y-3 mt-2">
+                            <input v-model="form.entry.v2board_url" placeholder="站点 URL: https://v2.example.com">
+                            <div class="grid grid-cols-2 gap-4">
+                                <input v-model="form.entry.v2board_key" placeholder="通讯密钥 (Key)">
+                                <input v-model.number="form.entry.v2board_node_id" type="number" placeholder="节点 ID">
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="flex gap-4 mt-8">
                     <button @click="hideModal" class="flex-1 p-3 rounded-xl bg-slate-800 hover:bg-slate-700">取消</button>
@@ -324,7 +337,7 @@
                     showFabMenu: false,
                     modal: { type: null },
                     form: {
-                        entry: { name: '', domain: '', port: 8443, certificate: '/etc/stealthforward/certs/cert.crt', key: '/etc/stealthforward/certs/cert.key', fallback: '127.0.0.1:8080', target_exit_id: 0 },
+                        entry: { name: '', domain: '', port: 8443, certificate: '/etc/stealthforward/certs/cert.crt', key: '/etc/stealthforward/certs/cert.key', fallback: '127.0.0.1:8080', target_exit_id: 0, v2board_url: '', v2board_key: '', v2board_node_id: null },
                         exit: { name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' },
                         rule: { user_email: '', user_id: '', entry_node_id: null, exit_node_id: null }
                     }
