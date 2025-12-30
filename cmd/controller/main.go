@@ -33,6 +33,7 @@ func main() {
 		v1.GET("/entries", api.ListEntryNodesHandler)
 		v1.POST("/entries", api.RegisterNodeHandler)
 		v1.DELETE("/entries/:id", api.DeleteEntryNodeHandler)
+		v1.POST("/entries/issue-cert", api.IssueCertHandler)
 
 		// 落地管理 (Exit)
 		v1.GET("/exits", api.ListExitNodesHandler)

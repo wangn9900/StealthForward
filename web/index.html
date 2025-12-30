@@ -205,6 +205,12 @@
                         <label>解析域名<input v-model="form.entry.domain" placeholder="example.com"></label>
                         <label>监听端口<input type="number" v-model.number="form.entry.port" placeholder="8443"></label>
                     </div>
+                    <div>
+                        <button @click="requestCert" :disabled="certLoading"
+                            class="w-full text-xs p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 transition disabled:opacity-50">
+                            {{ certLoading ? '正在申请 SSL 证书 (预计1分钟)...' : '一键申请域名证书 (必须先解析域名)' }}
+                        </button>
+                    </div>
                     <label>证书路径<input v-model="form.entry.certificate"
                             placeholder="/etc/stealthforward/certs/cert.crt"></label>
                     <label>私钥路径<input v-model="form.entry.key" placeholder="/etc/stealthforward/certs/cert.key"></label>
@@ -311,7 +317,10 @@
         createApp({
             data() {
                 return {
-                    entries: [], exits: [], rules: [],
+                    entries: [],
+                    exits: [],
+                    rules: [],
+                    certLoading: false,
                     showFabMenu: false,
                     modal: { type: null },
                     form: {
@@ -378,6 +387,29 @@
                         if (res.ok) { this.fetchData() }
                         else { alert('删除失败') }
                     } catch (err) { alert('请求出错: ' + err) }
+                },
+                async requestCert() {
+                    if (!this.form.entry.domain) return alert('请先输入解析域名');
+                    this.certLoading = true;
+                    try {
+                        const res = await fetch('/api/v1/entries/issue-cert', {
+                            method: 'POST',
+                            body: JSON.stringify({ domain: this.form.entry.domain }),
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            alert('SSL 证书申请成功！路径已自动填入。');
+                            this.form.entry.certificate = data.cert;
+                            this.form.entry.key = data.key;
+                        } else {
+                            alert('申请失败: ' + (data.error || '未知错误'));
+                        }
+                    } catch (err) {
+                        alert('网络错误: ' + err);
+                    } finally {
+                        this.certLoading = false;
+                    }
                 }
             }
         }).mount('#app')

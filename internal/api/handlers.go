@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -123,4 +125,57 @@ func DeleteForwardingRuleHandler(c *gin.Context) {
 	id := c.Param("id")
 	database.DB.Delete(&models.ForwardingRule{}, id)
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+// IssueCertHandler 使用 acme.sh 为指定域名签发证书
+func IssueCertHandler(c *gin.Context) {
+	var req struct {
+		Domain string `json:"domain"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if req.Domain == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "domain is required"})
+		return
+	}
+
+	// 定义证书存放路径
+	certDir := "/etc/stealthforward/certs/" + req.Domain
+	exec.Command("mkdir", "-p", certDir).Run()
+
+	// 执行 acme.sh 签发命令 (使用 standalone 模式，需要 80 端口空闲)
+	// 如果服务器没有 acme.sh，脚本安装时应该已经处理或提示
+	home, _ := os.UserHomeDir()
+	acmePath := home + "/.acme.sh/acme.sh"
+
+	// 1. 尝试签发
+	output, err := exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "申请失败，请确保 80 端口未被占用且域名解析正确",
+			"detail": string(output),
+		})
+		return
+	}
+
+	// 2. 安装证书到指定目录
+	certFile := certDir + "/cert.crt"
+	keyFile := certDir + "/cert.key"
+	_, err = exec.Command(acmePath, "--install-cert", "-d", req.Domain,
+		"--fullchain-file", certFile,
+		"--key-file", keyFile).CombinedOutput()
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "证书下载/安装失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "证书申请并安装成功",
+		"cert":    certFile,
+		"key":     keyFile,
+	})
 }
