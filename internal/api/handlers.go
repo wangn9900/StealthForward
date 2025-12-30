@@ -76,7 +76,7 @@ func CreateExitNodeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	database.DB.Create(&exit)
+	database.DB.Save(&exit)
 	c.JSON(http.StatusOK, exit)
 }
 

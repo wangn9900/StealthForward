@@ -190,6 +190,12 @@
                                 <span
                                     class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">{{
                                     node.protocol }}</span>
+                                <button @click="editExit(node)" class="text-emerald-400 hover:text-emerald-300"><svg
+                                        class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                                        </path>
+                                    </svg></button>
                                 <button @click="deleteItem('exits', node.id)"
                                     class="text-rose-500 hover:text-rose-400"><svg class="w-4 h-4" fill="none"
                                         stroke="currentColor" viewBox="0 0 24 24">
@@ -354,9 +360,9 @@
                     showFabMenu: false,
                     modal: { type: null },
                     form: {
-                        entry: { name: '', ip: '', port: null, domain: '', certificate: '', key: '', fallback: '127.0.0.1:8080', target_exit_id: 0, protocol: 'vless', security: 'xtls-rprx-vision', v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
-                        exit: { name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' },
-                        rule: { user_email: '', user_id: '', entry_node_id: null, exit_node_id: null }
+                        entry: { id: null, name: '', ip: '', port: null, domain: '', certificate: '', key: '', fallback: '127.0.0.1:8080', target_exit_id: 0, protocol: 'vless', security: 'xtls-rprx-vision', v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
+                        exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' },
+                        rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null }
                     }
                 }
             },
@@ -385,7 +391,14 @@
                         this.fetchData();
                     }
                 },
-                showModal(type) { this.modal.type = type; this.showFabMenu = false; },
+                showModal(type) {
+                    this.modal.type = type;
+                    this.showFabMenu = false;
+                    // 如果是新增，重置表单
+                    if (type === 'entry') this.form.entry = { id: null, name: '', ip: '', port: null, domain: '', certificate: '', key: '', fallback: '127.0.0.1:8080', target_exit_id: 0, protocol: 'vless', security: 'xtls-rprx-vision', v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' };
+                    if (type === 'exit') this.form.exit = { id: null, name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' };
+                    if (type === 'rule') this.form.rule = { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null };
+                },
                 hideModal() { this.modal.type = null },
                 async submitEntry() {
                     const headers = {
@@ -425,6 +438,7 @@
                     }
 
                     const payload = {
+                        id: this.form.exit.id,
                         name: this.form.exit.name,
                         protocol: this.form.exit.protocol,
                         config: JSON.stringify(configObj)
@@ -484,6 +498,18 @@
                 editEntry(node) {
                     this.form.entry = { ...node };
                     this.modal.type = 'entry';
+                },
+                editExit(node) {
+                    this.form.exit = { ...node };
+                    // 解析原来的 JSON 配置到表单
+                    try {
+                        const cfg = JSON.parse(node.config);
+                        this.form.exit.server = cfg.server || cfg.address;
+                        this.form.exit.server_port = cfg.server_port || cfg.port;
+                        this.form.exit.method = cfg.method || cfg.cipher;
+                        this.form.exit.password = cfg.password || cfg.uuid || cfg.key;
+                    } catch (e) { }
+                    this.modal.type = 'exit';
                 }
             }
         }).mount('#app')

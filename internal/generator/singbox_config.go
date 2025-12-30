@@ -87,6 +87,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		if pwd, ok := exitOutbound["password"]; ok {
 			exitOutbound["password"] = pwd
 		}
+		if uuid, ok := exitOutbound["uuid"]; ok {
+			exitOutbound["uuid"] = uuid
+		}
 
 		exitOutbound["type"] = sbType
 		exitOutbound["tag"] = "out-" + exit.Name
