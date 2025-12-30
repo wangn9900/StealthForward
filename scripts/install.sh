@@ -71,12 +71,20 @@ download_binary() {
 }
 
 install_sing_box() {
-  echo -e "${YELLOW}正在安装 Sing-box 核心...${NC}"
-  # 优先尝试官方安装脚本
+  echo -e "${YELLOW}正在检查/安装 Sing-box 核心...${NC}"
+  
+  # 强制运行官方安装脚本以确保最新版
   bash <(curl -Ls https://raw.githubusercontent.com/SagerNet/sing-box/main/install.sh)
   
+  # 如果官方脚本没成功，或者想确保最新，可以考虑在这里增加强制下载二进制逻辑
+  # 但通常官方脚本是最稳的，关键是确保它运行了
+  
   SB_PATH=$(which sing-box)
-  SB_PATH=${SB_PATH:-/usr/local/bin/sing-box}
+  if [ -z "$SB_PATH" ]; then
+    SB_PATH="/usr/local/bin/sing-box"
+  fi
+
+  echo -e "${CYAN}当前 Sing-box 路径: $SB_PATH | 版本: $($SB_PATH version | head -n 1)${NC}"
 
   cat > /etc/systemd/system/sing-box.service <<EOF
 [Unit]
