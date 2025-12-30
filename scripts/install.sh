@@ -75,7 +75,9 @@ install_sing_box() {
   # 优先尝试官方安装脚本
   bash <(curl -Ls https://raw.githubusercontent.com/SagerNet/sing-box/main/install.sh)
   
-  # 手动补齐服务文件，确保路径正确
+  SB_PATH=$(which sing-box)
+  SB_PATH=${SB_PATH:-/usr/local/bin/sing-box}
+
   cat > /etc/systemd/system/sing-box.service <<EOF
 [Unit]
 Description=sing-box Service
@@ -85,7 +87,7 @@ After=network.target nss-lookup.target
 Type=simple
 User=root
 WorkingDirectory=/etc/sing-box
-ExecStart=/usr/bin/sing-box run -c /etc/sing-box/config.json
+ExecStart=$SB_PATH run -c /etc/sing-box/config.json
 Restart=on-failure
 RestartSec=10
 LimitNOFILE= infinity

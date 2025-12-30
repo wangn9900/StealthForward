@@ -24,20 +24,18 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// 1. 构建 Inbound (VLESS + Vision + Fallback)
 	vlessInbound := map[string]interface{}{
-		"type":        "vless",
-		"tag":         "vless-in",
-		"listen":      "::",
-		"listen_port": entry.Port,
-		"sniff": map[string]interface{}{
-			"enabled": true,
-		},
-		"users": []interface{}{},
+		"type":                       "vless",
+		"tag":                        "vless-in",
+		"listen":                     "::",
+		"listen_port":                entry.Port,
+		"sniff":                      true,
+		"sniff_override_destination": true,
+		"users":                      []interface{}{},
 	}
 
 	// 添加用户到 Inbound
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
-		// 只有启用的规则才添加
 		users = append(users, map[string]interface{}{
 			"uuid":  rule.UserID,
 			"email": rule.UserEmail,
@@ -53,7 +51,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"certificate_path": entry.Certificate,
 		"key_path":         entry.Key,
 		"min_version":      "1.2",
-		"alpn":             []string{"http/1.1", "h2"},
 	}
 
 	// 核心防御：回落设置 (SNI 回落)
