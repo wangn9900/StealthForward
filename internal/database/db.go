@@ -3,8 +3,8 @@ package database
 import (
 	"log"
 
+	"github.com/glebarez/sqlite"
 	"github.com/nasstoki/stealthforward/internal/models"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
