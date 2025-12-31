@@ -96,16 +96,19 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	for _, exit := range exits {
 		var exitOutbound map[string]interface{}
-		json.Unmarshal([]byte(exit.Config), &exitOutbound)
-
+		json.Unmarshal([]byte(exit.Config), &exitOutbound) // 适配 Shadowsocks 格式
 		if exit.Protocol == "ss" {
 			exitOutbound["type"] = "shadowsocks"
 			if cipher, ok := exitOutbound["cipher"]; ok {
 				exitOutbound["method"] = cipher
 			}
-			if port, ok := exitOutbound["port"]; ok {
-				exitOutbound["server_port"] = port
+			// 修正端口逻辑：优先尝试 server_port，其次尝试 port
+			finalPort := exitOutbound["port"]
+			if exitOutbound["server_port"] != nil && exitOutbound["server_port"] != float64(0) {
+				finalPort = exitOutbound["server_port"]
 			}
+			exitOutbound["server_port"] = finalPort
+
 			if addr, ok := exitOutbound["address"]; ok {
 				exitOutbound["server"] = addr
 			}
