@@ -24,10 +24,13 @@
         }
 
         .glass {
-            background: rgba(30, 41, 59, 0.4);
-            backdrop-filter: blur(12px);
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(4px);
+            /* 降低模糊半径，提升性能 */
             border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+            transform: translateZ(0);
+            /* 强制开启硬件加速 */
         }
 
         .accent-border {
@@ -241,7 +244,7 @@
                 <div class="glass p-1 rounded-3xl overflow-hidden min-h-[400px]">
                     <div class="max-h-[700px] overflow-y-auto custom-scrollbar p-3 space-y-3">
                         <div v-for="rule in rules" :key="rule.id"
-                            class="p-4 bg-slate-800/40 border border-white/5 rounded-2xl flex justify-between items-center hover:bg-indigo-500/5 transition group">
+                            class="p-4 bg-slate-800/40 border border-white/5 rounded-2xl flex justify-between items-center transition group will-change-transform">
                             <div>
                                 <div class="text-sm font-bold truncate w-40">{{ rule.user_email }}</div>
                                 <div class="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
@@ -278,7 +281,7 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div v-for="node in exits" :key="node.id"
-                        class="glass p-5 rounded-3xl group border-l-4 border-emerald-500/30">
+                        class="bg-slate-800/60 p-5 rounded-3xl group border-l-4 border-emerald-500/30 shadow-lg">
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <div class="font-bold flex items-center gap-2">{{ node.name }} <span
@@ -478,11 +481,15 @@
                     <label v-if="form.exit.protocol === 'ss'" class="flex flex-col gap-1 text-slate-500">加密方式
                         (Cipher/Method)
                         <select v-model="form.exit.method">
-                            <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm (推荐)</option>
-                            <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm</option>
-                            <option value="aes-128-gcm">aes-128-gcm</option>
-                            <option value="aes-256-gcm">aes-256-gcm</option>
-                            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
+                            <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm (SS-2022 推荐)</option>
+                            <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm (SS-2022 高强)</option>
+                            <option value="2022-blake3-chacha20-poly1305">2022-blake3-chacha20-poly1305</option>
+                            <option value="aes-128-gcm">aes-128-gcm (AEAD)</option>
+                            <option value="aes-192-gcm">aes-192-gcm (AEAD)</option>
+                            <option value="aes-256-gcm">aes-256-gcm (AEAD)</option>
+                            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305 (AEAD)</option>
+                            <option value="xchacha20-ietf-poly1305">xchacha20-ietf-poly1305 (AEAD)</option>
+                            <option value="none">none (不推荐)</option>
                         </select>
                     </label>
                     <label class="flex flex-col gap-1 text-slate-500">{{ form.exit.protocol === 'ss' ? '连接密码 (Password)'
