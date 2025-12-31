@@ -31,10 +31,23 @@ function install_ss() {
     # 2. 自定义端口
     RANDOM_PORT=$((RANDOM % 10000 + 20000))
     echo -e "\n2. 配置监听端口 (NAT 机器请填写内网转发端口):"
-    read -p "请输入端口 [默认 $RANDOM_PORT]: " PORT
-    [ -z "$PORT" ] && PORT=$RANDOM_PORT
+    read -p "请输入端口 [默认 23036]: " PORT
+    [ -z "$PORT" ] && PORT=23036
 
-    # 3. 智能探测 Sing-box (支持探测 V2bX/Tox/Xray 进程)
+    # 依赖检查与安装 (兼容 Alpine/Ubuntu/CentOS)
+    if ! command -v openssl &> /dev/null; then
+        echo -e "${YELLOW}检测到缺少 openssl，正在尝试自动安装...${PLAIN}"
+        if command -v apk &> /dev/null; then
+            apk update && apk add openssl
+        elif command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y openssl
+        elif command -v yum &> /dev/null; then
+            yum install -y openssl
+        fi
+    fi
+
+    # 3. 智能探测内核 (隔离共存的关键)
+Sing-box (支持探测 V2bX/Tox/Xray 进程)
     SB_BIN=""
     if command -v sing-box &> /dev/null; then
         SB_BIN=$(command -v sing-box)
@@ -66,8 +79,12 @@ function install_ss() {
     CONF_FILE="$CONF_DIR/config.json"
     mkdir -p $CONF_DIR
 
-    # 5. 生成密钥
-    PASSWORD=$(openssl rand -base64 16)
+    # 5. 生成密钥 (兼容无 openssl 环境)
+    if command -v openssl &> /dev/null; then
+        PASSWORD=$(openssl rand -base64 16)
+    else
+        PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
+    fi
 
     # 6. 写入独立配置文件
     cat > $CONF_FILE <<EOF
@@ -87,8 +104,9 @@ function install_ss() {
 }
 EOF
 
-    # 7. 创建并启动隔离服务
-    cat > /etc/systemd/system/stealth-ss.service <<EOF
+    # 7. 创建并启动服务 (优先使用 systemd，备选方案 nohup)
+    if command -v systemctl &> /dev/null; then
+        cat > /etc/systemd/system/stealth-ss.service <<EOF
 [Unit]
 Description=StealthForward SS Exit Service
 After=network.target nss-lookup.target
@@ -104,10 +122,15 @@ LimitNOFILE=infinity
 [Install]
 WantedBy=multi-user.target
 EOF
-
-    systemctl daemon-reload
-    systemctl enable stealth-ss
-    systemctl restart stealth-ss
+        systemctl daemon-reload
+        systemctl enable stealth-ss
+        systemctl restart stealth-ss
+    else
+        echo -e "${YELLOW}检测到系统不支持 systemd，将使用 nohup 后台运行...${PLAIN}"
+        pkill -f "$CONF_FILE" || true
+        nohup $SB_BIN run -c $CONF_FILE > /dev/null 2>&1 &
+        echo -e "${GREEN}服务已通过 nohup 启动，重启机器后需手动重新执行脚本。${PLAIN}"
+    fi
 
     # 8. 获取公网 IP
     IP=$(curl -s -4 ifconfig.me || curl -s -4 api.ipify.org || echo "您的公网IP")
@@ -126,11 +149,15 @@ EOF
 
 function uninstall_ss() {
     echo -e "${RED}正在卸载 StealthForward SS 落地服务...${PLAIN}"
-    systemctl stop stealth-ss || true
-    systemctl disable stealth-ss || true
-    rm -f /etc/systemd/system/stealth-ss.service
+    if command -v systemctl &> /dev/null; then
+        systemctl stop stealth-ss || true
+        systemctl disable stealth-ss || true
+        rm -f /etc/systemd/system/stealth-ss.service
+        systemctl daemon-reload
+    else
+        pkill -f "etc/stealth-ss/config.json" || true
+    fi
     rm -rf /etc/stealth-ss
-    systemctl daemon-reload
     echo -e "${GREEN}卸载完成！${PLAIN}"
 }
 
