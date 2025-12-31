@@ -115,18 +115,20 @@ func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, user
 		var rule models.ForwardingRule
 		err := database.DB.Where("user_id = ? AND entry_node_id = ?", user.UUID, entryID).First(&rule).Error
 
+		// 构造一个唯一且包含归属信息的识别标签 (格式: 节点ID-UUID)
+		identityTag := fmt.Sprintf("n%d-%s", targetExitID, user.UUID[:8])
+
 		if err != nil {
 			newRule := models.ForwardingRule{
 				EntryNodeID: entryID,
 				ExitNodeID:  targetExitID,
 				UserID:      user.UUID,
 				V2boardUID:  user.ID,
-				UserEmail:   fmt.Sprintf("v2b-%s", user.UUID[:8]),
+				UserEmail:   identityTag,
 				Enabled:     targetExitID != 0,
 			}
 			database.DB.Create(&newRule)
 		} else {
-			// 更新已有规则，确保 UID 和落地节点同步
 			updated := false
 			if rule.V2boardUID != user.ID {
 				rule.V2boardUID = user.ID
@@ -135,6 +137,10 @@ func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, user
 			if rule.ExitNodeID != targetExitID {
 				rule.ExitNodeID = targetExitID
 				rule.Enabled = targetExitID != 0
+				updated = true
+			}
+			if rule.UserEmail != identityTag {
+				rule.UserEmail = identityTag
 				updated = true
 			}
 			if updated {
