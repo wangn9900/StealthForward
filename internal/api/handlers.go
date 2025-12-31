@@ -1,10 +1,13 @@
 package api
 
 import (
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
+
+	"net"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wangn9900/StealthForward/internal/database"
@@ -156,6 +159,16 @@ func IssueCertHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "未找到绑定该域名的节点"})
 		return
 	}
+
+	// 检查 80 端口是否被占用 (通常是 Nginx 或宝塔)
+	ln, lerr := net.Listen("tcp", ":80")
+	if lerr != nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "端口 80 已被占用（通常是 Nginx 或宝塔）。请先停止占用该端口的服务，或者在宝塔面板手动申请证书并填写路径。",
+		})
+		return
+	}
+	ln.Close()
 
 	// 定义证书存放路径
 	certDir := "/etc/stealthforward/certs/" + req.Domain
