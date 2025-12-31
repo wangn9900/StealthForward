@@ -8,7 +8,9 @@ import (
 	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -77,7 +79,7 @@ func (c *ConnCounter) Write(b []byte) (n int, err error) {
 	return
 }
 
-// Override WriteTo to capture Slice/Sendfile traffic (Download)
+// Override ReadFrom to capture Slice/Sendfile traffic (Download)
 func (c *ConnCounter) ReadFrom(r io.Reader) (n int64, err error) {
 	if rf, ok := c.ExtendedConn.(io.ReaderFrom); ok {
 		n, err = rf.ReadFrom(r)
@@ -86,13 +88,10 @@ func (c *ConnCounter) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 		return
 	}
-	// Fallback to generic copy loop if underlying doesn't support ReadFrom
-	// This will call c.Write(), which counts.
 	return io.Copy(struct{ io.Writer }{c.ExtendedConn}, r)
 }
 
-// Override ReadFrom to capture Slice/Sendfile traffic (Upload)
-// Note: io.Copy(dst, c) calls c.WriteTo(dst)
+// Override WriteTo to capture Slice/Sendfile traffic (Upload)
 func (c *ConnCounter) WriteTo(w io.Writer) (n int64, err error) {
 	if wt, ok := c.ExtendedConn.(io.WriterTo); ok {
 		n, err = wt.WriteTo(w)
@@ -110,20 +109,23 @@ type PacketConnCounter struct {
 	storage *TrafficStorage
 }
 
-func (c *PacketConnCounter) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	n, addr, err = c.PacketConn.ReadFrom(p)
-	if n > 0 {
-		c.storage.UpCounter.Add(int64(n))
+// ReadPacket captures UDP Upload traffic
+func (c *PacketConnCounter) ReadPacket(buffer *buf.Buffer) (destination M.Socksaddr, err error) {
+	destination, err = c.PacketConn.ReadPacket(buffer)
+	if err == nil {
+		c.storage.UpCounter.Add(int64(buffer.Len()))
 	}
 	return
 }
 
-func (c *PacketConnCounter) WriteTo(p []byte, addr net.Addr) (n int, err error) {
-	n, err = c.PacketConn.WriteTo(p, addr)
-	if n > 0 {
-		c.storage.DownCounter.Add(int64(n))
+// WritePacket captures UDP Download traffic
+func (c *PacketConnCounter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
+	l := int64(buffer.Len())
+	err := c.PacketConn.WritePacket(buffer, destination)
+	if err == nil {
+		c.storage.DownCounter.Add(l)
 	}
-	return
+	return err
 }
 
 // GetStats 获取并重置流量统计
