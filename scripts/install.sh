@@ -199,7 +199,7 @@ After=network.target stealth-core.service
 [Service]
 Type=simple
 User=root
-ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir $INSTALL_DIR/core -www $INSTALL_DIR/www -token "$CTRL_TOKEN" -fallback-port 8081 -corepath $BIN_DIR/stealth-core
+ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir $INSTALL_DIR/core -www $INSTALL_DIR/www -token "$CTRL_TOKEN" -fallback-port 8081 -corepath $BIN_DIR/stealth-core -internal=false
 Restart=always
 RestartSec=10
 

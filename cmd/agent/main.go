@@ -20,7 +20,7 @@ func main() {
 	corePath := flag.String("corepath", "/usr/local/bin/stealth-core", "Path to isolated sing-box binary")
 	fallbackPort := flag.Int("fallback-port", 8081, "Port for the local masquerade server")
 	adminToken := flag.String("token", "", "Admin token for controller authentication")
-	useInternal := flag.Bool("internal", true, "Use internal sing-box core for accurate traffic stats")
+	useInternal := flag.Bool("internal", false, "Use internal sing-box core for accurate traffic stats")
 	once := flag.Bool("once", false, "Run once and exit")
 
 	flag.Parse()

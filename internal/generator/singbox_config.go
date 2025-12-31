@@ -10,13 +10,12 @@ import (
 
 // SingBoxConfig 定义了简化的 sing-box 配置文件结构
 type SingBoxConfig struct {
-	Log          interface{}       `json:"log"`
-	DNS          interface{}       `json:"dns,omitempty"`
-	Inbounds     []interface{}     `json:"inbounds"`
-	Outbounds    []interface{}     `json:"outbounds"`
-	Route        interface{}       `json:"route"`
-	Experimental interface{}       `json:"experimental,omitempty"`
-	Provision    map[string]string `json:"provision,omitempty"` // 用于下发文件流（如证书）实现快速换机
+	Log       interface{}       `json:"log"`
+	DNS       interface{}       `json:"dns,omitempty"`
+	Inbounds  []interface{}     `json:"inbounds"`
+	Outbounds []interface{}     `json:"outbounds"`
+	Route     interface{}       `json:"route"`
+	Provision map[string]string `json:"provision,omitempty"` // 用于下发文件流（如证书）实现快速换机
 }
 
 // GenerateEntryConfig 生成入口节点的 Sing-box 配置
