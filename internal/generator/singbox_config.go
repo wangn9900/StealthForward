@@ -130,28 +130,16 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	// Routing - 精准分流逻辑 (优化版：例外路由)
+	// Routing - 恢复最稳健的显式路由逻辑 (不再使用 Final 兜底，确保 IP 物理一致)
 	routingRules := []interface{}{
-		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32"}, "outbound": "direct"},
+		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32", "::1/128"}, "outbound": "direct"},
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
-	}
-
-	// 找到默认出口的 Tag
-	defaultExitTag := "block"
-	if entry.TargetExitID != 0 {
-		for _, e := range exits {
-			if e.ID == entry.TargetExitID {
-				defaultExitTag = "out-" + e.Name
-				break
-			}
-		}
 	}
 
 	// 按落地节点分组生成规则
 	exitToUsers := make(map[uint][]string)
 	for _, rule := range rules {
-		// 重点优化：如果该用户的目标落地就是默认落地，则不需要写路由规则，直接走 final 即可
-		if rule.ExitNodeID != 0 && rule.ExitNodeID != entry.TargetExitID {
+		if rule.ExitNodeID != 0 {
 			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
 		}
 	}
@@ -164,7 +152,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				break
 			}
 		}
-		if exitName != "" {
+		if exitName != "" && len(emails) > 0 {
 			routingRules = append(routingRules, map[string]interface{}{
 				"user":     emails,
 				"outbound": "out-" + exitName,
@@ -174,7 +162,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Route = map[string]interface{}{
 		"rules": routingRules,
-		"final": defaultExitTag, // 将默认落地设为终点，这样默认用户就不用进 rules 列表了
+		"final": "block", // 恢复安全兜底，禁止乱跳
 	}
 
 	res, _ := json.MarshalIndent(config, "", "  ")
