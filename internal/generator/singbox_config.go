@@ -39,6 +39,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				},
 			},
 			"strategy": "prefer_ipv4",
+			"hosts": map[string]string{
+				entry.Domain: "127.0.0.1",
+			},
 		},
 	}
 
