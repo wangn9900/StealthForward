@@ -82,27 +82,22 @@ func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, tar
 		return nil
 	}
 
-	// 如果是高优先级任务，标记这些用户已处理
-	if isPriority {
-		for _, u := range users {
-			processed[u.UUID] = true
+	var filtered []V2boardUser
+	for _, u := range users {
+		// 核心碰撞检测：谁先匹配到，就锁定归谁，严禁修改。
+		if !processed[u.UUID] {
+			filtered = append(filtered, u)
+			processed[u.UUID] = true // 锁定当前周期内的这个 UUID
 		}
-	} else {
-		// 如果是默认任务，过滤掉已经由映射处理过的用户
-		var filtered []V2boardUser
-		for _, u := range users {
-			if !processed[u.UUID] {
-				filtered = append(filtered, u)
-			}
-		}
-		users = filtered
 	}
 
-	updateRulesForEntry(entry.ID, entry.Name, targetExitID, users)
+	if len(filtered) > 0 {
+		updateRulesForEntry(entry.ID, entry.Name, targetExitID, filtered)
+	}
 
-	// 收集并返回本次同步的所有 UUID
-	uuids := make([]string, len(users))
-	for i, u := range users {
+	// 收集并返回被本次任务成功占用的 UUID
+	uuids := make([]string, len(filtered))
+	for i, u := range filtered {
 		uuids[i] = u.UUID
 	}
 	return uuids
