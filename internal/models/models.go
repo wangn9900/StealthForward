@@ -35,6 +35,7 @@ type NodeMapping struct {
 	V2boardNodeID int       `json:"v2board_node_id"` // V2Board 那边的节点 ID
 	TargetExitID  uint      `json:"target_exit_id"`  // 对应的落地节点 ID
 	V2boardType   string    `json:"v2board_type"`    // 节点类型
+	Port          int       `json:"port"`            // 该映射独立监听的端口（为 0 时使用入口默认端口）
 	CreatedAt     time.Time `json:"created_at"`
 }
 

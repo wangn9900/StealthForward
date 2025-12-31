@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/wangn9900/StealthForward/internal/database"
 	"github.com/wangn9900/StealthForward/internal/models"
 )
 
@@ -15,7 +16,7 @@ type SingBoxConfig struct {
 	DNS       interface{}   `json:"dns,omitempty"`
 	Route     interface{}   `json:"route"`
 	Outbounds []interface{} `json:"outbounds"`
-	Inbounds  []interface{} `json:"inbounds"` // 用户列表最长，挪到最后，方便用户查看
+	Inbounds  []interface{} `json:"inbounds"`
 }
 
 func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule, exits []models.ExitNode) (string, error) {
@@ -45,17 +46,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		keyPath = "/etc/stealthforward/certs/" + entry.Domain + "/cert.key"
 	}
 
-	// Inbound - 采用 node_ID 格式，且彻底禁用 override_destination 解决公网环路
-	inboundTag := fmt.Sprintf("node_%d", entry.ID)
-	vlessInbound := map[string]interface{}{
-		"type":        "vless",
-		"tag":         inboundTag,
-		"listen":      "::",
-		"listen_port": entry.Port,
-		"sniff":       true, // 保留嗅探用于协议识别，但绝不重定向目的地
-	}
-
-	// 回落
+	// 回落配置
 	fallbackHost := "127.0.0.1"
 	fallbackPort := 80
 	if entry.Fallback != "" {
@@ -68,42 +59,112 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			fallbackHost = entry.Fallback
 		}
 	}
-	vlessInbound["fallback"] = map[string]interface{}{
-		"server":      fallbackHost,
-		"server_port": fallbackPort,
+
+	// 获取所有 NodeMapping
+	var mappings []models.NodeMapping
+	database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
+
+	// 构建端口到 Mapping 的映射（多端口分流核心逻辑）
+	portToMapping := make(map[int]*models.NodeMapping)
+	for i := range mappings {
+		m := &mappings[i]
+		if m.Port > 0 {
+			portToMapping[m.Port] = m
+		}
 	}
 
-	users := []map[string]interface{}{}
+	// 构建端口到用户的映射
+	portToUsers := make(map[int][]map[string]interface{})
+	defaultPortUsers := []map[string]interface{}{}
+
 	for _, rule := range rules {
-		users = append(users, map[string]interface{}{
-			"name": rule.UserEmail, // 必须提供 name 才能在路由中使用 user 字段匹配
+		user := map[string]interface{}{
+			"name": rule.UserEmail,
 			"uuid": rule.UserID,
 			"flow": "xtls-rprx-vision",
-		})
-	}
-	vlessInbound["users"] = users
+		}
 
-	vlessInbound["tls"] = map[string]interface{}{
-		"enabled":          true,
-		"server_name":      entry.Domain,
-		"certificate_path": certPath,
-		"key_path":         keyPath,
-		"min_version":      "1.2",
+		// 从 UserEmail (n20-xxx) 提取节点 ID，找到对应的端口
+		assignedPort := entry.Port // 默认端口
+		if strings.HasPrefix(rule.UserEmail, "n") && strings.Contains(rule.UserEmail, "-") {
+			idPart := strings.Split(rule.UserEmail, "-")[0][1:]
+			if v2bNodeID, err := strconv.Atoi(idPart); err == nil {
+				// 查找这个节点 ID 对应的 Mapping
+				for _, m := range mappings {
+					if m.V2boardNodeID == v2bNodeID && m.Port > 0 {
+						assignedPort = m.Port
+						break
+					}
+				}
+			}
+		}
+
+		if assignedPort == entry.Port {
+			defaultPortUsers = append(defaultPortUsers, user)
+		} else {
+			portToUsers[assignedPort] = append(portToUsers[assignedPort], user)
+		}
 	}
-	config.Inbounds = append(config.Inbounds, vlessInbound)
+
+	// 创建默认端口的 inbound
+	defaultInboundTag := fmt.Sprintf("node_%d", entry.ID)
+	defaultInbound := map[string]interface{}{
+		"type":        "vless",
+		"tag":         defaultInboundTag,
+		"listen":      "::",
+		"listen_port": entry.Port,
+		"sniff":       true,
+		"fallback": map[string]interface{}{
+			"server":      fallbackHost,
+			"server_port": fallbackPort,
+		},
+		"users": defaultPortUsers,
+		"tls": map[string]interface{}{
+			"enabled":          true,
+			"server_name":      entry.Domain,
+			"certificate_path": certPath,
+			"key_path":         keyPath,
+			"min_version":      "1.2",
+		},
+	}
+	config.Inbounds = append(config.Inbounds, defaultInbound)
+
+	// 为每个独立端口创建 inbound
+	for port, users := range portToUsers {
+		inboundTag := fmt.Sprintf("node_%d_port_%d", entry.ID, port)
+		inbound := map[string]interface{}{
+			"type":        "vless",
+			"tag":         inboundTag,
+			"listen":      "::",
+			"listen_port": port,
+			"sniff":       true,
+			"fallback": map[string]interface{}{
+				"server":      fallbackHost,
+				"server_port": fallbackPort,
+			},
+			"users": users,
+			"tls": map[string]interface{}{
+				"enabled":          true,
+				"server_name":      entry.Domain,
+				"certificate_path": certPath,
+				"key_path":         keyPath,
+				"min_version":      "1.2",
+			},
+		}
+		config.Inbounds = append(config.Inbounds, inbound)
+	}
 
 	// Outbounds
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "direct", "type": "direct"})
 
 	for _, exit := range exits {
 		var exitOutbound map[string]interface{}
-		json.Unmarshal([]byte(exit.Config), &exitOutbound) // 适配 Shadowsocks 格式
+		json.Unmarshal([]byte(exit.Config), &exitOutbound)
 		if exit.Protocol == "ss" {
 			exitOutbound["type"] = "shadowsocks"
 			if cipher, ok := exitOutbound["cipher"]; ok {
 				exitOutbound["method"] = cipher
 			}
-			// 修正端口逻辑：优先尝试 server_port，其次尝试 port
 			finalPort := exitOutbound["server_port"]
 			if exitOutbound["server_port"] == nil || exitOutbound["server_port"] == float64(0) {
 				if exitOutbound["port"] != nil {
@@ -116,11 +177,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				exitOutbound["server"] = addr
 			}
 
-			// 移除可能引起兼容性问题的冗余字段 (sing-box 官方字段为 server, server_port, method, password)
 			delete(exitOutbound, "address")
 			delete(exitOutbound, "port")
 			delete(exitOutbound, "cipher")
-
 			exitOutbound["tcp_fast_open"] = false
 		}
 
@@ -130,13 +189,31 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	// Routing - 精准分流逻辑 (优化版：例外路由)
+	// Routing - 按端口分流（新架构）
 	routingRules := []interface{}{
 		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32"}, "outbound": "direct"},
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
 	}
 
-	// 找到默认出口的 Tag
+	// 为每个独立端口的 inbound 创建路由规则
+	for port, m := range portToMapping {
+		inboundTag := fmt.Sprintf("node_%d_port_%d", entry.ID, port)
+		var exitName string
+		for _, e := range exits {
+			if e.ID == m.TargetExitID {
+				exitName = e.Name
+				break
+			}
+		}
+		if exitName != "" {
+			routingRules = append(routingRules, map[string]interface{}{
+				"inbound":  []string{inboundTag},
+				"outbound": "out-" + exitName,
+			})
+		}
+	}
+
+	// 默认落地
 	defaultExitTag := "block"
 	if entry.TargetExitID != 0 {
 		for _, e := range exits {
@@ -147,34 +224,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 按落地节点分组生成规则
-	exitToUsers := make(map[uint][]string)
-	for _, rule := range rules {
-		if rule.ExitNodeID != 0 {
-			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
-		}
-	}
-
-	for exitID, emails := range exitToUsers {
-		var exitName string
-		for _, e := range exits {
-			if e.ID == exitID {
-				exitName = e.Name
-				break
-			}
-		}
-		if exitName != "" {
-			routingRules = append(routingRules, map[string]interface{}{
-				"inbound":   []string{fmt.Sprintf("node_%d", entry.ID)},
-				"auth_user": emails,
-				"outbound":  "out-" + exitName,
-			})
-		}
-	}
-
 	config.Route = map[string]interface{}{
 		"rules": routingRules,
-		"final": defaultExitTag, // 将默认落地设为终点，这样默认用户就不用进 rules 列表了
+		"final": defaultExitTag,
 	}
 
 	res, _ := json.MarshalIndent(config, "", "  ")
