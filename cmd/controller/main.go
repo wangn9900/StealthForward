@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 
@@ -11,11 +12,16 @@ import (
 )
 
 func main() {
+	// 0. 解析参数
+	listenAddr := flag.String("addr", ":8080", "Listen address (e.g. :8080 or 127.0.0.1:8080)")
+	flag.Parse()
+
 	// 1. 初始化数据库
 	database.InitDB()
 
-	// 2. 启动 V2Board 自动同步任务
+	// 2. 启动 V2Board 自动同步任务与流量上报任务
 	sync.StartV2boardSync()
+	sync.StartTrafficReporting()
 
 	// 2. 设置 Gin 路由
 	r := gin.Default()
@@ -66,6 +72,8 @@ func main() {
 
 		// Agent 获取配置的核心接口
 		v1.GET("/node/:id/config", api.GetConfigHandler)
+		// Agent 上报流量的接口
+		v1.POST("/node/:id/traffic", api.ReportTrafficHandler)
 
 		// 分流映射管理 (NodeMappings)
 		v1.GET("/mappings", api.ListNodeMappingsHandler)
@@ -74,10 +82,14 @@ func main() {
 
 		// 触发 V2Board 同步
 		v1.POST("/sync", api.TriggerSyncHandler)
+
+		// 系统备份与恢复
+		v1.GET("/system/backup", api.ExportConfigHandler)
+		v1.POST("/system/restore", api.ImportConfigHandler)
 	}
 
-	log.Println("StealthForward Controller is running on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Printf("StealthForward Controller is running on %s", *listenAddr)
+	if err := r.Run(*listenAddr); err != nil {
 		log.Fatalf("failed to run server: %v", err)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/wangn9900/StealthForward/internal/generator"
 	"github.com/wangn9900/StealthForward/internal/models"
 	"github.com/wangn9900/StealthForward/internal/sync"
+	"gorm.io/gorm"
 )
 
 // GetConfigHandler 为指定的入口节点生成 Sing-box 配置
@@ -149,6 +150,13 @@ func IssueCertHandler(c *gin.Context) {
 		return
 	}
 
+	// 查找域名对应的节点信息，以便后续保存证书内容
+	var entry models.EntryNode
+	if err := database.DB.Where("domain = ?", req.Domain).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "未找到绑定该域名的节点"})
+		return
+	}
+
 	// 定义证书存放路径
 	certDir := "/etc/stealthforward/certs/" + req.Domain
 	exec.Command("mkdir", "-p", certDir).Run()
@@ -210,8 +218,17 @@ func IssueCertHandler(c *gin.Context) {
 		return
 	}
 
+	// 读取物理文件内容并备份到数据库，实现换机无感恢复
+	cb, _ := os.ReadFile(certFile)
+	kb, _ := os.ReadFile(keyFile)
+	entry.CertBody = string(cb)
+	entry.KeyBody = string(kb)
+	entry.Certificate = certFile
+	entry.Key = keyFile
+	database.DB.Save(&entry)
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "证书申请并安装成功",
+		"message": "证书申请成功并已备份到大脑数据库",
 		"cert":    certFile,
 		"key":     keyFile,
 	})
@@ -240,4 +257,84 @@ func DeleteNodeMappingHandler(c *gin.Context) {
 	id := c.Param("id")
 	database.DB.Delete(&models.NodeMapping{}, id)
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+// ReportTrafficHandler 接收 Agent 上报的流量数据
+func ReportTrafficHandler(c *gin.Context) {
+	var report models.NodeTrafficReport
+	if err := c.ShouldBindJSON(&report); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 将流量数据存入同步模块进行汇总
+	sync.CollectTraffic(report)
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// ExportConfigHandler 导出系统核心配置（备份用）
+func ExportConfigHandler(c *gin.Context) {
+	var backup struct {
+		Entries  []models.EntryNode   `json:"entries"`
+		Exits    []models.ExitNode    `json:"exits"`
+		Mappings []models.NodeMapping `json:"mappings"`
+	}
+
+	database.DB.Find(&backup.Entries)
+	database.DB.Find(&backup.Exits)
+	database.DB.Find(&backup.Mappings)
+
+	c.JSON(http.StatusOK, backup)
+}
+
+// ImportConfigHandler 导入系统核心配置（恢复用）
+func ImportConfigHandler(c *gin.Context) {
+	var backup struct {
+		Entries  []models.EntryNode   `json:"entries"`
+		Exits    []models.ExitNode    `json:"exits"`
+		Mappings []models.NodeMapping `json:"mappings"`
+	}
+
+	if err := c.ShouldBindJSON(&backup); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的备份文件格式"})
+		return
+	}
+
+	// 使用事务确保操作安全
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 清空旧数据 (按需)
+		tx.Exec("DELETE FROM entry_nodes")
+		tx.Exec("DELETE FROM exit_nodes")
+		tx.Exec("DELETE FROM node_mappings")
+		tx.Exec("DELETE FROM forwarding_rules") // 清空规则，等待下次同步重建
+
+		// 2. 写入新数据
+		if len(backup.Entries) > 0 {
+			if err := tx.Create(&backup.Entries).Error; err != nil {
+				return err
+			}
+		}
+		if len(backup.Exits) > 0 {
+			if err := tx.Create(&backup.Exits).Error; err != nil {
+				return err
+			}
+		}
+		if len(backup.Mappings) > 0 {
+			if err := tx.Create(&backup.Mappings).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "恢复失败: " + err.Error()})
+		return
+	}
+
+	// 触发一次全量同步
+	sync.GlobalSyncNow()
+
+	c.JSON(http.StatusOK, gin.H{"message": "配置恢复成功，已触发全量同步"})
 }

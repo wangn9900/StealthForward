@@ -20,6 +20,7 @@ func main() {
 	singboxPath := flag.String("sbpath", "/usr/bin/sing-box", "Path to sing-box binary")
 	fallbackPort := flag.Int("fallback-port", 8080, "Port for the local masquerade server")
 	adminToken := flag.String("token", "", "Admin token for controller authentication")
+	useInternal := flag.Bool("internal", true, "Use internal sing-box core for accurate traffic stats")
 	once := flag.Bool("once", false, "Run once and exit")
 
 	flag.Parse()
@@ -50,6 +51,7 @@ func main() {
 		MasqueradeDir:  *wwwDir,
 		SingBoxPath:    *singboxPath,
 		AdminToken:     *adminToken,
+		UseInternal:    *useInternal,
 	})
 
 	// 3. 启动本地伪装服务器（用于 SNI 回落目的地）

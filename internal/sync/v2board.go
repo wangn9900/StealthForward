@@ -107,15 +107,25 @@ func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, user
 			newRule := models.ForwardingRule{
 				EntryNodeID: entryID,
 				ExitNodeID:  targetExitID,
-				UserEmail:   fmt.Sprintf("v2b-%s", user.UUID[:8]),
 				UserID:      user.UUID,
+				V2boardUID:  user.ID,
+				UserEmail:   fmt.Sprintf("v2b-%s", user.UUID[:8]),
 				Enabled:     targetExitID != 0,
 			}
 			database.DB.Create(&newRule)
 		} else {
+			// 更新已有规则，确保 UID 和落地节点同步
+			updated := false
+			if rule.V2boardUID != user.ID {
+				rule.V2boardUID = user.ID
+				updated = true
+			}
 			if rule.ExitNodeID != targetExitID {
 				rule.ExitNodeID = targetExitID
 				rule.Enabled = targetExitID != 0
+				updated = true
+			}
+			if updated {
 				database.DB.Save(&rule)
 			}
 		}

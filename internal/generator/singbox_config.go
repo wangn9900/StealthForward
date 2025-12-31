@@ -10,11 +10,13 @@ import (
 
 // SingBoxConfig 定义了简化的 sing-box 配置文件结构
 type SingBoxConfig struct {
-	Log       interface{}   `json:"log"`
-	DNS       interface{}   `json:"dns,omitempty"`
-	Inbounds  []interface{} `json:"inbounds"`
-	Outbounds []interface{} `json:"outbounds"`
-	Route     interface{}   `json:"route"`
+	Log          interface{}       `json:"log"`
+	DNS          interface{}       `json:"dns,omitempty"`
+	Inbounds     []interface{}     `json:"inbounds"`
+	Outbounds    []interface{}     `json:"outbounds"`
+	Route        interface{}       `json:"route"`
+	Experimental interface{}       `json:"experimental,omitempty"`
+	Provision    map[string]string `json:"provision,omitempty"` // 用于下发文件流（如证书）实现快速换机
 }
 
 // GenerateEntryConfig 生成入口节点的 Sing-box 配置
@@ -23,6 +25,10 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		Log: map[string]interface{}{
 			"level": "debug",
 		},
+		Experimental: map[string]interface{}{
+			"control": "127.0.0.1:9090", // 开启控制 API 用于流量统计
+		},
+		Provision: make(map[string]string),
 		DNS: map[string]interface{}{
 			"servers": []interface{}{
 				map[string]interface{}{
@@ -38,6 +44,11 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			},
 			"strategy": "prefer_ipv4",
 		},
+	}
+	// 注入证书资产到 Provision，实现 Agent 无感恢复
+	if entry.CertBody != "" && entry.KeyBody != "" {
+		config.Provision[entry.Certificate] = entry.CertBody
+		config.Provision[entry.Key] = entry.KeyBody
 	}
 
 	// 1. 构建 Inbound (VLESS + Vision)
