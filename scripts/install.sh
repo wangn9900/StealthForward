@@ -90,27 +90,8 @@ install_sing_box() {
   chmod +x "$CORE_PATH"
   echo -e "${GREEN}隔离版内核安装成功!${NC}"
 
-  cat > /etc/systemd/system/stealth-core.service <<EOF
-[Unit]
-Description=StealthForward Core Service (Isolated)
-After=network.target nss-lookup.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$CONF_DIR
-ExecStart=$CORE_PATH run -c $CONF_DIR/config.json
-Restart=on-failure
-RestartSec=10
-LimitNOFILE= infinity
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  systemctl daemon-reload
-  systemctl enable stealth-core
-  echo -e "${GREEN}Stealth Core 核心服务部署完成！(不影响原版 sing-box)${NC}"
+  echo -e "${GREEN}隔离版内核 (stealth-core) 已下载并安装到 $CORE_PATH (仅作为备用工具)${NC}"
+  echo -e "${YELLOW}提示: Agent 将默认使用内置核心 (Internal Mode) 运行，无需启动 stealth-core 服务。${NC}"
 }
 
 install_controller() {
@@ -194,12 +175,12 @@ install_agent() {
   cat > /etc/systemd/system/stealth-agent.service <<EOF
 [Unit]
 Description=StealthForward Agent Service
-After=network.target stealth-core.service
+After=network.target
 
 [Service]
 Type=simple
 User=root
-ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir $INSTALL_DIR/core -www $INSTALL_DIR/www -token "$CTRL_TOKEN" -fallback-port 8081 -corepath $BIN_DIR/stealth-core -internal=false
+ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir $INSTALL_DIR/core -www $INSTALL_DIR/www -token "$CTRL_TOKEN" -fallback-port 8081 -corepath $BIN_DIR/stealth-core -internal
 Restart=always
 RestartSec=10
 
