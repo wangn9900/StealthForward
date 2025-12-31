@@ -2,20 +2,20 @@ package generator
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/wangn9900/StealthForward/internal/models"
 )
 
-// SingBoxConfig 最简配置结构，适配魔改内核
+// SingBoxConfig 适配魔改内核 Tox/V2bX 的最简结构
 type SingBoxConfig struct {
-	Log       interface{}       `json:"log"`
-	DNS       interface{}       `json:"dns,omitempty"`
-	Inbounds  []interface{}     `json:"inbounds"`
-	Outbounds []interface{}     `json:"outbounds"`
-	Route     interface{}       `json:"route"`
-	Provision map[string]string `json:"provision,omitempty"`
+	Log       interface{}   `json:"log"`
+	DNS       interface{}   `json:"dns,omitempty"`
+	Inbounds  []interface{} `json:"inbounds"`
+	Outbounds []interface{} `json:"outbounds"`
+	Route     interface{}   `json:"route"`
 }
 
 func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule, exits []models.ExitNode) (string, error) {
@@ -23,7 +23,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		Log: map[string]interface{}{
 			"level": "error",
 		},
-		Provision: make(map[string]string),
 		DNS: map[string]interface{}{
 			"servers": []interface{}{
 				map[string]interface{}{
@@ -36,7 +35,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		},
 	}
 
-	// 注入证书
+	// 统一证书路径
 	certPath := entry.Certificate
 	if certPath == "" {
 		certPath = "/etc/stealthforward/certs/" + entry.Domain + "/cert.crt"
@@ -46,22 +45,18 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		keyPath = "/etc/stealthforward/certs/" + entry.Domain + "/cert.key"
 	}
 
-	if entry.CertBody != "" && entry.KeyBody != "" {
-		config.Provision[certPath] = entry.CertBody
-		config.Provision[keyPath] = entry.KeyBody
-	}
-
-	// Inbound
+	// 1. Inbound (VLESS) - 适配魔改内核的 Inbound Tag 分流
+	inboundTag := fmt.Sprintf("node_%d", entry.ID) // 对齐魔改版 node_X 格式
 	vlessInbound := map[string]interface{}{
 		"type":                       "vless",
-		"tag":                        "vless-in",
+		"tag":                        inboundTag,
 		"listen":                     "::",
 		"listen_port":                entry.Port,
 		"sniff":                      true,
 		"sniff_override_destination": true,
 	}
 
-	// 分流回落
+	// 回落配置
 	fallbackHost := "127.0.0.1"
 	fallbackPort := 80
 	if entry.Fallback != "" {
@@ -74,18 +69,16 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			fallbackHost = entry.Fallback
 		}
 	}
-
-	// 关键：针对 Tox/V2bX 的单数 fallback
 	vlessInbound["fallback"] = map[string]interface{}{
 		"server":      fallbackHost,
 		"server_port": fallbackPort,
 	}
 
+	// 用户信息 (魔改内核依然需要 UUID 列表)
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
 		users = append(users, map[string]interface{}{
 			"uuid": rule.UserID,
-			"name": rule.UserEmail,
 			"flow": "xtls-rprx-vision",
 		})
 	}
@@ -100,27 +93,61 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 	config.Inbounds = append(config.Inbounds, vlessInbound)
 
-	// Outbounds
+	// 2. Outbounds
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{
-		"type": "direct",
 		"tag":  "direct",
+		"type": "direct",
 	})
 
 	for _, exit := range exits {
 		var exitOutbound map[string]interface{}
 		json.Unmarshal([]byte(exit.Config), &exitOutbound)
+
+		// 适配 Shadowsocks 格式
+		if exit.Protocol == "ss" {
+			exitOutbound["type"] = "shadowsocks"
+			if cipher, ok := exitOutbound["cipher"]; ok {
+				exitOutbound["method"] = cipher
+			}
+			if port, ok := exitOutbound["port"]; ok {
+				exitOutbound["server_port"] = port
+			}
+			if addr, ok := exitOutbound["address"]; ok {
+				exitOutbound["server"] = addr
+			}
+			exitOutbound["tcp_fast_open"] = false
+			exitOutbound["multiplex"] = map[string]interface{}{
+				"enabled": false,
+				"padding": true,
+			}
+		}
+
 		exitOutbound["tag"] = "out-" + exit.Name
 		config.Outbounds = append(config.Outbounds, exitOutbound)
 	}
+	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	config.Outbounds = append(config.Outbounds, map[string]interface{}{"type": "block", "tag": "block"})
+	// 3. Routing Rules - 基于 Inbound Tag 进行分流
+	routingRules := []interface{}{
+		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32"}, "outbound": "direct"},
+		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
+	}
 
-	// Routing
+	// 核心分流：根据入站标签甩到落地点
+	for _, rule := range rules {
+		for _, e := range exits {
+			if e.ID == rule.ExitNodeID {
+				routingRules = append(routingRules, map[string]interface{}{
+					"inbound":  []string{inboundTag},
+					"outbound": "out-" + e.Name,
+				})
+				break
+			}
+		}
+	}
+
 	config.Route = map[string]interface{}{
-		"rules": []interface{}{
-			map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32", "::1/128"}, "outbound": "direct"},
-			map[string]interface{}{"protocol": "dns", "outbound": "direct"},
-		},
+		"rules": routingRules,
 		"final": "direct",
 	}
 
