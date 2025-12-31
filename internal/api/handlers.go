@@ -101,16 +101,22 @@ func ListExitNodesHandler(c *gin.Context) {
 	var exits []models.ExitNode
 	database.DB.Find(&exits)
 
-	// 后端纠偏：如果 port 为 0，尝试从 Config JSON 里找
+	// 后端自愈逻辑：如果发现库里端口是 0，自动解析并修正（不让 0 活过这个环节）
 	for i := range exits {
 		if exits[i].Port == 0 && exits[i].Config != "" {
 			var cfg map[string]interface{}
 			if err := json.Unmarshal([]byte(exits[i].Config), &cfg); err == nil {
-				// 尝试多个可能的端口字段
+				portFound := 0
 				if p, ok := cfg["server_port"].(float64); ok {
-					exits[i].Port = int(p)
+					portFound = int(p)
 				} else if p, ok := cfg["port"].(float64); ok {
-					exits[i].Port = int(p)
+					portFound = int(p)
+				}
+
+				if portFound != 0 {
+					exits[i].Port = portFound
+					// 悄悄修正数据库，一劳永逸
+					database.DB.Model(&models.ExitNode{}).Where("id = ?", exits[i].ID).Update("port", portFound)
 				}
 			}
 		}

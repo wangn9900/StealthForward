@@ -76,6 +76,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
 		users = append(users, map[string]interface{}{
+			"name": rule.UserEmail, // 必须提供 name 才能在路由中使用 user 字段匹配
 			"uuid": rule.UserID,
 			"flow": "xtls-rprx-vision",
 		})
@@ -103,20 +104,24 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				exitOutbound["method"] = cipher
 			}
 			// 修正端口逻辑：优先尝试 server_port，其次尝试 port
-			finalPort := exitOutbound["port"]
-			if exitOutbound["server_port"] != nil && exitOutbound["server_port"] != float64(0) {
-				finalPort = exitOutbound["server_port"]
+			finalPort := exitOutbound["server_port"]
+			if exitOutbound["server_port"] == nil || exitOutbound["server_port"] == float64(0) {
+				if exitOutbound["port"] != nil {
+					finalPort = exitOutbound["port"]
+				}
 			}
 			exitOutbound["server_port"] = finalPort
 
 			if addr, ok := exitOutbound["address"]; ok {
 				exitOutbound["server"] = addr
 			}
+
+			// 移除可能引起兼容性问题的冗余字段 (sing-box 官方字段为 server, server_port, method, password)
+			delete(exitOutbound, "address")
+			delete(exitOutbound, "port")
+			delete(exitOutbound, "cipher")
+
 			exitOutbound["tcp_fast_open"] = false
-			exitOutbound["multiplex"] = map[string]interface{}{
-				"enabled": false,
-				"padding": true,
-			}
 		}
 
 		exitOutbound["tag"] = "out-" + exit.Name
@@ -125,22 +130,33 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	// Routing - 纯净的分流逻辑
+	// Routing - 精准分流逻辑
 	routingRules := []interface{}{
 		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32"}, "outbound": "direct"},
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
 	}
 
-	// 执行与您截图一致的 inbound 标签分流
+	// 按落地节点分组生成路由规则，提高 sing-box 运行效率并修正多目标分流
+	exitToUsers := make(map[uint][]string)
 	for _, rule := range rules {
+		if rule.ExitNodeID != 0 {
+			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
+		}
+	}
+
+	for exitID, emails := range exitToUsers {
+		var exitName string
 		for _, e := range exits {
-			if e.ID == rule.ExitNodeID {
-				routingRules = append(routingRules, map[string]interface{}{
-					"inbound":  []string{inboundTag},
-					"outbound": "out-" + e.Name,
-				})
+			if e.ID == exitID {
+				exitName = e.Name
 				break
 			}
+		}
+		if exitName != "" {
+			routingRules = append(routingRules, map[string]interface{}{
+				"user":     emails,
+				"outbound": "out-" + exitName,
+			})
 		}
 	}
 
