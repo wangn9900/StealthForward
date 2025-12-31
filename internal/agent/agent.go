@@ -139,7 +139,7 @@ func (a *Agent) RestartSingBox() error {
 		return nil
 	}
 	// ... (原逻辑) ...
-	cmd := exec.Command("systemctl", "restart", "sing-box")
+	cmd := exec.Command("systemctl", "restart", "stealth-core")
 	if err := cmd.Run(); err != nil {
 		log.Printf("Systemd restart failed, trying direct reload: %v", err)
 		return exec.Command(a.cfg.SingBoxPath, "check", "-c", filepath.Join(a.cfg.LocalConfigDir, "config.json")).Run()

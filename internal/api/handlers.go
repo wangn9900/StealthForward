@@ -183,6 +183,11 @@ func UploadCertHandler(c *gin.Context) {
 	entry.CertBody = req.CertBody
 	entry.KeyBody = req.KeyBody
 	entry.CertTask = false // 任务完成，清除标志
+
+	// 自动更新路径为 Agent 默认安装路径，让用户在 UI 上无感
+	entry.Certificate = "/etc/stealthforward/certs/" + req.Domain + "/cert.crt"
+	entry.Key = "/etc/stealthforward/certs/" + req.Domain + "/cert.key"
+
 	database.DB.Save(&entry)
 
 	c.JSON(http.StatusOK, gin.H{"message": "证书备份成功"})

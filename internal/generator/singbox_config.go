@@ -77,10 +77,11 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 注意：这里使用单数 fallback，这是 V2bX 自研内核的特征标识
-	vlessInbound["fallback"] = map[string]interface{}{
-		"server":      fallbackHost,
-		"server_port": fallbackPort,
+	// 注入“标准”回落配置
+	vlessInbound["fallbacks"] = []interface{}{
+		map[string]interface{}{
+			"dest": fallbackHost + ":" + strconv.Itoa(fallbackPort),
+		},
 	}
 
 	users := []map[string]interface{}{}
