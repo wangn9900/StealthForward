@@ -71,48 +71,35 @@ download_binary() {
 }
 
 install_sing_box() {
-  echo -e "${YELLOW}正在安装 Sing-box 魔改版 (支持 VLESS Fallback)...${NC}"
+  echo -e "${YELLOW}正在安装隔离版 Stealth Core (魔改内核)...${NC}"
   
   # 先停止服务，避免文件被占用
-  systemctl stop sing-box 2>/dev/null
+  systemctl stop stealth-core 2>/dev/null
   
-  # 从 StealthForward Release 下载魔改版 sing-box
-  SB_URL="https://github.com/$REPO/releases/latest/download/sing-box-mod-$ARCH"
-  SB_PATH="/usr/local/bin/sing-box"
+  # 从 StealthForward Release 下载魔改版内核
+  CORE_NAME="sing-box-mod"
+  CORE_PATH="/usr/local/bin/stealth-core"
+  CONF_DIR="/etc/stealthforward/core"
   
-  echo -e "${CYAN}正在下载魔改版 Sing-box...${NC}"
-  curl -Lo "$SB_PATH" "$SB_URL"
+  mkdir -p $CONF_DIR
   
-  # 关键：验证下载是否成功（文件至少 10MB）
-  MIN_SIZE=$((10 * 1024 * 1024))  # 10MB
-  if [ -f "$SB_PATH" ]; then
-    FILE_SIZE=$(stat -c%s "$SB_PATH" 2>/dev/null || stat -f%z "$SB_PATH" 2>/dev/null || echo 0)
-    if [ "$FILE_SIZE" -lt "$MIN_SIZE" ]; then
-      echo -e "${RED}错误: Sing-box 下载失败或文件损坏 (大小: ${FILE_SIZE} 字节)!${NC}"
-      echo -e "${YELLOW}可能原因: 新版本正在编译中，请稍后重试或手动下载。${NC}"
-      echo -e "${CYAN}手动下载命令: curl -Lo /usr/local/bin/sing-box https://github.com/$REPO/releases/download/v1.3.20/sing-box-mod-$ARCH${NC}"
-      rm -f "$SB_PATH"
-      exit 1
-    fi
-  else
-    echo -e "${RED}Sing-box 下载失败!${NC}"
-    exit 1
-  fi
+  echo -e "${CYAN}正在下载内核到 $CORE_PATH...${NC}"
+  # 自动检测架构下载二进制
+  curl -Lo "$CORE_PATH" "https://github.com/$REPO/releases/latest/download/sing-box-mod-$PLATFORM"
   
-  chmod +x "$SB_PATH"
-  echo -e "${GREEN}魔改版 Sing-box 安装成功!${NC}"
-  echo -e "${CYAN}版本: $($SB_PATH version 2>/dev/null | head -n 1 || echo '魔改版')${NC}"
+  chmod +x "$CORE_PATH"
+  echo -e "${GREEN}隔离版内核安装成功!${NC}"
 
-  cat > /etc/systemd/system/sing-box.service <<EOF
+  cat > /etc/systemd/system/stealth-core.service <<EOF
 [Unit]
-Description=sing-box Service
+Description=StealthForward Core Service (Isolated)
 After=network.target nss-lookup.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/etc/sing-box
-ExecStart=$SB_PATH run -c /etc/sing-box/config.json
+WorkingDirectory=$CONF_DIR
+ExecStart=$CORE_PATH run -c $CONF_DIR/config.json
 Restart=on-failure
 RestartSec=10
 LimitNOFILE= infinity
@@ -122,8 +109,8 @@ WantedBy=multi-user.target
 EOF
 
   systemctl daemon-reload
-  systemctl enable sing-box
-  echo -e "${GREEN}Sing-box 核心与服务安装完成！${NC}"
+  systemctl enable stealth-core
+  echo -e "${GREEN}Stealth Core 核心服务部署完成！(不影响原版 sing-box)${NC}"
 }
 
 install_controller() {
