@@ -81,14 +81,25 @@ func CreateExitNodeHandler(c *gin.Context) {
 		return
 	}
 
-	// 自动从 Config JSON 中提取端口并同步到 Port 字段
-	if exit.Port == 0 && exit.Config != "" {
+	// 自动从 Config JSON 中提取端口和地址并同步到字段
+	if exit.Config != "" {
 		var cfg map[string]interface{}
 		if err := json.Unmarshal([]byte(exit.Config), &cfg); err == nil {
-			if p, ok := cfg["server_port"].(float64); ok {
-				exit.Port = int(p)
-			} else if p, ok := cfg["port"].(float64); ok {
-				exit.Port = int(p)
+			// 同步端口
+			if exit.Port == 0 {
+				if p, ok := cfg["server_port"].(float64); ok {
+					exit.Port = int(p)
+				} else if p, ok := cfg["port"].(float64); ok {
+					exit.Port = int(p)
+				}
+			}
+			// 同步地址
+			if exit.Address == "" {
+				if s, ok := cfg["server"].(string); ok {
+					exit.Address = s
+				} else if a, ok := cfg["address"].(string); ok {
+					exit.Address = a
+				}
 			}
 		}
 	}
@@ -101,22 +112,39 @@ func ListExitNodesHandler(c *gin.Context) {
 	var exits []models.ExitNode
 	database.DB.Find(&exits)
 
-	// 后端自愈逻辑：如果发现库里端口是 0，自动解析并修正（不让 0 活过这个环节）
+	// 后端自愈逻辑：如果发现库里端口或地址缺失，自动解析并修正
 	for i := range exits {
-		if exits[i].Port == 0 && exits[i].Config != "" {
+		if (exits[i].Port == 0 || exits[i].Address == "") && exits[i].Config != "" {
 			var cfg map[string]interface{}
 			if err := json.Unmarshal([]byte(exits[i].Config), &cfg); err == nil {
-				portFound := 0
-				if p, ok := cfg["server_port"].(float64); ok {
-					portFound = int(p)
-				} else if p, ok := cfg["port"].(float64); ok {
-					portFound = int(p)
+				updated := false
+				// 修正端口
+				if exits[i].Port == 0 {
+					if p, ok := cfg["server_port"].(float64); ok {
+						exits[i].Port = int(p)
+						updated = true
+					} else if p, ok := cfg["port"].(float64); ok {
+						exits[i].Port = int(p)
+						updated = true
+					}
+				}
+				// 修正地址
+				if exits[i].Address == "" {
+					if s, ok := cfg["server"].(string); ok {
+						exits[i].Address = s
+						updated = true
+					} else if a, ok := cfg["address"].(string); ok {
+						exits[i].Address = a
+						updated = true
+					}
 				}
 
-				if portFound != 0 {
-					exits[i].Port = portFound
+				if updated {
 					// 悄悄修正数据库，一劳永逸
-					database.DB.Model(&models.ExitNode{}).Where("id = ?", exits[i].ID).Update("port", portFound)
+					database.DB.Model(&models.ExitNode{}).Where("id = ?", exits[i].ID).Select("port", "address").Updates(map[string]interface{}{
+						"port":    exits[i].Port,
+						"address": exits[i].Address,
+					})
 				}
 			}
 		}

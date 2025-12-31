@@ -40,24 +40,22 @@ func syncAllNodes() {
 	database.DB.Where("v2board_url <> '' AND v2board_key <> ''").Find(&entries)
 
 	for _, entry := range entries {
-		// 1. 查找是否有针对该入口的特定节点绑定 (NodeMapping)
+		// 1. 首先尝试同步 EntryNode 自身的默认同步字段 (确保主节点用户不丢失)
+		if entry.V2boardNodeID != 0 {
+			nodeType := entry.V2boardType
+			if nodeType == "" {
+				nodeType = "v2ray"
+			}
+			syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID)
+		}
+
+		// 2. 查找并处理针对该入口的所有特定额外绑定 (NodeMapping)
 		var mappings []models.NodeMapping
 		database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
 
-		if len(mappings) > 0 {
-			// 如果有绑定，循环处理每一个绑定
-			for _, m := range mappings {
-				syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID)
-			}
-		} else {
-			// 如果没有绑定，则尝试使用 EntryNode 自身的默认同步字段 (向后兼容)
-			if entry.V2boardNodeID != 0 {
-				nodeType := entry.V2boardType
-				if nodeType == "" {
-					nodeType = "v2ray"
-				}
-				syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID)
-			}
+		for _, m := range mappings {
+			// 如果 Mapping 的节点 ID 和默认 ID 重复，syncSingleTarget 内部会处理覆盖，是安全的
+			syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID)
 		}
 	}
 }
