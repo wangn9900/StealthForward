@@ -53,14 +53,25 @@ func syncAllNodes() {
 			activeUUIDs = append(activeUUIDs, uuids...)
 		}
 
-		// 2. 再同步 EntryNode 自身的默认规则 (避开已被映射的用户)
+		// 2. 再同步 EntryNode 自身的默认规则 (避开已被映射的用户 AND 已在 Mapping 中定义的节点)
 		if entry.V2boardNodeID != 0 {
-			nodeType := entry.V2boardType
-			if nodeType == "" {
-				nodeType = "v2ray"
+			// 检查这个 V2B Node ID 是否已经在 Mapping 中定义
+			alreadyMapped := false
+			for _, m := range mappings {
+				if m.V2boardNodeID == entry.V2boardNodeID {
+					alreadyMapped = true
+					break
+				}
 			}
-			uuids := syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID, processedUUIDs)
-			activeUUIDs = append(activeUUIDs, uuids...)
+			// 如果没有被 Mapping 定义，才用默认落地同步
+			if !alreadyMapped {
+				nodeType := entry.V2boardType
+				if nodeType == "" {
+					nodeType = "v2ray"
+				}
+				uuids := syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID, processedUUIDs)
+				activeUUIDs = append(activeUUIDs, uuids...)
+			}
 		}
 
 		// 3. 清理已失效/过期用户
