@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -73,24 +74,38 @@ func pushTrafficAndOnlineToV2Board() {
 
 	now := time.Now()
 	for _, entry := range entries {
-		// 1. 收集当前节点的在线用户 (3 分钟内有活动的算在线)
-		onlinePayload := make(map[string][]int64)
+		// 按 V2Board Node ID 分组的 Payloads
+		nodePayloads := make(map[int]map[string][]int64)
 
 		var rules []models.ForwardingRule
 		database.DB.Where("entry_node_id = ?", entry.ID).Find(&rules)
 
-		onlineCount := 0
 		for _, rule := range rules {
 			uid := rule.V2boardUID
 			if uid == 0 {
 				continue
 			}
 
-			// 获取该用户的流量增量
+			// 从 UserEmail (标签) 中提取真正的 V2Board 节点 ID
+			// 格式: n20-ed296cba
+			reportingNodeID := entry.V2boardNodeID // 默认值
+			if strings.HasPrefix(rule.UserEmail, "n") && strings.Contains(rule.UserEmail, "-") {
+				idPart := strings.Split(rule.UserEmail, "-")[0][1:] // 拿到 "20"
+				if id, err := strconv.Atoi(idPart); err == nil {
+					reportingNodeID = id
+				}
+			}
+
+			// 初始化该节点的 PayloadMap
+			if _, ok := nodePayloads[reportingNodeID]; !ok {
+				nodePayloads[reportingNodeID] = make(map[string][]int64)
+			}
+
+			// 获取流量增量
 			var u, d int64
 			if val, ok := userTrafficMap.Load(uid); ok {
 				traffic := val.(*[2]int64)
-				u = atomic.SwapInt64(&traffic[0], 0) // 读取并重置，确保不重复计算
+				u = atomic.SwapInt64(&traffic[0], 0)
 				d = atomic.SwapInt64(&traffic[1], 0)
 			}
 
@@ -100,41 +115,60 @@ func pushTrafficAndOnlineToV2Board() {
 				if now.Sub(lastSeen.(time.Time)) < 3*time.Minute {
 					isOnline = true
 				} else {
-					activeUsers.Delete(uid) // 太久没见，清理掉
+					activeUsers.Delete(uid)
 				}
 			}
 
-			// V2Board 的 push 接口逻辑：
-			// 如果 data 为空，在线人数为 0
-			// 我们把所有在线用户都塞进 data，即使流量为 0，也能统计人数
 			if isOnline || u > 0 || d > 0 {
-				onlinePayload[fmt.Sprintf("%d", uid)] = []int64{u, d}
-				onlineCount++
+				nodePayloads[reportingNodeID][fmt.Sprintf("%d", uid)] = []int64{u, d}
 			}
 		}
 
-		// 2. 发送上报 (心跳模式：即便 onlineCount 为 0 也要发，告诉面板节点还活着且 0 人在线)
-		err := reportToV2BoardAPI(entry, onlinePayload)
-		if err != nil {
-			log.Printf("[Traffic] V2Board 同步失败 (Entry #%d): %v", entry.ID, err)
+		// 确保 Entry 默认节点和 Mapping 节点都有心跳
+		var mappings []models.NodeMapping
+		database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
+
+		allTargetNodeIDs := make(map[int]bool)
+		if entry.V2boardNodeID != 0 {
+			allTargetNodeIDs[entry.V2boardNodeID] = true
+		}
+		for _, m := range mappings {
+			allTargetNodeIDs[m.V2boardNodeID] = true
+		}
+
+		for nodeID := range allTargetNodeIDs {
+			payload := nodePayloads[nodeID]
+			if payload == nil {
+				payload = make(map[string][]int64)
+			}
+
+			nodeType := entry.V2boardType
+			for _, m := range mappings {
+				if m.V2boardNodeID == nodeID && m.V2boardType != "" {
+					nodeType = m.V2boardType
+					break
+				}
+			}
+			if nodeType == "" {
+				nodeType = "v2ray"
+			}
+
+			err := reportToV2BoardAPIWithID(entry, nodeID, nodeType, payload)
+			if err != nil {
+				log.Printf("[Traffic] V2Board 同步失败 (Entry #%d, Node #%d): %v", entry.ID, nodeID, err)
+			}
 		}
 	}
 }
 
-func reportToV2BoardAPI(entry models.EntryNode, importData map[string][]int64) error {
+func reportToV2BoardAPIWithID(entry models.EntryNode, nodeID int, nodeType string, importData map[string][]int64) error {
 	apiURL := entry.V2boardURL
 	if len(apiURL) > 0 && apiURL[len(apiURL)-1] == '/' {
 		apiURL = apiURL[:len(apiURL)-1]
 	}
 
-	// node_type 兼容性处理
-	nodeType := entry.V2boardType
-	if nodeType == "" {
-		nodeType = "v2ray"
-	}
-
 	fullURL := fmt.Sprintf("%s/api/v1/server/UniProxy/push?token=%s&node_id=%d&node_type=%s",
-		apiURL, entry.V2boardKey, entry.V2boardNodeID, nodeType)
+		apiURL, entry.V2boardKey, nodeID, nodeType)
 
 	jsonData, _ := json.Marshal(importData)
 	client := &http.Client{Timeout: 10 * time.Second}
