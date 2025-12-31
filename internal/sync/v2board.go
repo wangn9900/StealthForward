@@ -40,50 +40,64 @@ func syncAllNodes() {
 	database.DB.Where("v2board_url <> '' AND v2board_key <> ''").Find(&entries)
 
 	for _, entry := range entries {
-		var activeUUIDs []string
+		processedUUIDs := make(map[string]bool) // 记录已由 Mapping 处理过的用户，防止被默认规则覆盖
 
-		// 1. 首先尝试同步 EntryNode 自身的默认同步字段 (确保主节点用户不丢失)
+		// 1. 先同步 Mapping 规则 (最高优先级)
+		var mappings []models.NodeMapping
+		database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
+
+		var activeUUIDs []string
+		for _, m := range mappings {
+			log.Printf(">>>> [D-Sync] 优先处理映射任务: NodeID %d -> ExitID %d", m.V2boardNodeID, m.TargetExitID)
+			uuids := syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID, true, processedUUIDs)
+			activeUUIDs = append(activeUUIDs, uuids...)
+		}
+
+		// 2. 再同步 EntryNode 自身的默认规则 (避开已被映射的用户)
 		if entry.V2boardNodeID != 0 {
 			nodeType := entry.V2boardType
 			if nodeType == "" {
 				nodeType = "v2ray"
 			}
-			uuids := syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID)
+			uuids := syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID, false, processedUUIDs)
 			activeUUIDs = append(activeUUIDs, uuids...)
 		}
 
-		// 2. 查找并处理针对该入口的所有特定额外绑定 (NodeMapping)
-		var mappings []models.NodeMapping
-		database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
-
-		for _, m := range mappings {
-			// 如果 Mapping 的节点 ID 和默认 ID 重复，syncSingleTarget 内部会处理覆盖，是安全的
-			uuids := syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID)
-			activeUUIDs = append(activeUUIDs, uuids...)
-		}
-
-		// 3. 清理已失效/过期用户 (不在本次同步名单中的用户全部断网删除)
+		// 3. 清理已失效/过期用户
 		if len(activeUUIDs) > 0 {
 			database.DB.Where("entry_node_id = ? AND user_id NOT IN ?", entry.ID, activeUUIDs).Delete(&models.ForwardingRule{})
 		} else {
-			// 如果本次同步没有获取到任何用户，则清理该入口节点下的所有规则
 			database.DB.Where("entry_node_id = ?", entry.ID).Delete(&models.ForwardingRule{})
 		}
 	}
 }
 
-// syncSingleTarget 负责执行具体的拉取和更新动作
-func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint) []string {
+func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint, isPriority bool, processed map[string]bool) []string {
 	if v2bNodeID <= 0 {
 		return nil
 	}
-	log.Printf(">>>> [D-Sync] 正在从 V2Board 拉取: NodeID=%d, Type=%s, URL=%s", v2bNodeID, v2bType, entry.V2boardURL)
 	users, err := fetchUsers(entry, v2bNodeID, v2bType)
 	if err != nil {
-		log.Printf("!!!! [D-Sync] 同步失败 (Entry #%d, NodeID %d): %v", entry.ID, v2bNodeID, err)
+		log.Printf("!!!! [D-Sync] 同步故障 (NodeID %d): %v", v2bNodeID, err)
 		return nil
 	}
-	log.Printf(">>>> [D-Sync] 成功获取 %d 个用户，准备更新本地规则...", len(users))
+
+	// 如果是高优先级任务，标记这些用户已处理
+	if isPriority {
+		for _, u := range users {
+			processed[u.UUID] = true
+		}
+	} else {
+		// 如果是默认任务，过滤掉已经由映射处理过的用户
+		var filtered []V2boardUser
+		for _, u := range users {
+			if !processed[u.UUID] {
+				filtered = append(filtered, u)
+			}
+		}
+		users = filtered
+	}
+
 	updateRulesForEntry(entry.ID, entry.Name, targetExitID, users)
 
 	// 收集并返回本次同步的所有 UUID
