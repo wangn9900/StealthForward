@@ -189,18 +189,30 @@ func (a *Agent) UpdateInternalCore(configStr string) error {
 
 func (a *Agent) reportTrafficLoop() {
 	ticker := time.NewTicker(1 * time.Minute)
+	// pendingStats 存储尚未成功上报的流量累计 [Email] -> [Up, Down]
+	pendingStats := make(map[string][2]int64)
+
 	for range ticker.C {
 		if a.hs == nil {
 			continue
 		}
 
-		stats := a.hs.GetStats()
-		if len(stats) == 0 {
+		// 1. 从内核获取本分钟的新增流量，并累加到待发送缓冲区
+		newStats := a.hs.GetStats()
+		for email, traffic := range newStats {
+			val := pendingStats[email]
+			val[0] += traffic[0]
+			val[1] += traffic[1]
+			pendingStats[email] = val
+		}
+
+		if len(pendingStats) == 0 {
 			continue
 		}
 
-		userTraffic := make([]models.UserTraffic, 0, len(stats))
-		for email, traffic := range stats {
+		// 2. 准备上报数据
+		userTraffic := make([]models.UserTraffic, 0, len(pendingStats))
+		for email, traffic := range pendingStats {
 			userTraffic = append(userTraffic, models.UserTraffic{
 				UserEmail: email,
 				Upload:    traffic[0],
@@ -224,8 +236,15 @@ func (a *Agent) reportTrafficLoop() {
 
 		resp, err := a.client.Do(req)
 		if err != nil {
-			log.Printf("Traffic report error: %v", err)
-			continue
+			log.Printf("Traffic report error (accumulating for retry): %v", err)
+			continue // 发送失败，保留 pendingStats 下次重试
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			// 只有发送成功，才清空待发送队列
+			pendingStats = make(map[string][2]int64)
+		} else {
+			log.Printf("Controller returned error %d, keeping stats for retry", resp.StatusCode)
 		}
 		resp.Body.Close()
 	}

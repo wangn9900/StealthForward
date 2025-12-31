@@ -70,7 +70,7 @@ func pushTrafficToV2Board() {
 		database.DB.Where("entry_node_id = ?", entry.ID).Find(&rules)
 
 		for _, rule := range rules {
-			if val, ok := userTrafficMap.LoadAndDelete(rule.V2boardUID); ok {
+			if val, ok := userTrafficMap.Load(rule.V2boardUID); ok {
 				traffic := val.(*[2]int64)
 				if traffic[0] > 0 || traffic[1] > 0 {
 					payload[rule.V2boardUID] = *traffic
@@ -83,8 +83,11 @@ func pushTrafficToV2Board() {
 			err := reportToV2BoardAPI(entry, payload)
 			if err != nil {
 				log.Printf("V2Board 流量同步失败 (Entry #%d): %v", entry.ID, err)
-				// 失败的话，理论上应该写回 map 或者存入失败重试队列
-				// 这里简化处理：失败了就丢了，或者等待下次同步（如果 Agent 没重置的话）
+			} else {
+				// 只有成功了，才从 map 扣除掉已经报上去的量
+				for uid := range payload {
+					userTrafficMap.Delete(uid)
+				}
 			}
 		}
 	}
