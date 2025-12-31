@@ -52,7 +52,8 @@ func CollectTraffic(report models.NodeTrafficReport) {
 
 		// 累加流量 (增量)
 		if t.Upload > 0 || t.Download > 0 {
-			val, _ := userTrafficMap.LoadOrStore(rule.V2boardUID, &[2]int64{0, 0})
+			// 使用 UserEmail (即 Tag, 如 n20-xxxxx) 作为 Key，确保不同节点的流量分开记录
+			val, _ := userTrafficMap.LoadOrStore(t.UserEmail, &[2]int64{0, 0})
 			traffic := val.(*[2]int64)
 			atomic.AddInt64(&traffic[0], t.Upload)
 			atomic.AddInt64(&traffic[1], t.Download)
@@ -106,9 +107,9 @@ func pushTrafficAndOnlineToV2Board() {
 				nodePayloads[reportingNodeID] = make(map[string][]int64)
 			}
 
-			// 获取流量增量
+			// 获取流量增量 (使用 UserEmail 作为 Key)
 			var u, d int64
-			if val, ok := userTrafficMap.Load(uid); ok {
+			if val, ok := userTrafficMap.Load(rule.UserEmail); ok {
 				traffic := val.(*[2]int64)
 				u = atomic.SwapInt64(&traffic[0], 0)
 				d = atomic.SwapInt64(&traffic[1], 0)
