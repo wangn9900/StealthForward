@@ -439,6 +439,10 @@
                             <option v-for="ex in exits" :value="ex.id">{{ex.name}} (#{{ex.id}})</option>
                         </select>
                     </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">独立监听端口 <span
+                            class="text-xs text-slate-600">(留空则用入口默认端口)</span>
+                        <input type="number" v-model.number="form.mapping.port" placeholder="4434">
+                    </label>
                     <label class="flex flex-col gap-1.5 text-slate-500">节点协议
                         <select v-model="form.mapping.v2board_type">
                             <option value="v2ray">V2ray</option>
@@ -539,7 +543,7 @@
                         entry: { id: null, name: '', port: 443, domain: '', certificate: '', key: '', fallback: '127.0.0.1:80', target_exit_id: 0, v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
                         exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, password: '', method: '2022-blake3-aes-128-gcm' },
                         rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null },
-                        mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray' }
+                        mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray', port: null }
                     }
                 }
             },
@@ -589,7 +593,8 @@
                         entry_node_id: parseInt(this.form.mapping.entry_node_id),
                         v2board_node_id: parseInt(this.form.mapping.v2board_node_id),
                         v2board_type: this.form.mapping.v2board_type || 'v2ray',
-                        target_exit_id: parseInt(this.form.mapping.target_exit_id)
+                        target_exit_id: parseInt(this.form.mapping.target_exit_id),
+                        port: this.form.mapping.port || 0
                     };
                     await this.apiPost('/api/v1/mappings', payload);
                     this.hideModal();
