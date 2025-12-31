@@ -77,11 +77,10 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 注入“标准”回落配置
-	vlessInbound["fallbacks"] = []interface{}{
-		map[string]interface{}{
-			"dest": fallbackHost + ":" + strconv.Itoa(fallbackPort),
-		},
+	// 注入“特色”回落配置 (针对 V2bX/Tox 支持的单数格式)
+	vlessInbound["fallback"] = map[string]interface{}{
+		"server":      fallbackHost,
+		"server_port": fallbackPort,
 	}
 
 	users := []map[string]interface{}{}

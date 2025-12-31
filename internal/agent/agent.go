@@ -139,10 +139,15 @@ func (a *Agent) RestartSingBox() error {
 		return nil
 	}
 	// ... (原逻辑) ...
+	// 尝试重启我们的隔离服务
 	cmd := exec.Command("systemctl", "restart", "stealth-core")
 	if err := cmd.Run(); err != nil {
-		log.Printf("Systemd restart failed, trying direct reload: %v", err)
-		return exec.Command(a.cfg.SingBoxPath, "check", "-c", filepath.Join(a.cfg.LocalConfigDir, "config.json")).Run()
+		log.Printf("Stealth-core restart failed, trying standard sing-box: %v", err)
+		// 备选方案：尝试重启标准的 sing-box 服务
+		if err := exec.Command("systemctl", "restart", "sing-box").Run(); err != nil {
+			log.Printf("Standard sing-box restart also failed, trying direct reload.")
+			return exec.Command(a.cfg.SingBoxPath, "check", "-c", filepath.Join(a.cfg.LocalConfigDir, "config.json")).Run()
+		}
 	}
 
 	log.Println("Sing-box service restarted successfully.")
