@@ -14,6 +14,7 @@ type EntryNode struct {
 	CertBody     string `json:"cert_body"`      // 证书内容备份 (用于换机无感恢复)
 	KeyBody      string `json:"key_body"`       // 私钥内容备份
 	Fallback     string `json:"fallback"`       // 回落地址，例如 "127.0.0.1:8080"
+	CertTask     bool   `json:"cert_task"`      // 是否有待处理的证书申请任务
 	TargetExitID uint   `json:"target_exit_id"` // 默认的一键转落地节点 ID（作为备用）
 	Protocol     string `json:"protocol"`       // vless
 	Security     string `json:"security"`       // xtls-vision

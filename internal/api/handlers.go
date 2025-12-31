@@ -1,11 +1,7 @@
 package api
 
 import (
-	"log"
-	"net"
 	"net/http"
-	"os"
-	"os/exec"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -56,8 +52,12 @@ func GetConfigHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate config"})
 		return
 	}
-
-	c.String(http.StatusOK, config)
+	// 4. 返回 JSON 响应，包含配置和可能的任务
+	c.JSON(http.StatusOK, gin.H{
+		"config":    config,
+		"cert_task": entry.CertTask,
+		"domain":    entry.Domain,
+	})
 }
 
 func RegisterNodeHandler(c *gin.Context) {
@@ -137,7 +137,7 @@ func TriggerSyncHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "sync triggered"})
 }
 
-// IssueCertHandler 使用 acme.sh 为指定域名签发证书
+// IssueCertHandler 不再直接申请，而是下发任务给 Agent 执行
 func IssueCertHandler(c *gin.Context) {
 	var req struct {
 		Domain string `json:"domain"`
@@ -147,100 +147,45 @@ func IssueCertHandler(c *gin.Context) {
 		return
 	}
 
-	if req.Domain == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "domain is required"})
-		return
-	}
-
-	// 查找域名对应的节点信息，以便后续保存证书内容
 	var entry models.EntryNode
 	if err := database.DB.Where("domain = ?", req.Domain).First(&entry).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "未找到绑定该域名的节点"})
 		return
 	}
 
-	// 定义证书存放路径
-	certDir := "/etc/stealthforward/certs/" + req.Domain
-	exec.Command("mkdir", "-p", certDir).Run()
-
-	home, _ := os.UserHomeDir()
-	acmePath := home + "/.acme.sh/acme.sh"
-
-	// 方案 A 增强：全自动探测模式
-	// 增加宝塔默认路径支持: /www/wwwroot/域名
-	btPath := "/www/wwwroot/" + req.Domain
-	commonWebroots := []string{btPath, "/var/www/html", "/usr/share/nginx/html", "/var/www/v2board/public"}
-	var finalWebroot string
-	for _, path := range commonWebroots {
-		if _, err := os.Stat(path); err == nil {
-			finalWebroot = path
-			log.Printf("Detected webroot: %s", finalWebroot)
-			break
-		}
-	}
-
-	var output []byte
-	var err error
-
-	// 检查 80 端口是否被占用
-	ln, lerr := net.Listen("tcp", ":80")
-	portInUse := false
-	if lerr != nil {
-		portInUse = true
-	} else {
-		ln.Close()
-	}
-
-	if portInUse && finalWebroot != "" {
-		// 1. 如果 80 占用且有 webroot (如宝塔环境)，走 webroot 模式 (无感)
-		log.Println("Port 80 occupied, using webroot mode...")
-		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "-w", finalWebroot, "--force").CombinedOutput()
-	} else if portInUse && finalWebroot == "" {
-		// 2. 如果 80 占用但找不到路径，尝试停掉 nginx (作为兜底)
-		log.Println("Port 80 occupied and no webroot found, trying to stop nginx temporarily...")
-		exec.Command("systemctl", "stop", "nginx").Run()
-		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
-		exec.Command("systemctl", "start", "nginx").Run()
-	} else {
-		// 3. 80 没被占用，直接走 standalone
-		log.Println("Using standalone mode...")
-		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
-	}
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "申请失败，请确保域名解析正确且 80 端口可联通",
-			"detail": string(output),
-		})
-		return
-	}
-
-	// 安装证书到指定目录
-	certFile := certDir + "/cert.crt"
-	keyFile := certDir + "/cert.key"
-	_, err = exec.Command(acmePath, "--install-cert", "-d", req.Domain,
-		"--fullchain-file", certFile,
-		"--key-file", keyFile).CombinedOutput()
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "证书下载/安装失败"})
-		return
-	}
-
-	// 读取物理文件内容并备份到数据库，实现换机无感恢复
-	cb, _ := os.ReadFile(certFile)
-	kb, _ := os.ReadFile(keyFile)
-	entry.CertBody = string(cb)
-	entry.KeyBody = string(kb)
-	entry.Certificate = certFile
-	entry.Key = keyFile
+	// 标记该节点有待处理的证书任务
+	entry.CertTask = true
 	database.DB.Save(&entry)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "证书申请成功并已备份到大脑数据库",
-		"cert":    certFile,
-		"key":     keyFile,
+		"message": "申请指令已下发！中转机将在下次同步时（约1分钟内）自动开始申请。申请成功后证书将自动同步回来。",
 	})
+}
+
+// UploadCertHandler 供 Agent 申请成功后回传证书内容
+func UploadCertHandler(c *gin.Context) {
+	var req struct {
+		Domain   string `json:"domain"`
+		CertBody string `json:"cert_body"`
+		KeyBody  string `json:"key_body"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid data"})
+		return
+	}
+
+	var entry models.EntryNode
+	if err := database.DB.Where("domain = ?", req.Domain).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "node not found"})
+		return
+	}
+
+	entry.CertBody = req.CertBody
+	entry.KeyBody = req.KeyBody
+	entry.CertTask = false // 任务完成，清除标志
+	database.DB.Save(&entry)
+
+	c.JSON(http.StatusOK, gin.H{"message": "证书备份成功"})
 }
 
 // NodeMapping 管理接口

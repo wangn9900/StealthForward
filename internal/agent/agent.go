@@ -251,36 +251,103 @@ func (a *Agent) reportTrafficLoop() {
 }
 
 func (a *Agent) RunOnce() {
-	log.Println("Syncing config from controller...")
+	log.Println("Syncing state from controller...")
 
-	// 1. 确保伪装站已生成
-	a.EnsureMasquerade()
-
-	// 2. 尝试从本地加载旧配置（仅在第一次运行且内存中无配置时）
-	if a.lastConfig == "" {
-		configPath := filepath.Join(a.cfg.LocalConfigDir, "config.json")
-		if data, err := os.ReadFile(configPath); err == nil {
-			log.Println("Detected local config backup, performing offline bootstrap...")
-			a.lastConfig = string(data)
-			if err := a.RestartSingBox(); err != nil {
-				log.Printf("Offline bootstrap failed: %v", err)
-				a.lastConfig = "" // 失败了清空，等待从控制端拉取
-			} else {
-				log.Println("Offline bootstrap success! Service restored using local cache.")
-			}
-		}
+	// 1. 获取来自控制端的最新数据 (JSON 格式)
+	url := fmt.Sprintf("%s/api/v1/node/%d/config", a.cfg.ControllerAddr, a.cfg.NodeID)
+	req, _ := http.NewRequest("GET", url, nil)
+	if a.cfg.AdminToken != "" {
+		req.Header.Set("Authorization", a.cfg.AdminToken)
 	}
 
-	// 3. 获取来自控制端的最新配置
-	config, err := a.FetchConfig()
+	resp, err := a.client.Do(req)
 	if err != nil {
-		log.Printf("Fetch error (Controller may be down): %v", err)
-		// 如果获取失败且我们已经有了本地配置在跑，那就继续跑，不报错
+		log.Printf("Fetch error: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Config   string `json:"config"`
+		CertTask bool   `json:"cert_task"`
+		Domain   string `json:"domain"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("Failed to decode sync response: %v", err)
 		return
 	}
 
-	if err := a.ApplyConfig(config); err != nil {
-		log.Printf("Apply error: %v", err)
+	// 2. 检查是否有证书申请任务
+	if result.CertTask {
+		log.Printf("Received certificate issuance task for domain: %s", result.Domain)
+		go a.IssueCertLocally(result.Domain)
+	}
+
+	// 3. 应用配置
+	if result.Config != "" {
+		if err := a.ApplyConfig(result.Config); err != nil {
+			log.Printf("Apply error: %v", err)
+		}
+	}
+}
+
+func (a *Agent) IssueCertLocally(domain string) {
+	log.Printf("Starting local ACME issuance for %s...", domain)
+	home, _ := os.UserHomeDir()
+	acmePath := home + "/.acme.sh/acme.sh"
+
+	// 尝试自动匹配宝塔之类的 webroot
+	btPath := "/www/wwwroot/" + domain
+	webroot := "/var/www/html"
+	if _, err := os.Stat(btPath); err == nil {
+		webroot = btPath
+	}
+
+	// 申请证书
+	cmd := exec.Command(acmePath, "--issue", "-d", domain, "-w", webroot, "--force")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Local cert issuance failed: %v, Output: %s", err, string(output))
+		return
+	}
+
+	// 安装证书到本地指定目录
+	certDir := "/etc/stealthforward/certs/" + domain
+	os.MkdirAll(certDir, 0755)
+	certFile := certDir + "/cert.crt"
+	keyFile := certDir + "/cert.key"
+
+	cmd = exec.Command(acmePath, "--install-cert", "-d", domain,
+		"--fullchain-file", certFile,
+		"--key-file", keyFile)
+	if err := cmd.Run(); err != nil {
+		log.Printf("Failed to install cert: %v", err)
+		return
+	}
+
+	// 回传给 Controller 备份
+	cb, _ := os.ReadFile(certFile)
+	kb, _ := os.ReadFile(keyFile)
+
+	uploadURL := fmt.Sprintf("%s/api/v1/entries/upload-cert", a.cfg.ControllerAddr)
+	payload := map[string]string{
+		"domain":    domain,
+		"cert_body": string(cb),
+		"key_body":  string(kb),
+	}
+	jsonPayload, _ := json.Marshal(payload)
+
+	postReq, _ := http.NewRequest("POST", uploadURL, bytes.NewBuffer(jsonPayload))
+	if a.cfg.AdminToken != "" {
+		postReq.Header.Set("Authorization", a.cfg.AdminToken)
+	}
+	postReq.Header.Set("Content-Type", "application/json")
+
+	respUpload, err := a.client.Do(postReq)
+	if err == nil && respUpload.StatusCode == http.StatusOK {
+		log.Printf("Certificate issued and backed up to controller for %s", domain)
+	} else {
+		log.Printf("Failed to backup certificate to controller")
 	}
 }
 

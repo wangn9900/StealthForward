@@ -59,6 +59,7 @@ func main() {
 		v1.POST("/entries", api.RegisterNodeHandler)
 		v1.DELETE("/entries/:id", api.DeleteEntryNodeHandler)
 		v1.POST("/entries/issue-cert", api.IssueCertHandler)
+		v1.POST("/entries/upload-cert", api.UploadCertHandler) // Agent 申请成功后回传
 
 		// 落地管理 (Exit)
 		v1.GET("/exits", api.ListExitNodesHandler)
