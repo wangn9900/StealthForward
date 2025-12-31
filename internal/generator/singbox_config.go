@@ -165,9 +165,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 		if exitName != "" {
 			routingRules = append(routingRules, map[string]interface{}{
-				"inbound":  []string{fmt.Sprintf("node_%d", entry.ID)},
-				"user":     emails,
-				"outbound": "out-" + exitName,
+				"inbound":   []string{fmt.Sprintf("node_%d", entry.ID)},
+				"auth_user": emails,
+				"outbound":  "out-" + exitName,
 			})
 		}
 	}
