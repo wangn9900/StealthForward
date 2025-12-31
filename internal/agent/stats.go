@@ -10,7 +10,6 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common/buf"
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -32,7 +31,6 @@ func (h *HookServer) ModeList() []string {
 
 func (h *HookServer) RoutedConnection(ctx context.Context, conn net.Conn, m adapter.InboundContext, rule adapter.Rule, outbound adapter.Outbound) net.Conn {
 	if m.User == "" {
-		// log.Printf("[Debug] RoutedConnection: No User, skipping")
 		return conn
 	}
 	log.Printf("[Debug] Hook TCP for User: %s", m.User)
@@ -40,9 +38,10 @@ func (h *HookServer) RoutedConnection(ctx context.Context, conn net.Conn, m adap
 	val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
 	storage := val.(*TrafficStorage)
 
+	// 使用标准 Conn 包装，不透传 SyscallConn，强制禁用 Splice 以捕获在用户态的流量
 	return &ConnCounter{
-		ExtendedConn: bufio.NewExtendedConn(conn),
-		storage:      storage,
+		Conn:    conn,
+		storage: storage,
 	}
 }
 
@@ -62,52 +61,37 @@ func (h *HookServer) RoutedPacketConnection(ctx context.Context, conn N.PacketCo
 }
 
 // ConnCounter 包装 net.Conn 以统计流量 (TCP)
+// 显式实现 net.Conn 而不是嵌入，以隐藏 ReaderFrom/WriterTo/SyscallConn 接口
+// 这会强制 Go 使用标准的 Read/Write 循环，从而确保流量被统计到
 type ConnCounter struct {
-	N.ExtendedConn
+	net.Conn
 	storage *TrafficStorage
 }
 
 func (c *ConnCounter) Read(b []byte) (n int, err error) {
-	n, err = c.ExtendedConn.Read(b)
+	n, err = c.Conn.Read(b)
 	if n > 0 {
 		c.storage.UpCounter.Add(int64(n))
-		log.Printf("TCP Read %d", n)
+		// Log 太多会刷屏，保留关键采样或注释掉
+		// log.Printf("TCP Read %d", n)
 	}
 	return
 }
 
 func (c *ConnCounter) Write(b []byte) (n int, err error) {
-	n, err = c.ExtendedConn.Write(b)
+	n, err = c.Conn.Write(b)
 	if n > 0 {
 		c.storage.DownCounter.Add(int64(n))
-		log.Printf("TCP Write %d", n)
+		// log.Printf("TCP Write %d", n)
 	}
 	return
 }
 
-// Override ReadFrom to capture Slice/Sendfile traffic (Download)
+// 即使没有嵌入接口，也要重写 ReaderFrom 以防万一 (虽然不嵌入就不会被类型断言成功)
+// 但为了保险起见，显式拦截是个好习惯
 func (c *ConnCounter) ReadFrom(r io.Reader) (n int64, err error) {
-	if rf, ok := c.ExtendedConn.(io.ReaderFrom); ok {
-		n, err = rf.ReadFrom(r)
-		if n > 0 {
-			c.storage.DownCounter.Add(n)
-			log.Printf("TCP ReadFrom (Down) %d", n)
-		}
-		return
-	}
-	return io.Copy(struct{ io.Writer }{c.ExtendedConn}, r)
-}
-
-// Override WriteTo to capture Slice/Sendfile traffic (Upload)
-func (c *ConnCounter) WriteTo(w io.Writer) (n int64, err error) {
-	if wt, ok := c.ExtendedConn.(io.WriterTo); ok {
-		n, err = wt.WriteTo(w)
-		if n > 0 {
-			c.storage.UpCounter.Add(n)
-		}
-		return
-	}
-	return io.Copy(w, struct{ io.Reader }{c.ExtendedConn})
+	// 强制降级到 copy loop
+	return io.Copy(struct{ io.Writer }{c}, r)
 }
 
 // PacketConnCounter 包装 N.PacketConn 以统计流量 (UDP/QUIC)
@@ -131,7 +115,7 @@ func (c *PacketConnCounter) WritePacket(buffer *buf.Buffer, destination M.Socksa
 	err := c.PacketConn.WritePacket(buffer, destination)
 	if err == nil {
 		c.storage.DownCounter.Add(l)
-		log.Printf("UDP WritePacket (Down) %d", l)
+		// log.Printf("UDP WritePacket (Down) %d", l)
 	}
 	return err
 }
