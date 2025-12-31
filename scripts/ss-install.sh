@@ -46,47 +46,61 @@ function install_ss() {
         fi
     fi
 
-    # 3. 智能探测内核 (隔离共存的关键)
+    # 3. 智能探测内核 (避开管理脚本，寻找真正的二进制)
     SB_BIN=""
-    if command -v sing-box &> /dev/null; then
-        SB_BIN=$(command -v sing-box)
-    elif command -v tox &> /dev/null; then
-        SB_BIN=$(command -v tox)
-        echo -e "${GREEN}检测到系统中存在 Tox 命名的内核: $SB_BIN${PLAIN}"
-    elif command -v V2bX &> /dev/null; then
-        SB_BIN=$(command -v V2bX)
-        echo -e "${GREEN}检测到系统中存在 V2bX 命名的内核: $SB_BIN${PLAIN}"
-    elif pgrep -x "tox" > /dev/null; then
-        SB_BIN=$(readlink -f /proc/$(pgrep -x "tox" | head -n 1)/exe)
-        echo -e "${GREEN}检测到系统中正在运行 Tox，将复用其内核: $SB_BIN${PLAIN}"
-    elif pgrep -x "V2bX" > /dev/null; then
-        SB_BIN=$(readlink -f /proc/$(pgrep -x "V2bX" | head -n 1)/exe)
-        echo -e "${GREEN}检测到系统中正在运行 V2bX，将复用其内核: $SB_BIN${PLAIN}"
+    SB_TYPE="native" # 默认为原生 sing-box
+
+    # 优先检测二进制路径，而不是通过 command -v (避开 /usr/bin/ 脚本)
+    POTENTIAL_BINS=("/usr/local/tox/tox" "/usr/local/V2bX/V2bX" "/usr/bin/sing-box" "/usr/local/bin/sing-box")
+    
+    for bin in "${POTENTIAL_BINS[@]}"; do
+        if [ -f "$bin" ] && [ -x "$bin" ]; then
+            # 这是一个关键判断：如果是 tox 或 V2bX，它们通常是二进制文件
+            # 我们通过尝试运行 version 查看其输出特征
+            if "$bin" version 2>&1 | grep -qiE "tox|V2bX"; then
+                SB_BIN="$bin"
+                SB_TYPE="v2bx"
+                break
+            fi
+            if "$bin" version 2>&1 | grep -qi "sing-box"; then
+                SB_BIN="$bin"
+                SB_TYPE="native"
+                break
+            fi
+        fi
+    done
+
+    if [ -z "$SB_BIN" ]; then
+        # 兜底检测
+        if command -v sing-box &> /dev/null; then
+            SB_BIN=$(command -v sing-box)
+            SB_TYPE="native"
+        elif command -v tox &> /dev/null && [ ! -f /usr/bin/tox ]; then # 确保不是脚本
+            SB_BIN=$(command -v tox)
+            SB_TYPE="v2bx"
+        fi
     fi
 
     if [ -n "$SB_BIN" ]; then
-        echo -e "${GREEN}已确定可用内核路径: $SB_BIN${PLAIN}"
-        echo -e "${YELLOW}将直接复用现有内核，不会重复安装，确保不影响您的业务。${PLAIN}"
+        echo -e "${GREEN}已锁定核心: $SB_BIN (模式: $SB_TYPE)${PLAIN}"
     else
-        echo -e "${BLUE}未检测到兼容内核，正在进行轻量化安装...${PLAIN}"
+        echo -e "${BLUE}未检测到兼容核心，正在为您安装隔离版内核...${PLAIN}"
         bash <(curl -fsSL https://sing-box.app/install.sh)
         SB_BIN="/usr/local/bin/sing-box"
+        SB_TYPE="native"
     fi
 
     # 4. 隔离配置环境
     CONF_DIR="/etc/stealth-ss"
-    CONF_FILE="$CONF_DIR/config.json"
+    RAW_CONF="$CONF_DIR/raw.json"
+    WRAPPER_CONF="$CONF_DIR/config.json"
     mkdir -p $CONF_DIR
 
-    # 5. 生成密钥 (兼容无 openssl 环境)
-    if command -v openssl &> /dev/null; then
-        PASSWORD=$(openssl rand -base64 16)
-    else
-        PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
-    fi
+    # 5. 生成密钥
+    PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
 
-    # 6. 写入独立配置文件
-    cat > $CONF_FILE <<EOF
+    # 6. 写入原生 Sing-box 格式配置
+    cat > $RAW_CONF <<EOF
 {
   "log": { "level": "error" },
   "inbounds": [
@@ -103,7 +117,28 @@ function install_ss() {
 }
 EOF
 
-    # 7. 创建并启动服务 (优先使用 systemd，备选方案 nohup)
+    # 7. 如果是 v2bx/tox 模式，生成包装配置
+    if [ "$SB_TYPE" == "v2bx" ]; then
+        cat > $WRAPPER_CONF <<EOF
+{
+  "Log": { "Level": "error" },
+  "Cores": [
+    {
+      "Type": "sing",
+      "Name": "stealth",
+      "OriginalPath": "$RAW_CONF"
+    }
+  ],
+  "Nodes": []
+}
+EOF
+        START_CMD="$SB_BIN server -c $WRAPPER_CONF"
+    else
+        cp $RAW_CONF $WRAPPER_CONF
+        START_CMD="$SB_BIN run -c $WRAPPER_CONF"
+    fi
+
+    # 8. 创建并启动服务
     if command -v systemctl &> /dev/null; then
         cat > /etc/systemd/system/stealth-ss.service <<EOF
 [Unit]
@@ -111,12 +146,9 @@ Description=StealthForward SS Exit Service
 After=network.target nss-lookup.target
 
 [Service]
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-ExecStart=$SB_BIN run -c $CONF_FILE
-Restart=on-failure
+ExecStart=$START_CMD
+Restart=always
 RestartSec=10
-LimitNOFILE=infinity
 
 [Install]
 WantedBy=multi-user.target
@@ -125,10 +157,8 @@ EOF
         systemctl enable stealth-ss
         systemctl restart stealth-ss
     else
-        echo -e "${YELLOW}检测到系统不支持 systemd，将使用 nohup 后台运行...${PLAIN}"
-        pkill -f "$CONF_FILE" || true
-        nohup $SB_BIN run -c $CONF_FILE > /dev/null 2>&1 &
-        echo -e "${GREEN}服务已通过 nohup 启动，重启机器后需手动重新执行脚本。${PLAIN}"
+        pkill -f "$WRAPPER_CONF" || true
+        nohup $START_CMD > /dev/null 2>&1 &
     fi
 
     # 8. 获取公网 IP
