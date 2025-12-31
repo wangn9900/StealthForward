@@ -64,34 +64,45 @@ func syncAllNodes() {
 
 // syncSingleTarget 负责执行具体的拉取和更新动作
 func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint) {
+	log.Printf(">>>> [D-Sync] 正在从 V2Board 拉取: NodeID=%d, Type=%s, URL=%s", v2bNodeID, v2bType, entry.V2boardURL)
 	users, err := fetchUsersFromV2Board(entry.V2boardURL, entry.V2boardKey, v2bNodeID, v2bType)
 	if err != nil {
-		log.Printf("同步失败 (Entry #%d, NodeID %d): %v", entry.ID, v2bNodeID, err)
+		log.Printf("!!!! [D-Sync] 同步失败 (Entry #%d): %v", entry.ID, err)
 		return
 	}
+	log.Printf(">>>> [D-Sync] 成功获取 %d 个用户，准备更新本地规则...", len(users))
 	updateRulesForEntry(entry.ID, entry.Name, targetExitID, users)
 }
 
 func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V2boardUser, error) {
-	// ... (代码保持原样) ...
 	if len(apiURL) > 0 && apiURL[len(apiURL)-1] == '/' {
 		apiURL = apiURL[:len(apiURL)-1]
 	}
+	// 强制要求 nodeType 参与请求
 	fullURL := fmt.Sprintf("%s/api/v1/server/UniProxy/user?node_id=%d&token=%s&node_type=%s", apiURL, nodeID, key, nodeType)
-	client := &http.Client{Timeout: 10 * time.Second}
+
+	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(fullURL)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("V2Board 返回错误 %d: %s", resp.StatusCode, string(body))
 	}
+
 	var v2resp V2boardResponse
 	if err := json.Unmarshal(body, &v2resp); err != nil {
-		return nil, fmt.Errorf("JSON 解析失败: %v", err)
+		// 尝试兼容某些直接返回数组的旧版本或特殊魔改版
+		var directUsers []V2boardUser
+		if err2 := json.Unmarshal(body, &directUsers); err2 == nil {
+			return directUsers, nil
+		}
+		return nil, fmt.Errorf("JSON 解析失败 (可能是 API 结构不匹配): %v | 原始数据: %s", err, string(body))
 	}
+
 	allUsers := append(v2resp.Data, v2resp.Users...)
 	return allUsers, nil
 }
