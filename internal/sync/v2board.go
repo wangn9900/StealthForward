@@ -40,13 +40,16 @@ func syncAllNodes() {
 	database.DB.Where("v2board_url <> '' AND v2board_key <> ''").Find(&entries)
 
 	for _, entry := range entries {
+		var activeUUIDs []string
+
 		// 1. 首先尝试同步 EntryNode 自身的默认同步字段 (确保主节点用户不丢失)
 		if entry.V2boardNodeID != 0 {
 			nodeType := entry.V2boardType
 			if nodeType == "" {
 				nodeType = "v2ray"
 			}
-			syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID)
+			uuids := syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID)
+			activeUUIDs = append(activeUUIDs, uuids...)
 		}
 
 		// 2. 查找并处理针对该入口的所有特定额外绑定 (NodeMapping)
@@ -55,27 +58,46 @@ func syncAllNodes() {
 
 		for _, m := range mappings {
 			// 如果 Mapping 的节点 ID 和默认 ID 重复，syncSingleTarget 内部会处理覆盖，是安全的
-			syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID)
+			uuids := syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID)
+			activeUUIDs = append(activeUUIDs, uuids...)
+		}
+
+		// 3. 清理已失效/过期用户 (不在本次同步名单中的用户全部断网删除)
+		if len(activeUUIDs) > 0 {
+			database.DB.Where("entry_node_id = ? AND user_id NOT IN ?", entry.ID, activeUUIDs).Delete(&models.ForwardingRule{})
+		} else {
+			// 如果本次同步没有获取到任何用户，则清理该入口节点下的所有规则
+			database.DB.Where("entry_node_id = ?", entry.ID).Delete(&models.ForwardingRule{})
 		}
 	}
 }
 
 // syncSingleTarget 负责执行具体的拉取和更新动作
-func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint) {
+func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint) []string {
 	if v2bNodeID <= 0 {
-		return
+		return nil
 	}
 	log.Printf(">>>> [D-Sync] 正在从 V2Board 拉取: NodeID=%d, Type=%s, URL=%s", v2bNodeID, v2bType, entry.V2boardURL)
-	users, err := fetchUsersFromV2Board(entry.V2boardURL, entry.V2boardKey, v2bNodeID, v2bType)
+	users, err := fetchUsers(entry, v2bNodeID, v2bType)
 	if err != nil {
-		log.Printf("!!!! [D-Sync] 同步失败 (Entry #%d): %v", entry.ID, err)
-		return
+		log.Printf("!!!! [D-Sync] 同步失败 (Entry #%d, NodeID %d): %v", entry.ID, v2bNodeID, err)
+		return nil
 	}
 	log.Printf(">>>> [D-Sync] 成功获取 %d 个用户，准备更新本地规则...", len(users))
 	updateRulesForEntry(entry.ID, entry.Name, targetExitID, users)
+
+	// 收集并返回本次同步的所有 UUID
+	uuids := make([]string, len(users))
+	for i, u := range users {
+		uuids[i] = u.UUID
+	}
+	return uuids
 }
 
-func fetchUsersFromV2Board(apiURL, key string, nodeID int, nodeType string) ([]V2boardUser, error) {
+func fetchUsers(entry models.EntryNode, nodeID int, nodeType string) ([]V2boardUser, error) {
+	apiURL := entry.V2boardURL
+	key := entry.V2boardKey
+
 	if len(apiURL) > 0 && apiURL[len(apiURL)-1] == '/' {
 		apiURL = apiURL[:len(apiURL)-1]
 	}

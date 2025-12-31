@@ -21,7 +21,7 @@ type SingBoxConfig struct {
 func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule, exits []models.ExitNode) (string, error) {
 	config := SingBoxConfig{
 		Log: map[string]interface{}{
-			"level": "info", // 调回 info，方便您看回落和转发的详细过程
+			"level": "debug",
 		},
 		DNS: map[string]interface{}{
 			"servers": []interface{}{
