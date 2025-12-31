@@ -1,6 +1,6 @@
 #!/bin/bash
-# StealthForward - 落地机专用 Shadowsocks 一键安装脚本 (隔离增强版)
-# 设计初衷：与 V2bX/Xray 等后端完美共存，不冲突，不覆盖
+# StealthForward - 落地机专用 Shadowsocks 一键安装脚本 (全能版)
+# 支持自定义端口、NAT 映射、多后端共存
 
 set -e
 
@@ -11,44 +11,49 @@ BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
 PLAIN='\033[0m'
 
-echo -e "${BLUE}==================================================${PLAIN}"
-echo -e "${BLUE}     StealthForward 落地机助手 (多后端共存版)     ${PLAIN}"
-echo -e "${BLUE}==================================================${PLAIN}"
+function install_ss() {
+    echo -e "${BLUE}==================================================${PLAIN}"
+    echo -e "${BLUE}     StealthForward 落地机助手 (全能版)           ${PLAIN}"
+    echo -e "${BLUE}==================================================${PLAIN}"
 
-# 1. 选择加密方式
-echo -e "请选择加密方式:"
-echo -e "  ${GREEN}1)${PLAIN} chacha20-ietf-poly1305 (默认)"
-echo -e "  ${GREEN}2)${PLAIN} 2022-blake3-aes-128-gcm"
-echo -e "  ${GREEN}3)${PLAIN} aes-256-gcm"
-read -p "请输入序号 [1-3, 默认 1]: " choice
-case $choice in
-    2) METHOD="2022-blake3-aes-128-gcm" ;;
-    3) METHOD="aes-256-gcm" ;;
-    *) METHOD="chacha20-ietf-poly1305" ;;
-esac
+    # 1. 选择加密方式
+    echo -e "1. 选择加密方式:"
+    echo -e "  ${GREEN}1)${PLAIN} chacha20-ietf-poly1305 (默认)"
+    echo -e "  ${GREEN}2)${PLAIN} 2022-blake3-aes-128-gcm"
+    echo -e "  ${GREEN}3)${PLAIN} aes-256-gcm"
+    read -p "请输入序号 [1-3, 默认 1]: " choice
+    case $choice in
+        2) METHOD="2022-blake3-aes-128-gcm" ;;
+        3) METHOD="aes-256-gcm" ;;
+        *) METHOD="chacha20-ietf-poly1305" ;;
+    esac
 
-# 2. 智能探测 Sing-box
-SB_BIN="/usr/local/bin/sing-box"
-if command -v sing-box &> /dev/null; then
-    SB_BIN=$(command -v sing-box)
-    echo -e "${GREEN}检测到系统中已存在 Sing-box 内核: $SB_BIN${PLAIN}"
-    echo -e "${YELLOW}将直接复用现有内核，不会重复安装，确保不影响您的 V2bX 等业务。${PLAIN}"
-else
-    echo -e "${BLUE}未检测到 Sing-box，正在进行轻量化安装...${PLAIN}"
-    bash <(curl -fsSL https://sing-box.app/install.sh)
-fi
+    # 2. 自定义端口
+    RANDOM_PORT=$((RANDOM % 10000 + 20000))
+    echo -e "\n2. 配置监听端口 (NAT 机器请填写内网转发端口):"
+    read -p "请输入端口 [默认 $RANDOM_PORT]: " PORT
+    [ -z "$PORT" ] && PORT=$RANDOM_PORT
 
-# 3. 隔离配置环境 (使用 stealth-ss 命名空间)
-CONF_DIR="/etc/stealth-ss"
-CONF_FILE="$CONF_DIR/config.json"
-mkdir -p $CONF_DIR
+    # 3. 智能探测 Sing-box
+    SB_BIN="/usr/local/bin/sing-box"
+    if command -v sing-box &> /dev/null; then
+        SB_BIN=$(command -v sing-box)
+        echo -e "${GREEN}检测到系统中已存在 Sing-box 内核: $SB_BIN${PLAIN}"
+    else
+        echo -e "${BLUE}未检测到 Sing-box，正在进行轻量化安装...${PLAIN}"
+        bash <(curl -fsSL https://sing-box.app/install.sh)
+    fi
 
-# 4. 生成隔离参数
-PORT=$((RANDOM % 10000 + 20000))
-PASSWORD=$(openssl rand -base64 16)
+    # 4. 隔离配置环境
+    CONF_DIR="/etc/stealth-ss"
+    CONF_FILE="$CONF_DIR/config.json"
+    mkdir -p $CONF_DIR
 
-# 5. 写入独立配置文件
-cat > $CONF_FILE <<EOF
+    # 5. 生成密钥
+    PASSWORD=$(openssl rand -base64 16)
+
+    # 6. 写入独立配置文件
+    cat > $CONF_FILE <<EOF
 {
   "log": { "level": "error" },
   "inbounds": [
@@ -65,8 +70,8 @@ cat > $CONF_FILE <<EOF
 }
 EOF
 
-# 6. 创建隔离的 Systemd 服务 (stealth-ss)
-cat > /etc/systemd/system/stealth-ss.service <<EOF
+    # 7. 创建并启动隔离服务
+    cat > /etc/systemd/system/stealth-ss.service <<EOF
 [Unit]
 Description=StealthForward SS Exit Service
 After=network.target nss-lookup.target
@@ -83,25 +88,41 @@ LimitNOFILE=infinity
 WantedBy=multi-user.target
 EOF
 
-# 7. 启动隔离服务
-echo -e "${BLUE}正在启动隔离转发服务...${PLAIN}"
-systemctl daemon-reload
-systemctl enable stealth-ss
-systemctl restart stealth-ss
+    systemctl daemon-reload
+    systemctl enable stealth-ss
+    systemctl restart stealth-ss
 
-# 8. 获取公网 IP
-IP=$(curl -s -4 ifconfig.me || curl -s -4 api.ipify.org || echo "您的公网IP")
+    # 8. 获取公网 IP
+    IP=$(curl -s -4 ifconfig.me || curl -s -4 api.ipify.org || echo "您的公网IP")
 
-# 9. 打印结果
-echo -e "\n${GREEN}==================================================${PLAIN}"
-echo -e "${GREEN}🎉 落地机服务已启动 (已与 V2bX 隔离共存) ${PLAIN}"
-echo -e "${GREEN}==================================================${PLAIN}"
-echo -e "该服务独立运行，不会修改或停止您的原有 Sing-box/V2bX 配置。"
-echo -e ""
-echo -e "${BLUE}落地机地址:   ${PLAIN}$IP"
-echo -e "${BLUE}落地机端口:   ${PLAIN}$PORT"
-echo -e "${BLUE}加密方式:     ${PLAIN}$METHOD"
-echo -e "${BLUE}连接密码:     ${PLAIN}$PASSWORD"
-echo -e "${GREEN}==================================================${PLAIN}"
-echo -e "💡 防火墙请放行单独的 $PORT 端口 (TCP/UDP)"
-echo -e "${GREEN}==================================================${PLAIN}\n"
+    echo -e "\n${GREEN}==================================================${PLAIN}"
+    echo -e "${GREEN}🎉 落地机服务已启动 (隔离共存模式) ${PLAIN}"
+    echo -e "${GREEN}==================================================${PLAIN}"
+    echo -e "${BLUE}落地机地址:   ${PLAIN}$IP"
+    echo -e "${BLUE}内网监听端口: ${PLAIN}$PORT"
+    echo -e "${BLUE}加密方式:     ${PLAIN}$METHOD"
+    echo -e "${BLUE}连接密码:     ${PLAIN}$PASSWORD"
+    echo -e "${GREEN}==================================================${PLAIN}"
+    echo -e "${YELLOW}NAT 机器提醒：请确保已在服务商后台将公网端口映射至内网端 $PORT${PLAIN}"
+    echo -e "${GREEN}==================================================${PLAIN}\n"
+}
+
+function uninstall_ss() {
+    echo -e "${RED}正在卸载 StealthForward SS 落地服务...${PLAIN}"
+    systemctl stop stealth-ss || true
+    systemctl disable stealth-ss || true
+    rm -f /etc/systemd/system/stealth-ss.service
+    rm -rf /etc/stealth-ss
+    systemctl daemon-reload
+    echo -e "${GREEN}卸载完成！${PLAIN}"
+}
+
+# 脚本入口
+case "$1" in
+    uninstall)
+        uninstall_ss
+        ;;
+    *)
+        install_ss
+        ;;
+esac

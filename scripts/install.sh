@@ -213,6 +213,21 @@ EOF
   echo -e "${GREEN}Agent 已安装并在后台运行!${NC}"
 }
 
+install_ss_exit() {
+  show_logo
+  echo -e "${BLUE}开始安装 Shadowsocks 落地转发端 (Exit)...${NC}"
+  echo -e "${YELLOW}该功能会启动一个独立的 SS 服务，不影响现有的 V2bX 或 Xray。${NC}\n"
+  
+  # 直接调用专用的 SS 安装脚本
+  bash <(curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/ss-install.sh)
+}
+
+uninstall_ss_exit() {
+  echo -e "${RED}正在清理 Shadowsocks 落地转发端...${NC}"
+  # 直接调用专用脚本的卸载参数
+  bash <(curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/ss-install.sh) uninstall
+}
+
 uninstall_controller() {
   echo -e "${RED}正在卸载 StealthForward Controller...${NC}"
   systemctl stop stealth-controller 2>/dev/null
@@ -273,20 +288,24 @@ uninstall_agent() {
 main_menu() {
   show_logo
   echo -e "1. 安装 ${GREEN}Controller (中控端)${NC}"
-  echo -e "2. 安装 ${GREEN}Agent (入口节点端)${NC}"
+  echo -e "2. 安装 ${GREEN}Agent (入口节点端/中转机)${NC}"
+  echo -e "3. 安装 ${GREEN}Shadowsocks 落地端 (Exit/落地机)${NC}"
   echo -e "--------------------------------"
-  echo -e "3. ${RED}卸载 Controller${NC}"
-  echo -e "4. ${RED}卸载 Agent (包含清理 Sing-box/Nginx)${NC}"
+  echo -e "4. ${RED}卸载 Controller${NC}"
+  echo -e "5. ${RED}卸载 Agent (包含清理内核/伪装页)${NC}"
+  echo -e "6. ${RED}卸载 Shadowsocks 落地端${NC}"
   echo -e "--------------------------------"
   echo -e "0. 退出"
   echo ""
-  read -p "请选择 [0-4]: " choice
+  read -p "请选择 [0-6]: " choice
 
   case $choice in
     1) install_controller ;;
     2) install_agent ;;
-    3) uninstall_controller ;;
-    4) uninstall_agent ;;
+    3) install_ss_exit ;;
+    4) uninstall_controller ;;
+    5) uninstall_agent ;;
+    6) uninstall_ss_exit ;;
     0) exit 0 ;;
     *) echo "无效选项" ; sleep 1 ; main_menu ;;
   esac
