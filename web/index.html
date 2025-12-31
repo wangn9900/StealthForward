@@ -328,6 +328,7 @@
                                 <th class="pb-4 px-4 font-normal">来源入口 (Entry)</th>
                                 <th class="pb-4 px-4 font-normal">V2B 节点 ID</th>
                                 <th class="pb-4 px-4 font-normal">分流出口 (Target Exit)</th>
+                                <th class="pb-4 px-4 font-normal">监听端口</th>
                                 <th class="pb-4 px-4 font-normal">状态</th>
                                 <th class="pb-4 px-4 text-right font-normal">操作</th>
                             </tr>
@@ -341,6 +342,12 @@
                                         #{{ m.v2board_node_id }}</span></td>
                                 <td class="py-5 px-4 font-bold text-emerald-400">#{{ m.target_exit_id }} {{
                                     findNodeName('exits', m.target_exit_id) }}</td>
+                                <td class="py-5 px-4">
+                                    <span v-if="m.port > 0"
+                                        class="font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded">{{ m.port
+                                        }}</span>
+                                    <span v-else class="text-slate-600 text-xs">默认</span>
+                                </td>
                                 <td class="py-5 px-4"><span class="flex items-center gap-1.5"><span
                                             class="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse"></span> 实时同步中</span>
                                 </td>

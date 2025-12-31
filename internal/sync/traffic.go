@@ -56,8 +56,10 @@ func CollectTraffic(report models.NodeTrafficReport) {
 			traffic := val.(*[2]int64)
 			atomic.AddInt64(&traffic[0], t.Upload)
 			atomic.AddInt64(&traffic[1], t.Download)
+			// log.Printf("[Debug] 收到用户 %s (UID %d) 流量: Up %d, Down %d", t.UserEmail, rule.V2boardUID, t.Upload, t.Download)
 		}
 	}
+	// log.Printf("[Traffic] 收到 Agent 流量汇报: Node %d, 条目数 %d", report.NodeID, len(report.Traffic))
 }
 
 // StartTrafficReporting 启动心跳和上报任务
@@ -156,11 +158,18 @@ func pushTrafficAndOnlineToV2Board() {
 				nodeType = "v2ray"
 			}
 
+			var totalUp, totalDown int64
+			for _, v := range payload {
+				totalUp += v[0]
+				totalDown += v[1]
+			}
+
 			err := reportToV2BoardAPIWithID(entry, nodeID, nodeType, payload)
 			if err != nil {
 				log.Printf("[Traffic] V2Board 同步失败 (Entry #%d, Node #%d): %v", entry.ID, nodeID, err)
 			} else {
-				log.Printf("[Traffic] V2Board 同步成功 (Entry #%d, Node #%d): %d 条记录", entry.ID, nodeID, len(payload))
+				log.Printf("[Traffic] V2Board 同步成功 (Entry #%d, Node #%d): %d 用户, ↑ %s, ↓ %s",
+					entry.ID, nodeID, len(payload), formatBytes(totalUp), formatBytes(totalDown))
 			}
 		}
 	}
