@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/wangn9900/StealthForward/internal/database"
 	"github.com/wangn9900/StealthForward/internal/models"
 )
 
@@ -132,17 +133,41 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	// Routing - 恢复最稳健的显式路由逻辑 (不再使用 Final 兜底，确保 IP 物理一致)
+	// Routing - 从 UserEmail 标签前缀反查 NodeMapping，精确锁定落地机
 	routingRules := []interface{}{
 		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32", "::1/128"}, "outbound": "direct"},
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
 	}
 
-	// 按落地节点分组生成规则
+	// 构建 V2bNodeID -> ExitNode 的映射表
+	var mappings []models.NodeMapping
+	database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
+	v2bNodeToExit := make(map[int]uint)
+	for _, m := range mappings {
+		v2bNodeToExit[m.V2boardNodeID] = m.TargetExitID
+	}
+	// 加入入口的默认配置
+	if entry.V2boardNodeID != 0 && entry.TargetExitID != 0 {
+		if _, exists := v2bNodeToExit[entry.V2boardNodeID]; !exists {
+			v2bNodeToExit[entry.V2boardNodeID] = entry.TargetExitID
+		}
+	}
+
+	// 按落地节点分组生成规则 (从标签反查)
 	exitToUsers := make(map[uint][]string)
 	for _, rule := range rules {
-		if rule.ExitNodeID != 0 {
-			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
+		// 从标签 n21-ed296 中提取 V2Board Node ID
+		targetExitID := rule.ExitNodeID // 默认使用数据库值
+		if strings.HasPrefix(rule.UserEmail, "n") && strings.Contains(rule.UserEmail, "-") {
+			idPart := strings.Split(rule.UserEmail, "-")[0][1:]
+			if v2bNodeID, err := strconv.Atoi(idPart); err == nil {
+				if exitID, ok := v2bNodeToExit[v2bNodeID]; ok {
+					targetExitID = exitID // 用 Mapping 表的值覆盖
+				}
+			}
+		}
+		if targetExitID != 0 {
+			exitToUsers[targetExitID] = append(exitToUsers[targetExitID], rule.UserEmail)
 		}
 	}
 
