@@ -75,10 +75,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
-		// 生成与路由匹配的唯一标识：n<ExitID>-<UUID[:8]>
-		userTag := fmt.Sprintf("n%d-%s", rule.ExitNodeID, rule.UserEmail[:8])
+		// 直接使用数据库中的 UserEmail 作为唯一标识，不再二次拼接前缀
 		users = append(users, map[string]interface{}{
-			"name": userTag, // 用于路由匹配
+			"name": rule.UserEmail,
 			"uuid": rule.UserID,
 			"flow": "xtls-rprx-vision",
 		})
@@ -143,8 +142,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	exitToUsers := make(map[uint][]string)
 	for _, rule := range rules {
 		if rule.ExitNodeID != 0 {
-			userTag := fmt.Sprintf("n%d-%s", rule.ExitNodeID, rule.UserEmail[:8])
-			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], userTag)
+			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
 		}
 	}
 
