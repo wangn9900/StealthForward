@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -41,11 +42,20 @@ func (h *HookServer) RoutedConnection(ctx context.Context, conn net.Conn, m adap
 }
 
 func (h *HookServer) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, m adapter.InboundContext, rule adapter.Rule, outbound adapter.Outbound) N.PacketConn {
-	// UDP 流量统计类似，暂时简化
-	return conn
+	if m.User == "" {
+		return conn
+	}
+
+	val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
+	storage := val.(*TrafficStorage)
+
+	return &PacketConnCounter{
+		PacketConn: conn,
+		storage:    storage,
+	}
 }
 
-// ConnCounter 包装 net.Conn 以统计流量
+// ConnCounter 包装 net.Conn 以统计流量 (TCP)
 type ConnCounter struct {
 	N.ExtendedConn
 	storage *TrafficStorage
@@ -53,13 +63,66 @@ type ConnCounter struct {
 
 func (c *ConnCounter) Read(b []byte) (n int, err error) {
 	n, err = c.ExtendedConn.Read(b)
-	c.storage.UpCounter.Add(int64(n)) // 这里的 Up/Down 定义需要跟 V2Board 对齐
+	if n > 0 {
+		c.storage.UpCounter.Add(int64(n))
+	}
 	return
 }
 
 func (c *ConnCounter) Write(b []byte) (n int, err error) {
 	n, err = c.ExtendedConn.Write(b)
-	c.storage.DownCounter.Add(int64(n))
+	if n > 0 {
+		c.storage.DownCounter.Add(int64(n))
+	}
+	return
+}
+
+// Override WriteTo to capture Slice/Sendfile traffic (Download)
+func (c *ConnCounter) ReadFrom(r io.Reader) (n int64, err error) {
+	if rf, ok := c.ExtendedConn.(io.ReaderFrom); ok {
+		n, err = rf.ReadFrom(r)
+		if n > 0 {
+			c.storage.DownCounter.Add(n)
+		}
+		return
+	}
+	// Fallback to generic copy loop if underlying doesn't support ReadFrom
+	// This will call c.Write(), which counts.
+	return io.Copy(struct{ io.Writer }{c.ExtendedConn}, r)
+}
+
+// Override ReadFrom to capture Slice/Sendfile traffic (Upload)
+// Note: io.Copy(dst, c) calls c.WriteTo(dst)
+func (c *ConnCounter) WriteTo(w io.Writer) (n int64, err error) {
+	if wt, ok := c.ExtendedConn.(io.WriterTo); ok {
+		n, err = wt.WriteTo(w)
+		if n > 0 {
+			c.storage.UpCounter.Add(n)
+		}
+		return
+	}
+	return io.Copy(w, struct{ io.Reader }{c.ExtendedConn})
+}
+
+// PacketConnCounter 包装 N.PacketConn 以统计流量 (UDP/QUIC)
+type PacketConnCounter struct {
+	N.PacketConn
+	storage *TrafficStorage
+}
+
+func (c *PacketConnCounter) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	n, addr, err = c.PacketConn.ReadFrom(p)
+	if n > 0 {
+		c.storage.UpCounter.Add(int64(n))
+	}
+	return
+}
+
+func (c *PacketConnCounter) WriteTo(p []byte, addr net.Addr) (n int, err error) {
+	n, err = c.PacketConn.WriteTo(p, addr)
+	if n > 0 {
+		c.storage.DownCounter.Add(int64(n))
+	}
 	return
 }
 
