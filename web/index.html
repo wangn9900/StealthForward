@@ -321,44 +321,77 @@
                         class="accent-gradient p-3 px-8 rounded-full text-sm font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition">添加分流规则</button>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="text-slate-500 text-[10px] uppercase tracking-widest border-b border-white/5">
+                <div class="overflow-hidden rounded-2xl border border-white/5">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider font-semibold">
                             <tr>
-                                <th class="pb-4 px-4 font-normal">来源入口 (Entry)</th>
-                                <th class="pb-4 px-4 font-normal">V2B 节点 ID</th>
-                                <th class="pb-4 px-4 font-normal">分流出口 (Target Exit)</th>
-                                <th class="pb-4 px-4 font-normal">监听端口</th>
-                                <th class="pb-4 px-4 font-normal">状态</th>
-                                <th class="pb-4 px-4 text-right font-normal">操作</th>
+                                <th class="py-4 px-6">来源入口 (Entry)</th>
+                                <th class="py-4 px-6">V2B 节点 ID</th>
+                                <th class="py-4 px-6">目标分流 (Exit)</th>
+                                <th class="py-4 px-6">监听端口</th>
+                                <th class="py-4 px-6">状态</th>
+                                <th class="py-4 px-6 text-right">操作</th>
                             </tr>
                         </thead>
-                        <tbody class="text-sm divide-y divide-white/5">
-                            <tr v-for="m in mappings" :key="m.id" class="hover:bg-white/5 transition group">
-                                <td class="py-5 px-4 font-bold text-indigo-400">#{{ m.entry_node_id }} {{
-                                    findNodeName('entries', m.entry_node_id) }}</td>
-                                <td class="py-5 px-4"><span
-                                        class="px-3 py-1 bg-slate-800 rounded-full border border-white/5 text-xs">Node
-                                        #{{ m.v2board_node_id }}</span></td>
-                                <td class="py-5 px-4 font-bold text-emerald-400">#{{ m.target_exit_id }} {{
-                                    findNodeName('exits', m.target_exit_id) }}</td>
-                                <td class="py-5 px-4">
+                        <tbody class="text-sm divide-y divide-white/5 bg-slate-800/20">
+                            <tr v-for="m in mappings" :key="m.id" class="hover:bg-indigo-500/5 transition group">
+                                <td class="py-4 px-6 font-medium text-slate-200">
+                                    <div class="flex flex-col">
+                                        <span>{{ findNodeName('entries', m.entry_node_id) }}</span>
+                                        <span class="text-[10px] text-slate-500">Entry #{{ m.entry_node_id }}</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6">
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-700/50 text-indigo-300 text-xs font-mono border border-indigo-500/20">
+                                        Node {{ m.v2board_node_id }}
+                                    </span>
+                                </td>
+                                <td class="py-4 px-6">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                        <span class="text-emerald-300">{{ findNodeName('exits', m.target_exit_id)
+                                            }}</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6">
                                     <span v-if="m.port > 0"
-                                        class="font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded">{{ m.port
-                                        }}</span>
-                                    <span v-else class="text-slate-600 text-xs">默认</span>
+                                        class="font-mono text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">{{
+                                        m.port }}</span>
+                                    <span v-else class="text-slate-500 text-xs italic">跟随入口默认</span>
                                 </td>
-                                <td class="py-5 px-4"><span class="flex items-center gap-1.5"><span
-                                            class="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse"></span> 实时同步中</span>
+                                <td class="py-4 px-6">
+                                    <span class="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                                        <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                        运行中
+                                    </span>
                                 </td>
-                                <td class="py-5 px-4 text-right">
-                                    <button @click="deleteItem('mappings', m.id)"
-                                        class="p-2 glass rounded-xl text-rose-400 opacity-0 group-hover:opacity-100 hover:scale-110 transition">删除</button>
+                                <td class="py-4 px-6 text-right">
+                                    <div
+                                        class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition duration-200">
+                                        <button @click="editMapping(m)"
+                                            class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500 hover:text-white transition"
+                                            title="编辑端口/规则">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                        <button @click="deleteItem('mappings', m.id)"
+                                            class="p-2 bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition"
+                                            title="删除规则">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="mappings.length === 0">
-                                <td colspan="5" class="py-20 text-center text-slate-600 italic">
-                                    尚未定义任何分流策略，流量将回退到各个入口的“默认落地”。</td>
+                                <td colspan="6" class="py-12 text-center text-slate-500 italic">
+                                    暂无分流策略，所有流量将默认转发至入口绑定的落地机。
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -431,7 +464,7 @@
         <div v-if="modal.type === 'mapping'"
             class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
-                <h3 class="text-2xl font-bold mb-6 text-indigo-400">多目标分流规则 (进阶/选填)</h3>
+                <h3 class="text-2xl font-bold mb-6 text-indigo-400">{{ form.mapping.id ? '编辑分流规则' : '新增分流规则' }}</h3>
                 <div class="space-y-4 text-sm">
                     <label class="flex flex-col gap-1.5 text-slate-500">选择入站入口
                         <select v-model.number="form.mapping.entry_node_id">
@@ -460,7 +493,8 @@
                 </div>
                 <div class="flex gap-4 mt-8">
                     <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                    <button @click="submitMapping" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">激活策略</button>
+                    <button @click="submitMapping" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">{{
+                        form.mapping.id ? '保存修改' : '立即创建' }}</button>
                 </div>
             </div>
         </div>
@@ -597,13 +631,23 @@
                     if (!this.form.mapping.target_exit_id) return alert('请选择目标落地出口');
 
                     const payload = {
+                        id: this.form.mapping.id, // Include ID for update
                         entry_node_id: parseInt(this.form.mapping.entry_node_id),
                         v2board_node_id: parseInt(this.form.mapping.v2board_node_id),
                         v2board_type: this.form.mapping.v2board_type || 'v2ray',
                         target_exit_id: parseInt(this.form.mapping.target_exit_id),
                         port: this.form.mapping.port || 0
                     };
-                    await this.apiPost('/api/v1/mappings', payload);
+
+                    const url = '/api/v1/mappings' + (this.form.mapping.id ? '/' + this.form.mapping.id : '');
+                    const method = this.form.mapping.id ? 'PUT' : 'POST';
+
+                    await fetch(url, {
+                        method: method,
+                        body: JSON.stringify(payload),
+                        headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('stealth_token') || '' }
+                    });
+
                     this.hideModal();
                     this.fetchData();
                 },
@@ -654,13 +698,18 @@
                     this.form.rule = { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null };
                     this.showModal('rule');
                 },
+                editMapping(m) {
+                    this.form.mapping = { ...m };
+                    this.showModal('mapping');
+                },
                 addMapping() {
                     this.form.mapping = {
                         id: null,
                         entry_node_id: this.entries.length > 0 ? this.entries[0].id : null,
                         v2board_node_id: null,
                         target_exit_id: this.exits.length > 0 ? this.exits[0].id : null,
-                        v2board_type: 'v2ray'
+                        v2board_type: 'v2ray',
+                        port: null
                     };
                     this.showModal('mapping');
                 }

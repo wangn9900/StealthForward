@@ -271,6 +271,24 @@ func DeleteNodeMappingHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 
+func UpdateNodeMappingHandler(c *gin.Context) {
+	id := c.Param("id")
+	var mapping models.NodeMapping
+	if err := database.DB.First(&mapping, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "mapping not found"})
+		return
+	}
+
+	if err := c.ShouldBindJSON(&mapping); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	database.DB.Save(&mapping)
+	sync.GlobalSyncNow()
+	c.JSON(http.StatusOK, mapping)
+}
+
 // ReportTrafficHandler 接收 Agent 上报的流量数据
 func ReportTrafficHandler(c *gin.Context) {
 	var report models.NodeTrafficReport
