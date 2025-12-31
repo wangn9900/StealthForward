@@ -67,6 +67,11 @@ func main() {
 		// Agent 获取配置的核心接口
 		v1.GET("/node/:id/config", api.GetConfigHandler)
 
+		// 分流映射管理 (NodeMappings)
+		v1.GET("/mappings", api.ListNodeMappingsHandler)
+		v1.POST("/mappings", api.CreateNodeMappingHandler)
+		v1.DELETE("/mappings/:id", api.DeleteNodeMappingHandler)
+
 		// 触发 V2Board 同步
 		v1.POST("/sync", api.TriggerSyncHandler)
 	}

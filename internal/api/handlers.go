@@ -216,3 +216,28 @@ func IssueCertHandler(c *gin.Context) {
 		"key":     keyFile,
 	})
 }
+
+// NodeMapping 管理接口
+func ListNodeMappingsHandler(c *gin.Context) {
+	var mappings []models.NodeMapping
+	database.DB.Find(&mappings)
+	c.JSON(http.StatusOK, mappings)
+}
+
+func CreateNodeMappingHandler(c *gin.Context) {
+	var mapping models.NodeMapping
+	if err := c.ShouldBindJSON(&mapping); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	database.DB.Save(&mapping)
+	// 创建映射后立即尝试同步该节点数据
+	sync.GlobalSyncNow()
+	c.JSON(http.StatusOK, mapping)
+}
+
+func DeleteNodeMappingHandler(c *gin.Context) {
+	id := c.Param("id")
+	database.DB.Delete(&models.NodeMapping{}, id)
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}

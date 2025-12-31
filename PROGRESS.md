@@ -19,23 +19,29 @@
     -   [x] 后台定时自动同步协程。
     -   [x] 节点编辑/删除功能补全。
     -   [x] **源码级适配成功**：解决 V2Board 协议字段强制校验导致的 500 错误。
+4.  **安装与运维优化 (2025-12-30)**：
+    -   [x] **安装脚本优化**：增加 Nginx 已安装检测，跳过冗余安装流程，提速 70%。
+    -   [x] **443 端口全量迁移**：移除旧版 Nginx 冲突配置，实现 Sing-box 独占 443 端口配合 Fallback 机制。
+    -   [x] **全链路转发验证**：成功打通 Entry(USA) -> Forward -> Exit(Malaysia) 转发逻辑。
 
 ### 当前正在攻克
 -   [x] **V2Board API 深度适配**：已完成！
--   [ ] **入口流量镜像与监控**：计划在下个版本增加实时流量展示。
+-   [x] **多目标分流映射 (Multi-Target Routing)**：已完成！单个 443 端口现支持根据不同 V2Board 节点 ID 转发到不同落地机。
 
 ---
 
 ## 技术细节摘要
--   **技术栈**: Go, Gin, GORM, SQLite, Vue3
+-   **技术栈**: Go, Gin, GORM, SQLite, Vue3 (TailwindCSS)
 -   **核心同步逻辑**: `internal/sync/v2board.go`
 -   **安全机制**:
     -   管理口令存储：`systemd Environment`
     -   API 保护：`Authorization Header` 验证
+    -   前端安全：关键密钥掩码处理
 
 ---
 
 ## 待办任务清单 (Next Steps)
-1.  [ ] 分析 V2Board 源码，明确 UniProxy 接口的准确入参与逻辑。
-2.  [ ] 根据源码修正 `fetchUsersFromV2Board` 函数。
-3.  [ ] 增加入口节点连接数统计 UI 模块。
+1.  [ ] **核心逻辑升级**：实现单个入口节点 (Entry) 接入多个 V2Board 节点，并路由至不通落地 (Exit)。
+2.  [x] **UI/UX 面板重构**：已完成！升级为 Glassmorphism 设计风格 v2.0，支持分流映射管理。
+3.  [ ] **Agent 自动化能力**：支持 Agent 端自动申请/同步 SSL 证书，解决跨机房部署时的证书手动搬运痛点。
+4.  [ ] **实时监控模块**：增加流量镜像与并发连接数实时曲线展示。

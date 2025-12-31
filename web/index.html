@@ -7,355 +7,304 @@
     <title>StealthForward | 隐形转发中控中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+SC:wght@400;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.4);
+        }
         body {
             font-family: 'Outfit', 'Noto Sans SC', sans-serif;
-            background-color: #020617;
+            background: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 100%);
             color: #f8fafc;
+            min-height: 100vh;
         }
 
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .glass {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        .accent-gradient {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        .accent-border { border-left: 4px solid var(--accent); }
+        .gradient-text { background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        /* 脉冲动画 */
+        .pulse { animation: pulse-animation 2s infinite; }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0px var(--accent-glow); }
+            100% { box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); }
         }
 
-        .modal-bg {
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(4px);
-        }
-
-        input,
-        select,
-        textarea {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem;
-            padding: 0.75rem;
-            width: 100%;
-            color: white;
-            outline: none;
-            transition: border 0.3s;
-        }
-
-        input:focus {
-            border-color: #6366f1;
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.5); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.2); border-radius: 10px; }
+        
+        input, select { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; color: white; transition: all 0.3s; }
+        input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 10px var(--accent-glow); }
+        
+        .tab-btn { padding: 8px 20px; border-radius: 12px; transition: all 0.2s; cursor: pointer; border: 1px solid transparent; }
+        .tab-btn.active { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); color: var(--accent); font-weight: 600; }
     </style>
 </head>
 
-<body class="p-4 md:p-8">
-    <div id="app" class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-10">
+<body class="p-4 md:p-8 custom-scrollbar">
+    <div id="app" class="max-w-7xl mx-auto v-cloak">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight text-transparent bg-clip-text accent-gradient">
-                    StealthForward</h1>
-                <p class="text-slate-400">专业级海外入口隐形转发控制台</p>
+                <h1 class="text-4xl font-extrabold tracking-tighter gradient-text">StealthForward v2.0</h1>
+                <p class="text-slate-500 text-sm mt-1">First-Principles 架构 | 隐形中转分流中心</p>
             </div>
-            <div class="flex gap-4">
-                <button @click="fetchData"
-                    class="p-2 px-4 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                        </path>
-                    </svg>
-                    刷新数据
+            <div class="flex gap-3">
+                <div class="glass flex p-1 rounded-2xl items-center">
+                    <div @click="activeTab = 'dashboard'" :class="['tab-btn', activeTab === 'dashboard' ? 'active' : '']">概览</div>
+                    <div @click="activeTab = 'mappings'" :class="['tab-btn', activeTab === 'mappings' ? 'active' : '']">配置</div>
+                </div>
+                <button @click="fetchData" class="p-3 px-5 glass rounded-2xl hover:bg-slate-800/50 transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    刷新
                 </button>
             </div>
-        </header>
+        </div>
 
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="glass-card p-6 rounded-2xl relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10"><svg class="w-12 h-12" fill="currentColor"
-                        viewBox="0 0 20 20">
-                        <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
-                    </svg></div>
-                <h3 class="text-slate-400 text-sm mb-2 uppercase tracking-widest">入口节点</h3>
-                <div class="text-4xl font-bold">{{ entries.length }}</div>
+        <!-- Stats Overview Row -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="glass p-5 rounded-3xl border-t border-white/5">
+                <div class="text-slate-500 text-xs mb-1 uppercase tracking-widest font-bold">入口节点</div>
+                <div class="text-3xl font-light">{{ entries.length }} <span class="text-xs text-indigo-400 font-normal">Active</span></div>
             </div>
-            <div class="glass-card p-6 rounded-2xl relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10"><svg class="w-12 h-12" fill="currentColor"
-                        viewBox="0 0 20 20">
-                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM5 9a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z"></path>
-                    </svg></div>
-                <h3 class="text-slate-400 text-sm mb-2 uppercase tracking-widest">落地节点</h3>
-                <div class="text-4xl font-bold">{{ exits.length }}</div>
+            <div class="glass p-5 rounded-3xl border-t border-white/5">
+                <div class="text-slate-500 text-xs mb-1 uppercase tracking-widest font-bold">分流出口</div>
+                <div class="text-3xl font-light">{{ exits.length }} <span class="text-xs text-emerald-400 font-normal">Nodes</span></div>
             </div>
-            <div class="glass-card p-6 rounded-2xl border-indigo-500/30 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10 text-indigo-400"><svg class="w-12 h-12"
-                        fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                            d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM5.884 4.47a1 1 0 10-1.415 1.414L5.178 6.59a1 1 0 001.414-1.414L5.884 4.47zM14.116 4.47l-0.707 0.707a1 1 0 101.415 1.414L15.53 5.884a1 1 0 00-1.414-1.414L14.116 4.47zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zM14 10a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1zM4.47 14.116a1 1 0 001.414 1.415L6.59 14.822a1 1 0 00-1.414-1.415L4.47 14.116zM14.822 6.59a1 1 0 001.415 1.414l0.707-0.707a1 1 0 00-1.414-1.415L14.822 6.59z">
-                        </path>
-                    </svg></div>
-                <h3 class="text-slate-400 text-sm mb-2 uppercase tracking-widest">活跃转发链</h3>
-                <div class="text-4xl font-bold text-indigo-400">{{ rules.length }}</div>
+            <div class="glass p-5 rounded-3xl border-t border-white/5">
+                <div class="text-slate-500 text-xs mb-1 uppercase tracking-widest font-bold">映射规则</div>
+                <div class="text-3xl font-light text-indigo-400">{{ mappings.length }} <span class="text-xs text-slate-500 font-normal">Fixed</span></div>
+            </div>
+            <div class="glass p-5 rounded-3xl border-indigo-500/20 border-t pulse">
+                <div class="text-indigo-400 text-xs mb-1 uppercase tracking-widest font-bold">总链路数</div>
+                <div class="text-3xl font-light text-white">{{ rules.length + mappings.length }}</div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Entry Nodes List -->
-            <div class="glass-card rounded-3xl p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold">入口节点 (Entry)</h2>
-                    <button @click="showModal('entry')" class="text-sm text-indigo-400 hover:text-indigo-300">+
-                        新增入口</button>
+        <!-- Main Content Area -->
+        <div v-show="activeTab === 'dashboard'" class="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+            <!-- Entry Node List -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="flex justify-between items-center px-2">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
+                        入站入口 (Entry)
+                    </h2>
+                    <button @click="showModal('entry')" class="text-sm text-indigo-400 hover:underline">+ 新增</button>
                 </div>
-                <div class="space-y-4">
-                    <div v-for="node in entries" :key="node.id"
-                        class="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 flex justify-between items-center">
-                        <div>
-                            <div class="font-bold flex items-center gap-2">
-                                {{ node.name }}
-                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">ID:
-                                    {{node.id}}</span>
-                            </div>
-                            <div class="text-xs text-slate-500">{{ node.domain }} : {{ node.port }}</div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button @click="editEntry(node)"
-                                class="p-2 text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                                    </path>
-                                </svg>
-                            </button>
-                            <button @click="deleteItem('entries', node.id)"
-                                class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                    </path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Rules List -->
-            <div class="glass-card rounded-3xl p-6 transition-all duration-300"
-                :class="{'max-h-32 overflow-hidden': collapsedRules}">
-                <div class="flex justify-between items-center mb-6">
-                    <div class="flex items-center gap-4">
-                        <h2 class="text-xl font-bold text-purple-400">转发映射规则</h2>
-                        <button @click="collapsedRules = !collapsedRules"
-                            class="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-xs hover:bg-purple-500/20 transition">
-                            {{ collapsedRules ? '展开 (' + rules.length + ')' : '收起' }}
-                        </button>
-                    </div>
-                    <button @click="showModal('rule')" class="text-sm text-purple-400 hover:text-purple-300">+
-                        新增</button>
-                </div>
-                <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <div v-for="rule in rules" :key="rule.id"
-                        class="p-4 bg-purple-500/5 border border-purple-500/10 rounded-2xl flex justify-between items-center hover:bg-purple-500/10 transition">
-                        <div>
-                            <div class="font-bold text-sm">{{ rule.user_email }}</div>
-                            <div class="flex items-center gap-2 text-[10px] mt-1">
-                                <span class="text-indigo-400">入口 #{{ rule.entry_node_id }}</span>
-                                <span class="text-slate-600">→</span>
-                                <span class="text-purple-400">落地 #{{ rule.exit_node_id }}</span>
-                            </div>
-                        </div>
-                        <button @click="deleteItem('rules', rule.id)"
-                            class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                </path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Exit Nodes List -->
-            <div class="glass-card rounded-3xl p-6 lg:col-span-2">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-emerald-400">落地节点 (Exit)</h2>
-                    <button @click="showModal('exit')" class="text-sm text-emerald-400 hover:text-emerald-300">+
-                        新增落地</button>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div v-for="node in exits" :key="node.id"
-                        class="p-4 bg-slate-900/40 rounded-2xl border border-slate-800">
+                <div class="grid grid-cols-1 gap-4">
+                    <div v-for="node in entries" :key="node.id" class="glass p-6 rounded-[2.5rem] relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition"><svg class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path></svg></div>
                         <div class="flex justify-between items-start">
-                            <div class="font-bold">{{ node.name }}</div>
-                            <div class="flex gap-2">
-                                <span
-                                    class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">{{
-                                    node.protocol }}</span>
-                                <button @click="editExit(node)" class="text-emerald-400 hover:text-emerald-300"><svg
-                                        class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                                        </path>
-                                    </svg></button>
-                                <button @click="deleteItem('exits', node.id)"
-                                    class="text-rose-500 hover:text-rose-400"><svg class="w-4 h-4" fill="none"
-                                        stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                        </path>
-                                    </svg></button>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3">
+                                    <h3 class="text-xl font-bold">{{ node.name }}</h3>
+                                    <span class="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-bold">ID #{{node.id}}</span>
+                                </div>
+                                <div class="font-mono text-slate-500 text-sm mt-1">{{ node.domain }} <span class="text-slate-700 mx-2">|</span> {{ node.port }}</div>
+                                <!-- 节点标签展示 -->
+                                <div class="flex gap-2 mt-4">
+                                    <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]"><div class="text-slate-500 mb-0.5 uppercase tracking-tighter">默认落地</div> {{ findNodeName('exits', node.target_exit_id) || '不绑定' }}</div>
+                                    <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]"><div class="text-slate-500 mb-0.5 uppercase tracking-tighter">API 同步</div> {{ node.v2board_url ? '已开启' : '未开启' }}</div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <button @click="editEntry(node)" class="p-3 glass rounded-2xl text-indigo-400 hover:scale-110 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                <button @click="deleteItem('entries', node.id)" class="p-3 glass rounded-2xl text-rose-500 hover:scale-110 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                             </div>
                         </div>
-                        <div class="text-xs text-slate-500 mt-2 truncate font-mono">{{ node.config }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Task/Rules List -->
+            <div class="space-y-6">
+                <div class="flex justify-between items-center px-2">
+                    <h2 class="text-xl font-bold flex items-center gap-2">任务看板</h2>
+                    <button @click="showModal('rule')" class="text-xs text-indigo-400 transition">+ 用户转发</button>
+                </div>
+                <div class="glass p-1 rounded-3xl overflow-hidden min-h-[400px]">
+                    <div class="max-h-[700px] overflow-y-auto custom-scrollbar p-3 space-y-3">
+                        <div v-for="rule in rules" :key="rule.id" class="p-4 bg-slate-800/40 border border-white/5 rounded-2xl flex justify-between items-center hover:bg-indigo-500/5 transition group">
+                            <div>
+                                <div class="text-sm font-bold truncate w-40">{{ rule.user_email }}</div>
+                                <div class="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                                    <span class="text-indigo-300">#{{ rule.entry_node_id }}</span>
+                                    <svg class="w-3 h-3 text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path d="M7 10l5 5 5-5H7z"></path></svg>
+                                    <span class="text-emerald-300">#{{ rule.exit_node_id }}</span>
+                                </div>
+                            </div>
+                            <button @click="deleteItem('rules', rule.id)" class="opacity-0 group-hover:opacity-100 p-2 text-rose-400 hover:scale-125 transition">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"></path></svg>
+                            </button>
+                        </div>
+                        <div v-if="rules.length === 0" class="flex flex-col items-center justify-center pt-20 text-slate-600">
+                             <div class="text-sm">暂无手动规则</div>
+                             <div class="text-[10px]">所有用户可能由映射关系自动化处理</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Exit Node Section (Wide) -->
+            <div class="lg:col-span-3 space-y-6">
+                <div class="flex justify-between items-center px-2">
+                    <h2 class="text-xl font-bold flex items-center gap-2">分流落地 (Exit / Nodes)</h2>
+                    <button @click="showModal('exit')" class="text-sm text-emerald-400 hover:underline">+ 新增</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div v-for="node in exits" :key="node.id" class="glass p-5 rounded-3xl group border-l-4 border-emerald-500/30">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <div class="font-bold flex items-center gap-2">{{ node.name }} <span class="bg-emerald-500/10 text-emerald-400 text-[8px] p-1 px-1.5 rounded uppercase">{{node.protocol}}</span></div>
+                                <div class="text-[10px] text-slate-500 mt-1 font-mono truncate w-32">{{ node.address }}:{{ node.port }}</div>
+                            </div>
+                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                <button @click="editExit(node)" class="p-1.5 glass rounded-lg text-emerald-400"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                <button @click="deleteItem('exits', node.id)" class="p-1.5 glass rounded-lg text-rose-500"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Add Entry Modal -->
-        <div v-if="modal.type === 'entry'" class="fixed inset-0 modal-bg flex items-center justify-center p-4 z-50">
-            <div class="glass-card p-8 rounded-3xl w-full max-w-lg shadow-2xl">
-                <h2 class="text-2xl font-bold mb-6">新增入口节点</h2>
-                <div class="space-y-4 text-sm">
-                    <label>节点名称<input v-model="form.entry.name" placeholder="例如: 香港 01"></label>
-                    <div class="grid grid-cols-2 gap-4">
-                        <label>解析域名<input v-model="form.entry.domain" placeholder="example.com"></label>
-                        <label>监听端口<input type="number" v-model.number="form.entry.port" placeholder="8443"></label>
-                    </div>
+        <!-- Intelligent Mapping View -->
+        <div v-show="activeTab === 'mappings'" class="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+             <div class="glass p-8 rounded-[3rem] border-indigo-500/10">
+                <div class="flex justify-between items-center mb-8">
                     <div>
-                        <button @click="requestCert" :disabled="certLoading"
-                            class="w-full text-xs p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 transition disabled:opacity-50">
-                            {{ certLoading ? '正在申请 SSL 证书 (预计1分钟)...' : '一键申请域名证书 (必须先解析域名)' }}
-                        </button>
+                        <h2 class="text-2xl font-bold">智能分流映射 (Routing Policy)</h2>
+                        <p class="text-slate-500 text-sm">单入口 443 转发上百节点的“心脏” | 根据节点 ID 动态流转</p>
                     </div>
-                    <label>证书路径<input v-model="form.entry.certificate"
-                            placeholder="/etc/stealthforward/certs/cert.crt"></label>
-                    <label>私钥路径<input v-model="form.entry.key" placeholder="/etc/stealthforward/certs/cert.key"></label>
-                    <label>回落地址 (HTTP)<input v-model="form.entry.fallback" placeholder="127.0.0.1:8080"></label>
-                    <label>一键绑定落地节点 (类似 NY 模式)
-                        <select v-model.number="form.entry.target_exit_id">
-                            <option :value="0">不绑定 (使用手动转发规则)</option>
+                    <button @click="showModal('mapping')" class="accent-gradient p-3 px-8 rounded-full text-sm font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition">添加分流规则</button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="text-slate-500 text-[10px] uppercase tracking-widest border-b border-white/5">
+                            <tr>
+                                <th class="pb-4 px-4 font-normal">来源入口 (Entry)</th>
+                                <th class="pb-4 px-4 font-normal">V2B 节点 ID</th>
+                                <th class="pb-4 px-4 font-normal">分流出口 (Target Exit)</th>
+                                <th class="pb-4 px-4 font-normal">状态</th>
+                                <th class="pb-4 px-4 text-right font-normal">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm divide-y divide-white/5">
+                            <tr v-for="m in mappings" :key="m.id" class="hover:bg-white/5 transition group">
+                                <td class="py-5 px-4 font-bold text-indigo-400">#{{ m.entry_node_id }} {{ findNodeName('entries', m.entry_node_id) }}</td>
+                                <td class="py-5 px-4"><span class="px-3 py-1 bg-slate-800 rounded-full border border-white/5 text-xs">Node #{{ m.v2board_node_id }}</span></td>
+                                <td class="py-5 px-4 font-bold text-emerald-400">#{{ m.target_exit_id }} {{ findNodeName('exits', m.target_exit_id) }}</td>
+                                <td class="py-5 px-4"><span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse"></span> 实时同步中</span></td>
+                                <td class="py-5 px-4 text-right">
+                                    <button @click="deleteItem('mappings', m.id)" class="p-2 glass rounded-xl text-rose-400 opacity-0 group-hover:opacity-100 hover:scale-110 transition">删除</button>
+                                </td>
+                            </tr>
+                            <tr v-if="mappings.length === 0">
+                                <td colspan="5" class="py-20 text-center text-slate-600 italic">尚未定义任何分流策略，流量将回退到各个入口的“默认落地”。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+             </div>
+        </div>
+
+        <!-- Modal System -->
+        <!-- Add/Edit Entry Modal -->
+        <div v-if="modal.type === 'entry'" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+             <div class="glass w-full max-w-xl p-8 rounded-[3rem] animate-in zoom-in-95 duration-300">
+                <h3 class="text-2xl font-bold mb-6">入站节点配置</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">显示名称<input v-model="form.entry.name" placeholder="美国 01 / 日本入口"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">解析域名 (TLS)<input v-model="form.entry.domain" placeholder="example.com"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">监听端口<input type="number" v-model.number="form.entry.port" placeholder="443"></label>
+                    <div class="md:col-span-2">
+                         <button @click="requestCert" :disabled="certLoading" class="w-full p-3 glass text-indigo-400 text-xs rounded-xl border border-indigo-500/20 active:scale-95 transition">
+                             {{ certLoading ? '证书签发中...' : '一键申请部署域名证书' }}
+                         </button>
+                    </div>
+                    <label class="flex flex-col gap-1.5 text-slate-500">证书路径<input v-model="form.entry.certificate" placeholder="/etc/stealthforward/certs/cert.crt"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">私钥路径<input v-model="form.entry.key" placeholder="/etc/stealthforward/certs/cert.key"></label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">回落托管 (HTTP)<input v-model="form.entry.fallback" placeholder="127.0.0.1:80"></label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">V2Board API 同步 (可选)</label>
+                    <input class="md:col-span-2" v-model="form.entry.v2board_url" placeholder="API 地址: https://v2.mysite.com">
+                    <input v-model="form.entry.v2board_key" type="password" placeholder="通讯令牌 (Key)">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" v-model.number="form.entry.v2board_node_id" placeholder="默认节点ID">
+                        <select v-model="form.entry.v2board_type"><option value="v2ray">V2ray</option><option value="vless">VLESS</option><option value="shadowsocks">Shadowsocks</option></select>
+                    </div>
+                </div>
+                <div class="flex gap-4 mt-8">
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="submitEntry" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存节点</button>
+                </div>
+             </div>
+        </div>
+
+        <!-- Add Mapping Modal -->
+        <div v-if="modal.type === 'mapping'" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+             <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
+                <h3 class="text-2xl font-bold mb-6 text-indigo-400">新增智能映射</h3>
+                <div class="space-y-4 text-sm">
+                    <label class="flex flex-col gap-1.5 text-slate-500">选择入站入口
+                        <select v-model.number="form.mapping.entry_node_id">
+                            <option v-for="e in entries" :value="e.id">{{e.name}} (#{{e.id}})</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">V2B 节点 ID
+                        <input type="number" v-model.number="form.mapping.v2board_node_id" placeholder="21">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">目标落地出口
+                        <select v-model.number="form.mapping.target_exit_id">
                             <option v-for="ex in exits" :value="ex.id">{{ex.name}} (#{{ex.id}})</option>
                         </select>
                     </label>
-
-                    <div class="border-t border-slate-800 pt-4 mt-4">
-                        <label class="text-indigo-400 font-bold flex justify-between">V2Board 自动同步 (可选)
-                            <span class="text-[10px] font-normal text-slate-500">开启后自动同步用户 UUID</span>
-                        </label>
-                        <div class="space-y-3 mt-2">
-                            <input v-model="form.entry.v2board_url" placeholder="站点 URL: https://v2.example.com">
-                            <div class="grid grid-cols-3 gap-4">
-                                <input v-model="form.entry.v2board_key" type="password" placeholder="通讯密钥 (Key)">
-                                <input v-model.number="form.entry.v2board_node_id" type="number" placeholder="节点 ID">
-                                <select v-model="form.entry.v2board_type"
-                                    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
-                                    <option value="v2ray">V2ray</option>
-                                    <option value="vless">VLESS</option>
-                                    <option value="shadowsocks">Shadowsocks</option>
-                                    <option value="trojan">Trojan</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex gap-4 mt-8">
-                    <button @click="hideModal" class="flex-1 p-3 rounded-xl bg-slate-800 hover:bg-slate-700">取消</button>
-                    <button @click="submitEntry" class="flex-1 p-3 rounded-xl accent-gradient font-bold">提交保存</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Add Exit Modal -->
-        <div v-if="modal.type === 'exit'" class="fixed inset-0 modal-bg flex items-center justify-center p-4 z-50">
-            <div class="glass-card p-8 rounded-3xl w-full max-w-lg shadow-2xl">
-                <h2 class="text-2xl font-bold mb-6 text-emerald-400">新增落地节点 (小鸡)</h2>
-                <div class="space-y-4 text-sm">
-                    <label>备注名称<input v-model="form.exit.name" placeholder="例如: 日本 01"></label>
-                    <div class="grid grid-cols-2 gap-4">
-                        <label>服务器地址<input v-model="form.exit.server" placeholder="1.2.3.4"></label>
-                        <label>端口<input type="number" v-model.number="form.exit.server_port"
-                                placeholder="12345"></label>
-                    </div>
-                    <label>出口协议
-                        <select v-model="form.exit.protocol">
-                            <option value="ss">Shadowsocks (加密转发)</option>
-                            <option value="vless">VLESS (带 TLS)</option>
-                            <option value="socks">SOCKS5</option>
-                        </select>
-                    </label>
-                    <label v-if="form.exit.protocol === 'ss'">加密方式
-                        <select v-model="form.exit.method">
-                            <option value="aes-256-gcm">aes-256-gcm</option>
-                            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
-                            <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm</option>
-                        </select>
-                    </label>
-                    <label>{{ form.exit.protocol === 'ss' ? '连接密码' : '用户 UUID / 密码' }}
-                        <input v-model="form.exit.password" placeholder="请输入密钥">
+                    <label class="flex flex-col gap-1.5 text-slate-500">节点协议
+                        <select v-model="form.mapping.v2board_type"><option value="v2ray">V2ray</option><option value="vless">VLESS</option><option value="shadowsocks">Shadowsocks</option></select>
                     </label>
                 </div>
                 <div class="flex gap-4 mt-8">
-                    <button @click="hideModal" class="flex-1 p-3 rounded-xl bg-slate-800 hover:bg-slate-700">取消</button>
-                    <button @click="submitExit" class="flex-1 p-3 rounded-xl bg-emerald-600 font-bold">立即添加</button>
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="submitMapping" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">激活策略</button>
                 </div>
-            </div>
+             </div>
         </div>
 
-        <!-- Add Rule Modal -->
-        <div v-if="modal.type === 'rule'" class="fixed inset-0 modal-bg flex items-center justify-center p-4 z-50">
-            <div class="glass-card p-8 rounded-3xl w-full max-w-lg shadow-2xl">
-                <h2 class="text-2xl font-bold mb-6">配置转发链路</h2>
-                <div class="space-y-4 text-sm">
-                    <label>用户邮箱/备注<input v-model="form.rule.user_email" placeholder="alice@test.com"></label>
-                    <label>VLESS UUID<input v-model="form.rule.user_id" placeholder="填入刚才截图里的那个 UUID"></label>
-                    <div class="grid grid-cols-2 gap-4">
-                        <label>选择入口 ID
-                            <select v-model.number="form.rule.entry_node_id">
-                                <option v-for="n in entries" :value="n.id">{{n.name}} (#{{n.id}})</option>
-                            </select>
-                        </label>
-                        <label>选择落地 ID
-                            <select v-model.number="form.rule.exit_node_id">
-                                <option v-for="n in exits" :value="n.id">{{n.name}} (#{{n.id}})</option>
-                            </select>
-                        </label>
+        <!-- Add Exit/Rule Modal (Simplified placeholders for consistency) -->
+        <div v-if="modal.type === 'exit' || modal.type === 'rule'" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+             <div class="glass w-full max-w-md p-8 rounded-[3rem]">
+                <h3 class="text-2xl font-bold mb-6">{{ modal.type === 'exit' ? '新增落地机' : '手动链路配置' }}</h3>
+                <div class="space-y-4 text-sm" v-if="modal.type === 'exit'">
+                    <input v-model="form.exit.name" placeholder="备注名称">
+                    <div class="flex gap-2">
+                        <input class="flex-1" v-model="form.exit.server" placeholder="落地地址">
+                        <input class="w-24" type="number" v-model.number="form.exit.server_port" placeholder="端口">
+                    </div>
+                    <select v-model="form.exit.protocol"><option value="ss">Shadowsocks</option><option value="vless">VLESS</option><option value="socks">SOCKS5</option></select>
+                    <input v-model="form.exit.password" placeholder="密钥 / UUID">
+                </div>
+                <div class="space-y-4 text-sm" v-if="modal.type === 'rule'">
+                    <input v-model="form.rule.user_email" placeholder="用户 Email / 备注">
+                    <input v-model="form.rule.user_id" placeholder="VLESS UUID">
+                    <div class="flex gap-2">
+                        <select class="flex-1" v-model.number="form.rule.entry_node_id"><option v-for="e in entries" :value="e.id">{{e.name}}</option></select>
+                        <select class="flex-1" v-model.number="form.rule.exit_node_id"><option v-for="ex in exits" :value="ex.id">{{ex.name}}</option></select>
                     </div>
                 </div>
                 <div class="flex gap-4 mt-8">
-                    <button @click="hideModal" class="flex-1 p-3 rounded-xl bg-slate-800 hover:bg-slate-700">取消</button>
-                    <button @click="submitRule" class="flex-1 p-3 rounded-xl bg-indigo-600 font-bold">激活链路</button>
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="modal.type === 'exit' ? submitExit() : submitRule()" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存</button>
                 </div>
-            </div>
-        </div>
-
-        <!-- FAB + Menu -->
-        <div class="fixed bottom-10 right-10 flex flex-col items-end gap-3">
-            <div v-if="showFabMenu" class="flex flex-col gap-2 mb-2 animate-bounce">
-                <button @click="showModal('entry')"
-                    class="p-3 px-6 rounded-full glass-card text-xs font-bold whitespace-nowrap border-indigo-500/50">入口
-                    +</button>
-                <button @click="showModal('exit')"
-                    class="p-3 px-6 rounded-full glass-card text-xs font-bold whitespace-nowrap border-emerald-500/50">落地
-                    +</button>
-                <button @click="showModal('rule')"
-                    class="p-3 px-6 rounded-full glass-card text-xs font-bold whitespace-nowrap border-purple-500/50">链路
-                    +</button>
-            </div>
-            <button @click="showFabMenu = !showFabMenu"
-                class="accent-gradient w-16 h-16 rounded-full shadow-2xl shadow-indigo-500/40 flex items-center justify-center text-3xl hover:rotate-90 transition transform">
-                +
-            </button>
+             </div>
         </div>
     </div>
 
@@ -364,17 +313,18 @@
         createApp({
             data() {
                 return {
+                    activeTab: 'dashboard',
                     entries: [],
                     exits: [],
                     rules: [],
+                    mappings: [],
                     certLoading: false,
-                    showFabMenu: false,
-                    collapsedRules: true,
                     modal: { type: null },
                     form: {
-                        entry: { id: null, name: '', ip: '', port: null, domain: '', certificate: '', key: '', fallback: '127.0.0.1:8080', target_exit_id: 0, protocol: 'vless', security: 'xtls-rprx-vision', v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
-                        exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' },
-                        rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null }
+                        entry: { id: null, name: '', port: 443, domain: '', certificate: '', key: '', fallback: '127.0.0.1:80', target_exit_id: 0, v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
+                        exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, password: '' },
+                        rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null },
+                        mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray' }
                     }
                 }
             },
@@ -383,149 +333,62 @@
                 async fetchData() {
                     const headers = { 'Authorization': localStorage.getItem('stealth_token') || '' };
                     try {
-                        const [e, x, r] = await Promise.all([
-                            fetch('/api/v1/entries', { headers }).then(r => r.json()),
-                            fetch('/api/v1/exits', { headers }).then(r => r.json()),
-                            fetch('/api/v1/rules', { headers }).then(r => r.json())
+                        const [e, x, r, m] = await Promise.all([
+                            fetch('/api/v1/entries', { headers }).then(res => res.json()),
+                            fetch('/api/v1/exits', { headers }).then(res => res.json()),
+                            fetch('/api/v1/rules', { headers }).then(res => res.json()),
+                            fetch('/api/v1/mappings', { headers }).then(res => res.json())
                         ])
-                        if (e.error === 'unauthorized' || x.error === 'unauthorized' || r.error === 'unauthorized') {
-                            return this.promptLogin();
-                        }
-                        this.entries = Array.isArray(e) ? e : []
-                        this.exits = Array.isArray(x) ? x : []
-                        this.rules = Array.isArray(r) ? r : []
-                    } catch (err) { alert('数据加载失败: ' + err) }
+                        if (e.error === 'unauthorized') return this.promptLogin();
+                        this.entries = e; this.exits = x; this.rules = r; this.mappings = m;
+                    } catch (err) { console.error('Data fail', err) }
                 },
                 promptLogin() {
-                    const token = prompt('此面板受保护，请输入管理口令 (STEALTH_ADMIN_TOKEN):');
-                    if (token) {
-                        localStorage.setItem('stealth_token', token);
-                        this.fetchData();
-                    }
+                    const t = prompt('请输入管理口令 (STEALTH_ADMIN_TOKEN):');
+                    if(t) { localStorage.setItem('stealth_token', t); this.fetchData(); }
                 },
-                showModal(type) {
-                    this.modal.type = type;
-                    this.showFabMenu = false;
-                    // 如果是新增，重置表单
-                    if (type === 'entry') this.form.entry = { id: null, name: '', ip: '', port: null, domain: '', certificate: '', key: '', fallback: '127.0.0.1:8080', target_exit_id: 0, protocol: 'vless', security: 'xtls-rprx-vision', v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' };
-                    if (type === 'exit') this.form.exit = { id: null, name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' };
-                    if (type === 'rule') this.form.rule = { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null };
-                },
+                showModal(type) { this.modal.type = type; },
                 hideModal() { this.modal.type = null },
-                async submitEntry() {
-                    const headers = {
-                        'Content-Type': 'application/json',
-                        'Authorization': localStorage.getItem('stealth_token') || ''
-                    };
-                    try {
-                        const res = await fetch('/api/v1/entries', { method: 'POST', body: JSON.stringify(this.form.entry), headers })
-                        if (res.ok) {
-                            this.hideModal();
-                            this.fetchData();
-                            // 提交后触发一次立即同步
-                            fetch('/api/v1/sync', { method: 'POST', headers });
-                        } else {
-                            const errData = await res.json();
-                            alert('保存失败: ' + (errData.error || '未知错误'));
-                        }
-                    } catch (err) {
-                        alert('网络请求失败: ' + err);
-                    }
+                async submitEntry() { await this.apiPost('/api/v1/entries', this.form.entry); this.hideModal(); this.fetchData(); },
+                async submitExit() { 
+                    const cfg = { server: this.form.exit.server, server_port: this.form.exit.server_port };
+                    if(this.form.exit.protocol === 'ss') cfg.password = this.form.exit.password;
+                    else cfg.uuid = this.form.exit.password;
+                    await this.apiPost('/api/v1/exits', { name: this.form.exit.name, protocol: this.form.exit.protocol, config: JSON.stringify(cfg) });
+                    this.hideModal(); this.fetchData();
                 },
-                async submitExit() {
-                    // 自动构建 Sing-box 兼容的 JSON 配置
-                    let configObj = {
-                        server: this.form.exit.server,
-                        server_port: this.form.exit.server_port
-                    };
-
-                    if (this.form.exit.protocol === 'ss') {
-                        configObj.method = this.form.exit.method;
-                        configObj.password = this.form.exit.password;
-                    } else if (this.form.exit.protocol === 'vless') {
-                        configObj.uuid = this.form.exit.password;
-                        configObj.tls = { enabled: true, insecure: true }; // 落地通常带 TLS
-                    } else if (this.form.exit.protocol === 'socks') {
-                        configObj.password = this.form.exit.password;
-                    }
-
-                    const payload = {
-                        id: this.form.exit.id,
-                        name: this.form.exit.name,
-                        protocol: this.form.exit.protocol,
-                        config: JSON.stringify(configObj)
-                    };
-
-                    const headers = {
-                        'Content-Type': 'application/json',
-                        'Authorization': localStorage.getItem('stealth_token') || ''
-                    };
-                    const res = await fetch('/api/v1/exits', { method: 'POST', body: JSON.stringify(payload), headers })
-                    if (res.ok) { this.hideModal(); this.fetchData(); this.form.exit = { name: '', protocol: 'ss', server: '', server_port: null, method: 'aes-256-gcm', password: '' }; }
-                },
-                async submitRule() {
-                    const headers = {
-                        'Content-Type': 'application/json',
-                        'Authorization': localStorage.getItem('stealth_token') || ''
-                    };
-                    const res = await fetch('/api/v1/rules', { method: 'POST', body: JSON.stringify(this.form.rule), headers })
-                    if (res.ok) { this.hideModal(); this.fetchData(); }
-                },
-                async deleteItem(type, id) {
-                    if (!confirm('确定要删除吗？这将不可撤销。')) return
-                    const headers = { 'Authorization': localStorage.getItem('stealth_token') || '' };
-                    try {
-                        const res = await fetch(`/api/v1/${type}/${id}`, { method: 'DELETE', headers })
-                        if (res.ok) { this.fetchData() }
-                        else { alert('删除失败') }
-                    } catch (err) { alert('请求出错: ' + err) }
-                },
+                async submitRule() { await this.apiPost('/api/v1/rules', this.form.rule); this.hideModal(); this.fetchData(); },
+                async submitMapping() { await this.apiPost('/api/v1/mappings', this.form.mapping); this.hideModal(); this.fetchData(); },
                 async requestCert() {
-                    if (!this.form.entry.domain) return alert('请先输入解析域名');
-                    const headers = {
-                        'Content-Type': 'application/json',
-                        'Authorization': localStorage.getItem('stealth_token') || ''
-                    };
+                    if(!this.form.entry.domain) return alert('域名不能为空');
                     this.certLoading = true;
                     try {
-                        const res = await fetch('/api/v1/entries/issue-cert', {
-                            method: 'POST',
-                            body: JSON.stringify({ domain: this.form.entry.domain }),
-                            headers
-                        });
-                        const data = await res.json();
-                        if (res.ok) {
-                            alert('SSL 证书申请成功！路径已自动填入。');
-                            this.form.entry.certificate = data.cert;
-                            this.form.entry.key = data.key;
-                        } else {
-                            alert('申请失败: ' + (data.error || '未知错误'));
-                        }
-                    } catch (err) {
-                        alert('网络错误: ' + err);
-                    } finally {
-                        this.certLoading = false;
-                    }
+                        const res = await this.apiPost('/api/v1/entries/issue-cert', { domain: this.form.entry.domain });
+                        if(res.cert) { this.form.entry.certificate = res.cert; this.form.entry.key = res.key; alert('签发成功'); }
+                    } finally { this.certLoading = false; }
                 },
-                editEntry(node) {
-                    this.form.entry = { ...node };
-                    this.modal.type = 'entry';
+                async apiPost(url, data) {
+                    const res = await fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('stealth_token') || '' } });
+                    return res.json();
                 },
-                editExit(node) {
-                    this.form.exit = { ...node };
-                    // 解析原来的 JSON 配置到表单
-                    try {
-                        const cfg = JSON.parse(node.config);
-                        this.form.exit.server = cfg.server || cfg.address;
-                        this.form.exit.server_port = cfg.server_port || cfg.port;
-                        this.form.exit.method = cfg.method || cfg.cipher;
-                        this.form.exit.password = cfg.password || cfg.uuid || cfg.key;
-                    } catch (e) { }
-                    this.modal.type = 'exit';
+                async deleteItem(type, id) {
+                    if(!confirm('确定删除?')) return;
+                    await fetch(`/api/v1/${type}/${id}`, { method: 'DELETE', headers: { 'Authorization': localStorage.getItem('stealth_token') || '' } });
+                    this.fetchData();
+                },
+                findNodeName(list, id) {
+                    const n = this[list].find(i => i.id == id);
+                    return n ? n.name : '';
+                },
+                editEntry(n) { this.form.entry = {...n}; this.showModal('entry'); },
+                editExit(n) { 
+                    this.form.exit = {...n};
+                    const c = JSON.parse(n.config);
+                    this.form.exit.server = c.server; this.form.exit.server_port = c.server_port; this.form.exit.password = c.password || c.uuid;
+                    this.showModal('exit'); 
                 }
             }
         }).mount('#app')
     </script>
 </body>
-
 </html>
