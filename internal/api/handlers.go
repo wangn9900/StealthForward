@@ -7,8 +7,6 @@ import (
 	"os/exec"
 	"strconv"
 
-	"net"
-
 	"github.com/gin-gonic/gin"
 	"github.com/wangn9900/StealthForward/internal/database"
 	"github.com/wangn9900/StealthForward/internal/generator"
