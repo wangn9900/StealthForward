@@ -93,21 +93,14 @@ func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, tar
 		return nil
 	}
 
-	var filtered []V2boardUser
-	for _, u := range users {
-		if !processed[u.UUID] {
-			filtered = append(filtered, u)
-			processed[u.UUID] = true
-		}
+	// 不再去重！每个节点的用户都需要同步，同一个 UUID 可以有多个身份（n20-xxx, n21-xxx）
+	// 这样用户才能自由切换节点
+	if len(users) > 0 {
+		updateRulesForEntry(entry.ID, entry.Name, targetExitID, v2bNodeID, users)
 	}
 
-	if len(filtered) > 0 {
-		// 关键修正：传递 v2bNodeID 用于生成统一的识别标签
-		updateRulesForEntry(entry.ID, entry.Name, targetExitID, v2bNodeID, filtered)
-	}
-
-	uuids := make([]string, len(filtered))
-	for i, u := range filtered {
+	uuids := make([]string, len(users))
+	for i, u := range users {
 		uuids[i] = u.UUID
 	}
 	return uuids
@@ -148,11 +141,12 @@ func fetchUsers(entry models.EntryNode, nodeID int, nodeType string) ([]V2boardU
 
 func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, v2bNodeID int, users []V2boardUser) {
 	for _, user := range users {
-		var rule models.ForwardingRule
-		err := database.DB.Where("user_id = ? AND entry_node_id = ?", user.UUID, entryID).First(&rule).Error
-
-		// 核心修正：使用 v2bNodeID 作为标签前缀，与中转机内核上报的标签完全对齐
+		// 核心修正：使用 v2bNodeID 作为标签前缀，每个节点的用户都有独立身份
 		identityTag := fmt.Sprintf("n%d-%s", v2bNodeID, user.UUID[:8])
+
+		var rule models.ForwardingRule
+		// 用 identityTag 作为唯一标识，同一个 UUID 可以有多条规则（对应不同节点）
+		err := database.DB.Where("user_email = ? AND entry_node_id = ?", identityTag, entryID).First(&rule).Error
 
 		if err != nil {
 			newRule := models.ForwardingRule{
@@ -161,7 +155,7 @@ func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, v2bN
 				UserID:      user.UUID,
 				V2boardUID:  user.ID,
 				UserEmail:   identityTag,
-				Enabled:     true, // 始终启用：只要 V2Board 有此用户，就允许入站。转发去向由 Routing 兜底。
+				Enabled:     true,
 			}
 			database.DB.Create(&newRule)
 		} else {
