@@ -37,6 +37,7 @@
         .gradient-text {
             background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -581,12 +582,14 @@
                 },
                 async submitRule() { await this.apiPost('/api/v1/rules', this.form.rule); this.hideModal(); this.fetchData(); },
                 async submitMapping() {
-                    // 修正字段名以匹配后端模型 (v2board_node_id, target_exit_id)
+                    if (!this.form.mapping.v2board_node_id) return alert('请填入 V2Board 节点 ID (例如 21)');
+                    if (!this.form.mapping.target_exit_id) return alert('请选择目标落地出口');
+
                     const payload = {
-                        entry_node_id: this.form.mapping.entry_node_id,
+                        entry_node_id: parseInt(this.form.mapping.entry_node_id),
                         v2board_node_id: parseInt(this.form.mapping.v2board_node_id),
-                        v2board_type: this.form.mapping.v2board_type,
-                        target_exit_id: this.form.mapping.target_exit_id
+                        v2board_type: this.form.mapping.v2board_type || 'v2ray',
+                        target_exit_id: parseInt(this.form.mapping.target_exit_id)
                     };
                     await this.apiPost('/api/v1/mappings', payload);
                     this.hideModal();
@@ -640,7 +643,13 @@
                     this.showModal('rule');
                 },
                 addMapping() {
-                    this.form.mapping = { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray' };
+                    this.form.mapping = {
+                        id: null,
+                        entry_node_id: this.entries.length > 0 ? this.entries[0].id : null,
+                        v2board_node_id: null,
+                        target_exit_id: this.exits.length > 0 ? this.exits[0].id : null,
+                        v2board_type: 'v2ray'
+                    };
                     this.showModal('mapping');
                 }
             }
