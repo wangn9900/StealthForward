@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"io"
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -33,7 +32,7 @@ func (h *HookServer) RoutedConnection(ctx context.Context, conn net.Conn, m adap
 	if m.User == "" {
 		return conn
 	}
-	log.Printf("[Debug] Hook TCP for User: %s", m.User)
+	// log.Printf("[Debug] Hook TCP for User: %s", m.User)
 
 	val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
 	storage := val.(*TrafficStorage)
@@ -49,7 +48,7 @@ func (h *HookServer) RoutedPacketConnection(ctx context.Context, conn N.PacketCo
 	if m.User == "" {
 		return conn
 	}
-	log.Printf("[Debug] Hook UDP for User: %s", m.User)
+	// log.Printf("[Debug] Hook UDP for User: %s", m.User)
 
 	val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
 	storage := val.(*TrafficStorage)
@@ -72,7 +71,6 @@ func (c *ConnCounter) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 	if n > 0 {
 		c.storage.UpCounter.Add(int64(n))
-		// Log 太多会刷屏，保留关键采样或注释掉
 		// log.Printf("TCP Read %d", n)
 	}
 	return
