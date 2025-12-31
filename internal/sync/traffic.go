@@ -159,6 +159,8 @@ func pushTrafficAndOnlineToV2Board() {
 			err := reportToV2BoardAPIWithID(entry, nodeID, nodeType, payload)
 			if err != nil {
 				log.Printf("[Traffic] V2Board 同步失败 (Entry #%d, Node #%d): %v", entry.ID, nodeID, err)
+			} else {
+				log.Printf("[Traffic] V2Board 同步成功 (Entry #%d, Node #%d): %d 条记录", entry.ID, nodeID, len(payload))
 			}
 		}
 	}
