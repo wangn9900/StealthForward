@@ -159,10 +159,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			})
 		}
 	}
-
 	config.Route = map[string]interface{}{
 		"rules": routingRules,
-		"final": "direct",
+		"final": "block", // 严格模式：分流不匹配则直接屏蔽，严禁泄露中转机 IP
 	}
 
 	res, _ := json.MarshalIndent(config, "", "  ")
