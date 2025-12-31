@@ -69,6 +69,8 @@ type UserTraffic struct {
 
 // NodeTrafficReport 节点上报的流量汇总
 type NodeTrafficReport struct {
-	NodeID  uint          `json:"node_id"`
-	Traffic []UserTraffic `json:"traffic"`
+	NodeID        uint          `json:"node_id"`
+	Traffic       []UserTraffic `json:"traffic"`
+	TotalUpload   int64         `json:"total_upload"`
+	TotalDownload int64         `json:"total_download"`
 }

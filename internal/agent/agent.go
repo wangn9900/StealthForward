@@ -35,11 +35,13 @@ type Config struct {
 }
 
 type Agent struct {
-	cfg        Config
-	lastConfig string
-	box        *box.Box
-	hs         *HookServer
-	client     *http.Client
+	cfg             Config
+	lastConfig      string
+	box             *box.Box
+	hs              *HookServer
+	client          *http.Client
+	externalTraffic map[uint][2]int64
+	trafficMu       sync.Mutex
 }
 
 func NewAgent(cfg Config) *Agent {
@@ -51,8 +53,9 @@ func NewAgent(cfg Config) *Agent {
 		}
 	}
 	a := &Agent{
-		cfg:    cfg,
-		client: &http.Client{Timeout: 10 * time.Second},
+		cfg:             cfg,
+		client:          &http.Client{Timeout: 10 * time.Second},
+		externalTraffic: make(map[uint][2]int64),
 	}
 	// 启动时确保伪装页存在
 	a.EnsureMasquerade()
@@ -210,46 +213,55 @@ func (a *Agent) UpdateInternalCore(configStr string) error {
 }
 
 func (a *Agent) reportTrafficLoop() {
-	ticker := time.NewTicker(1 * time.Minute)
-	// pendingStats 存储尚未成功上报的流量累计 [Email] -> [Up, Down]
-	pendingStats := make(map[string][2]int64)
+	ticker := time.NewTicker(20 * time.Second) // 加快频率
+	// pendingStats: [Email] -> [Up, Down]
+	pendingUserStats := make(map[string][2]int64)
 
 	for range ticker.C {
-		if a.hs == nil {
+		userTraffic := []models.UserTraffic{}
+
+		// 1. 尝试从内置核心获取用户级流量
+		if a.hs != nil {
+			newStats := a.hs.GetStats()
+			for email, traffic := range newStats {
+				val := pendingUserStats[email]
+				val[0] += traffic[0]
+				val[1] += traffic[1]
+				pendingUserStats[email] = val
+			}
+			for email, traffic := range pendingUserStats {
+				userTraffic = append(userTraffic, models.UserTraffic{
+					UserEmail: email,
+					Upload:    traffic[0],
+					Download:  traffic[1],
+				})
+			}
+		}
+
+		// 2. 尝试获取节点级汇总流量 (支持外部魔改内核)
+		var nodeUp, nodeDown int64
+		// 这里未来可以扩展：通过 ss -ti 实时扫描并将数据存入 a.externalTraffic
+		// 暂时先上报已发现的部分
+		a.trafficMu.Lock()
+		nodeUp = a.externalTraffic[uint(a.cfg.NodeID)][0]
+		nodeDown = a.externalTraffic[uint(a.cfg.NodeID)][1]
+		// 上报后清空，实现增量上报
+		a.externalTraffic[uint(a.cfg.NodeID)] = [2]int64{0, 0}
+		a.trafficMu.Unlock()
+
+		if len(userTraffic) == 0 && nodeUp == 0 && nodeDown == 0 {
 			continue
-		}
-
-		// 1. 从内核获取本分钟的新增流量，并累加到待发送缓冲区
-		newStats := a.hs.GetStats()
-		for email, traffic := range newStats {
-			val := pendingStats[email]
-			val[0] += traffic[0]
-			val[1] += traffic[1]
-			pendingStats[email] = val
-		}
-
-		if len(pendingStats) == 0 {
-			continue
-		}
-
-		// 2. 准备上报数据
-		userTraffic := make([]models.UserTraffic, 0, len(pendingStats))
-		for email, traffic := range pendingStats {
-			userTraffic = append(userTraffic, models.UserTraffic{
-				UserEmail: email,
-				Upload:    traffic[0],
-				Download:  traffic[1],
-			})
 		}
 
 		report := models.NodeTrafficReport{
-			NodeID:  uint(a.cfg.NodeID),
-			Traffic: userTraffic,
+			NodeID:        uint(a.cfg.NodeID),
+			Traffic:       userTraffic,
+			TotalUpload:   nodeUp,
+			TotalDownload: nodeDown,
 		}
 
 		jsonData, _ := json.Marshal(report)
 		url := fmt.Sprintf("%s/api/v1/node/%d/traffic", a.cfg.ControllerAddr, a.cfg.NodeID)
-
 		req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 		if a.cfg.AdminToken != "" {
 			req.Header.Set("Authorization", a.cfg.AdminToken)
@@ -257,18 +269,12 @@ func (a *Agent) reportTrafficLoop() {
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := a.client.Do(req)
-		if err != nil {
-			log.Printf("Traffic report error (accumulating for retry): %v", err)
-			continue // 发送失败，保留 pendingStats 下次重试
+		if err == nil {
+			if resp.StatusCode == http.StatusOK {
+				pendingUserStats = make(map[string][2]int64) // 只有成功才清空
+			}
+			resp.Body.Close()
 		}
-
-		if resp.StatusCode == http.StatusOK {
-			// 只有发送成功，才清空待发送队列
-			pendingStats = make(map[string][2]int64)
-		} else {
-			log.Printf("Controller returned error %d, keeping stats for retry", resp.StatusCode)
-		}
-		resp.Body.Close()
 	}
 }
 
