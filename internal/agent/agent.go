@@ -303,11 +303,13 @@ func (a *Agent) IssueCertLocally(domain string) {
 		webroot = btPath
 	}
 
-	// 申请证书
-	cmd := exec.Command(acmePath, "--issue", "-d", domain, "-w", webroot, "--force")
+	// 申请证书：强制指定使用 letsencrypt，避免 ZeroSSL 的 retryafter 86400 坑
+	cmd := exec.Command(acmePath, "--issue", "--server", "letsencrypt", "-d", domain, "-w", webroot, "--force")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Local cert issuance failed: %v, Output: %s", err, string(output))
+		// 如果 letsencrypt 也失败，尝试设置全局默认 CA 再试一次（可选）
+		exec.Command(acmePath, "--set-default-ca", "--server", "letsencrypt").Run()
 		return
 	}
 
