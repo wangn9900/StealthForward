@@ -313,7 +313,7 @@
             <div class="glass p-8 rounded-[3rem] border-indigo-500/10">
                 <div class="flex justify-between items-center mb-8">
                     <div>
-                        <h2 class="text-2xl font-bold">智能分流映射 (Routing Policy)</h2>
+                        <h2 class="text-2xl font-bold">多目标分流策略 (Routing Policy)</h2>
                         <p class="text-slate-500 text-sm">单入口 443 转发上百节点的“心脏” | 根据节点 ID 动态流转</p>
                     </div>
                     <button @click="showModal('mapping')"
@@ -405,11 +405,11 @@
                             <option value="shadowsocks">Shadowsocks</option>
                         </select>
                     </div>
-                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">默认落地机
-                        (兜底)</label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">目标落地机
+                        (流量转发目的地)</label>
                     <select class="md:col-span-2" v-model.number="form.entry.target_exit_id">
-                        <option :value="0">不绑定 (未匹配则断网)</option>
-                        <option v-for="ex in exits" :key="ex.id" :value="ex.id">{{ ex.name }} (#{{ ex.id }})</option>
+                        <option :value="0">不绑定 (所有用户将无法连接)</option>
+                        <option v-for="ex in exits" :key="ex.id" :value="ex.id">{{ ex.name }} — 发往此机器</option>
                     </select>
                 </div>
                 <div class="flex gap-4 mt-8">
@@ -423,7 +423,7 @@
         <div v-if="modal.type === 'mapping'"
             class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
-                <h3 class="text-2xl font-bold mb-6 text-indigo-400">新增智能映射</h3>
+                <h3 class="text-2xl font-bold mb-6 text-indigo-400">多目标分流规则 (进阶/选填)</h3>
                 <div class="space-y-4 text-sm">
                     <label class="flex flex-col gap-1.5 text-slate-500">选择入站入口
                         <select v-model.number="form.mapping.entry_node_id">
@@ -459,17 +459,36 @@
             <div class="glass w-full max-w-md p-8 rounded-[3rem]">
                 <h3 class="text-2xl font-bold mb-6">{{ modal.type === 'exit' ? '新增落地机' : '手动链路配置' }}</h3>
                 <div class="space-y-4 text-sm" v-if="modal.type === 'exit'">
-                    <input v-model="form.exit.name" placeholder="备注名称">
+                    <label class="flex flex-col gap-1 text-slate-500">落地机备注名称<input v-model="form.exit.name"
+                            placeholder="香港落地 01"></label>
                     <div class="flex gap-2">
-                        <input class="flex-1" v-model="form.exit.server" placeholder="落地地址">
-                        <input class="w-24" type="number" v-model.number="form.exit.server_port" placeholder="端口">
+                        <label class="flex-1 flex flex-col gap-1 text-slate-500">落地机地址<input v-model="form.exit.server"
+                                placeholder="1.2.3.4"></label>
+                        <label class="w-24 flex flex-col gap-1 text-slate-500">端口<input type="number"
+                                v-model.number="form.exit.server_port" placeholder="443"></label>
                     </div>
-                    <select v-model="form.exit.protocol">
-                        <option value="ss">Shadowsocks</option>
-                        <option value="vless">VLESS</option>
-                        <option value="socks">SOCKS5</option>
-                    </select>
-                    <input v-model="form.exit.password" placeholder="密钥 / UUID">
+                    <label class="flex flex-col gap-1 text-slate-500">传输协议
+                        <select v-model="form.exit.protocol">
+                            <option value="ss">Shadowsocks (传统/2022)</option>
+                            <option value="vless">VLESS (XTLS-Vision)</option>
+                            <option value="socks">Standard SOCKS5</option>
+                        </select>
+                    </label>
+                    <!-- SS 专用加密方式 -->
+                    <label v-if="form.exit.protocol === 'ss'" class="flex flex-col gap-1 text-slate-500">加密方式
+                        (Cipher/Method)
+                        <select v-model="form.exit.method">
+                            <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm (推荐)</option>
+                            <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm</option>
+                            <option value="aes-128-gcm">aes-128-gcm</option>
+                            <option value="aes-256-gcm">aes-256-gcm</option>
+                            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1 text-slate-500">{{ form.exit.protocol === 'ss' ? '连接密码 (Password)'
+                        : 'UUID / 凭据' }}
+                        <input v-model="form.exit.password" placeholder="填写对应的密钥内容">
+                    </label>
                 </div>
                 <div class="space-y-4 text-sm" v-if="modal.type === 'rule'">
                     <label class="flex flex-col gap-1 text-slate-500">用户备注 / Email<input v-model="form.rule.user_email"
@@ -512,7 +531,7 @@
                     modal: { type: null },
                     form: {
                         entry: { id: null, name: '', port: 443, domain: '', certificate: '', key: '', fallback: '127.0.0.1:80', target_exit_id: 0, v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
-                        exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, password: '' },
+                        exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, password: '', method: '2022-blake3-aes-128-gcm' },
                         rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null },
                         mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray' }
                     }
@@ -541,10 +560,18 @@
                 hideModal() { this.modal.type = null },
                 async submitEntry() { await this.apiPost('/api/v1/entries', this.form.entry); this.hideModal(); this.fetchData(); },
                 async submitExit() {
-                    const cfg = { server: this.form.exit.server, server_port: this.form.exit.server_port };
-                    if (this.form.exit.protocol === 'ss') cfg.password = this.form.exit.password;
-                    else cfg.uuid = this.form.exit.password;
-                    await this.apiPost('/api/v1/exits', { name: this.form.exit.name, protocol: this.form.exit.protocol, config: JSON.stringify(cfg) });
+                    const cfg = {
+                        server: this.form.exit.server,
+                        server_port: this.form.exit.server_port,
+                        method: this.form.exit.method
+                    };
+                    if (this.form.exit.protocol === 'ss') {
+                        cfg.password = this.form.exit.password;
+                        cfg.cipher = this.form.exit.method; // 冗余一份兼容旧逻辑
+                    } else {
+                        cfg.uuid = this.form.exit.password;
+                    }
+                    await this.apiPost('/api/v1/exits', { id: this.form.exit.id, name: this.form.exit.name, protocol: this.form.exit.protocol, config: JSON.stringify(cfg) });
                     this.hideModal(); this.fetchData();
                 },
                 async submitRule() { await this.apiPost('/api/v1/rules', this.form.rule); this.hideModal(); this.fetchData(); },
@@ -578,7 +605,10 @@
                 editExit(n) {
                     this.form.exit = { ...n };
                     const c = JSON.parse(n.config);
-                    this.form.exit.server = c.server; this.form.exit.server_port = c.server_port; this.form.exit.password = c.password || c.uuid;
+                    this.form.exit.server = c.server;
+                    this.form.exit.server_port = c.server_port;
+                    this.form.exit.password = c.password || c.uuid;
+                    this.form.exit.method = c.method || c.cipher || '2022-blake3-aes-128-gcm';
                     this.showModal('exit');
                 }
             }
