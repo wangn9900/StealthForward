@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wangn9900/StealthForward/internal/database"
 	"github.com/wangn9900/StealthForward/internal/models"
 )
 
@@ -76,9 +75,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
-		// 直接使用数据库中的 UserEmail 作为唯一标识，不再二次拼接前缀
 		users = append(users, map[string]interface{}{
-			"name": rule.UserEmail,
+			"name": rule.UserEmail, // 必须提供 name 才能在路由中使用 user 字段匹配
 			"uuid": rule.UserID,
 			"flow": "xtls-rprx-vision",
 		})
@@ -100,7 +98,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	for _, exit := range exits {
 		var exitOutbound map[string]interface{}
 		json.Unmarshal([]byte(exit.Config), &exitOutbound) // 适配 Shadowsocks 格式
-
 		if exit.Protocol == "ss" {
 			exitOutbound["type"] = "shadowsocks"
 			if cipher, ok := exitOutbound["cipher"]; ok {
@@ -133,45 +130,32 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	// Routing - 从 UserEmail 标签前缀反查 NodeMapping，精确锁定落地机
+	// Routing - 精准分流逻辑 (优化版：例外路由)
 	routingRules := []interface{}{
-		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32", "::1/128"}, "outbound": "direct"},
+		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32"}, "outbound": "direct"},
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
 	}
 
-	// 构建 V2bNodeID -> ExitNode 的映射表
-	var mappings []models.NodeMapping
-	database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
-	v2bNodeToExit := make(map[int]uint)
-	for _, m := range mappings {
-		v2bNodeToExit[m.V2boardNodeID] = m.TargetExitID
-	}
-	// 加入入口的默认配置
-	if entry.V2boardNodeID != 0 && entry.TargetExitID != 0 {
-		if _, exists := v2bNodeToExit[entry.V2boardNodeID]; !exists {
-			v2bNodeToExit[entry.V2boardNodeID] = entry.TargetExitID
-		}
-	}
-
-	// 按落地节点分组生成规则 (从标签反查)
-	exitToUsers := make(map[uint][]string)
-	for _, rule := range rules {
-		// 从标签 n21-ed296 中提取 V2Board Node ID
-		targetExitID := rule.ExitNodeID // 默认使用数据库值
-		if strings.HasPrefix(rule.UserEmail, "n") && strings.Contains(rule.UserEmail, "-") {
-			idPart := strings.Split(rule.UserEmail, "-")[0][1:]
-			if v2bNodeID, err := strconv.Atoi(idPart); err == nil {
-				if exitID, ok := v2bNodeToExit[v2bNodeID]; ok {
-					targetExitID = exitID // 用 Mapping 表的值覆盖
-				}
+	// 找到默认出口的 Tag
+	defaultExitTag := "block"
+	if entry.TargetExitID != 0 {
+		for _, e := range exits {
+			if e.ID == entry.TargetExitID {
+				defaultExitTag = "out-" + e.Name
+				break
 			}
 		}
-		if targetExitID != 0 {
-			exitToUsers[targetExitID] = append(exitToUsers[targetExitID], rule.UserEmail)
+	}
+
+	// 按落地节点分组生成规则
+	exitToUsers := make(map[uint][]string)
+	for _, rule := range rules {
+		if rule.ExitNodeID != 0 {
+			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
 		}
 	}
 
-	for exitID, tags := range exitToUsers {
+	for exitID, emails := range exitToUsers {
 		var exitName string
 		for _, e := range exits {
 			if e.ID == exitID {
@@ -179,32 +163,17 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				break
 			}
 		}
-		if exitName != "" && len(tags) > 0 {
+		if exitName != "" {
 			routingRules = append(routingRules, map[string]interface{}{
-				"user":     tags,
+				"user":     emails,
 				"outbound": "out-" + exitName,
 			})
 		}
 	}
 
-	// 兜底出站：如果没有任何规则匹配，则优先走该节点的默认落地机，若没配则走系统第一个可用落地机
-	finalOutbound := "block"
-	if entry.TargetExitID != 0 {
-		for _, e := range exits {
-			if e.ID == entry.TargetExitID {
-				finalOutbound = "out-" + e.Name
-				break
-			}
-		}
-	}
-	// 如果还是 block，且有出口，强行指向第一个出口作为抢救
-	if finalOutbound == "block" && len(exits) > 0 {
-		finalOutbound = "out-" + exits[0].Name
-	}
-
 	config.Route = map[string]interface{}{
 		"rules": routingRules,
-		"final": finalOutbound,
+		"final": defaultExitTag, // 将默认落地设为终点，这样默认用户就不用进 rules 列表了
 	}
 
 	res, _ := json.MarshalIndent(config, "", "  ")
