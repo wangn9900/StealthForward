@@ -29,6 +29,9 @@ jobs:
 
       - name: Build StealthForward Binaries
         run: |
+          # 补全魔改库引入的新依赖校验码
+          go mod tidy
+          
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} cmd/agent/main.go
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
