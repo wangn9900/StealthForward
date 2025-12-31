@@ -405,6 +405,12 @@
                             <option value="shadowsocks">Shadowsocks</option>
                         </select>
                     </div>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">默认落地机
+                        (兜底)</label>
+                    <select class="md:col-span-2" v-model.number="form.entry.target_exit_id">
+                        <option :value="0">不绑定 (未匹配则断网)</option>
+                        <option v-for="ex in exits" :key="ex.id" :value="ex.id">{{ ex.name }} (#{{ ex.id }})</option>
+                    </select>
                 </div>
                 <div class="flex gap-4 mt-8">
                     <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
@@ -466,15 +472,21 @@
                     <input v-model="form.exit.password" placeholder="密钥 / UUID">
                 </div>
                 <div class="space-y-4 text-sm" v-if="modal.type === 'rule'">
-                    <input v-model="form.rule.user_email" placeholder="用户 Email / 备注">
-                    <input v-model="form.rule.user_id" placeholder="VLESS UUID">
-                    <div class="flex gap-2">
-                        <select class="flex-1" v-model.number="form.rule.entry_node_id">
-                            <option v-for="e in entries" :value="e.id">{{e.name}}</option>
-                        </select>
-                        <select class="flex-1" v-model.number="form.rule.exit_node_id">
-                            <option v-for="ex in exits" :value="ex.id">{{ex.name}}</option>
-                        </select>
+                    <label class="flex flex-col gap-1 text-slate-500">用户备注 / Email<input v-model="form.rule.user_email"
+                            placeholder="v2b-user-01"></label>
+                    <label class="flex flex-col gap-1 text-slate-500">VLESS UUID<input v-model="form.rule.user_id"
+                            placeholder="用户 UUID"></label>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <label class="flex flex-col gap-1 text-slate-500 text-xs">入口节点
+                            <select v-model.number="form.rule.entry_node_id">
+                                <option v-for="e in entries" :value="e.id">{{e.name}}</option>
+                            </select>
+                        </label>
+                        <label class="flex flex-col gap-1 text-slate-500 text-xs">落地节点
+                            <select v-model.number="form.rule.exit_node_id">
+                                <option v-for="ex in exits" :value="ex.id">{{ex.name}}</option>
+                            </select>
+                        </label>
                     </div>
                 </div>
                 <div class="flex gap-4 mt-8">
