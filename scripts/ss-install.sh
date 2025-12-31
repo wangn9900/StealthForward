@@ -47,7 +47,6 @@ function install_ss() {
     fi
 
     # 3. 智能探测内核 (隔离共存的关键)
-Sing-box (支持探测 V2bX/Tox/Xray 进程)
     SB_BIN=""
     if command -v sing-box &> /dev/null; then
         SB_BIN=$(command -v sing-box)
