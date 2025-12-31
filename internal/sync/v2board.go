@@ -84,18 +84,17 @@ func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, tar
 
 	var filtered []V2boardUser
 	for _, u := range users {
-		// 核心碰撞检测：谁先匹配到，就锁定归谁，严禁修改。
 		if !processed[u.UUID] {
 			filtered = append(filtered, u)
-			processed[u.UUID] = true // 锁定当前周期内的这个 UUID
+			processed[u.UUID] = true
 		}
 	}
 
 	if len(filtered) > 0 {
-		updateRulesForEntry(entry.ID, entry.Name, targetExitID, filtered)
+		// 关键修正：传递 v2bNodeID 用于生成统一的识别标签
+		updateRulesForEntry(entry.ID, entry.Name, targetExitID, v2bNodeID, filtered)
 	}
 
-	// 收集并返回被本次任务成功占用的 UUID
 	uuids := make([]string, len(filtered))
 	for i, u := range filtered {
 		uuids[i] = u.UUID
@@ -110,7 +109,6 @@ func fetchUsers(entry models.EntryNode, nodeID int, nodeType string) ([]V2boardU
 	if len(apiURL) > 0 && apiURL[len(apiURL)-1] == '/' {
 		apiURL = apiURL[:len(apiURL)-1]
 	}
-	// 强制要求 nodeType 参与请求
 	fullURL := fmt.Sprintf("%s/api/v1/server/UniProxy/user?node_id=%d&token=%s&node_type=%s", apiURL, nodeID, key, nodeType)
 
 	client := &http.Client{Timeout: 15 * time.Second}
@@ -127,27 +125,23 @@ func fetchUsers(entry models.EntryNode, nodeID int, nodeType string) ([]V2boardU
 
 	var v2resp V2boardResponse
 	if err := json.Unmarshal(body, &v2resp); err != nil {
-		// 尝试兼容某些直接返回数组的旧版本或特殊魔改版
 		var directUsers []V2boardUser
 		if err2 := json.Unmarshal(body, &directUsers); err2 == nil {
 			return directUsers, nil
 		}
-		return nil, fmt.Errorf("JSON 解析失败 (可能是 API 结构不匹配): %v | 原始数据: %s", err, string(body))
+		return nil, fmt.Errorf("JSON 解析失败: %v", err)
 	}
 
-	allUsers := append(v2resp.Data, v2resp.Users...)
-	return allUsers, nil
+	return append(v2resp.Data, v2resp.Users...), nil
 }
 
-func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, users []V2boardUser) {
-	log.Printf("Entry #%d [%s]: 处理同步, 节点对应落地ID: %d, 用户数: %d", entryID, entryName, targetExitID, len(users))
-
+func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, v2bNodeID int, users []V2boardUser) {
 	for _, user := range users {
 		var rule models.ForwardingRule
 		err := database.DB.Where("user_id = ? AND entry_node_id = ?", user.UUID, entryID).First(&rule).Error
 
-		// 构造一个唯一且包含归属信息的识别标签 (格式: 节点ID-UUID)
-		identityTag := fmt.Sprintf("n%d-%s", targetExitID, user.UUID[:8])
+		// 核心修正：使用 v2bNodeID 作为标签前缀，与中转机内核上报的标签完全对齐
+		identityTag := fmt.Sprintf("n%d-%s", v2bNodeID, user.UUID[:8])
 
 		if err != nil {
 			newRule := models.ForwardingRule{
