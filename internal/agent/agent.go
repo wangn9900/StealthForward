@@ -54,6 +54,10 @@ func NewAgent(cfg Config) *Agent {
 		cfg:    cfg,
 		client: &http.Client{Timeout: 10 * time.Second},
 	}
+	// 启动时确保伪装页存在
+	a.EnsureMasquerade()
+	log.Printf("Masquerade directory: %s", cfg.MasqueradeDir)
+
 	// 启动定时上报任务
 	go a.reportTrafficLoop()
 	return a
@@ -374,7 +378,8 @@ func (a *Agent) IssueCertLocally(domain string) {
 // EnsureMasquerade 检查并生成唯一的伪装页面
 func (a *Agent) EnsureMasquerade() {
 	indexFile := filepath.Join(a.cfg.MasqueradeDir, "index.html")
-	if _, err := os.Stat(indexFile); os.IsNotExist(err) {
+	info, err := os.Stat(indexFile)
+	if os.IsNotExist(err) || (err == nil && info.Size() < 500) {
 		log.Println("Generating unique masquerade site...")
 		html := generator.GenerateMasqueradeHTML()
 		os.WriteFile(indexFile, []byte(html), 0644)
