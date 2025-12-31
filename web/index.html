@@ -24,13 +24,10 @@
         }
 
         .glass {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(4px);
-            /* 降低模糊半径，提升性能 */
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
-            transform: translateZ(0);
-            /* 强制开启硬件加速 */
+            background: #1e293b;
+            /* 使用固体深色，放弃透明模糊，确保绝对流畅和清晰 */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
         }
 
         .accent-border {
@@ -43,20 +40,7 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* 脉冲动画 */
-        .pulse {
-            animation: pulse-animation 2s infinite;
-        }
-
-        @keyframes pulse-animation {
-            0% {
-                box-shadow: 0 0 0 0px var(--accent-glow);
-            }
-
-            100% {
-                box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
-            }
-        }
+        /* 删掉各种华而不实的动画 */
 
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
@@ -73,12 +57,18 @@
 
         input,
         select {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #0f172a;
+            /* 固体背景，防止在某些浏览器下透出底色导致文字模糊 */
+            border: 1px solid #334155;
             border-radius: 8px;
             padding: 10px;
-            color: white;
-            transition: all 0.3s;
+            color: #f8fafc;
+        }
+
+        /* 修复下拉框选项在部分浏览器不可见的问题 */
+        option {
+            background-color: #1e293b;
+            color: #f8fafc;
         }
 
         input:focus {
