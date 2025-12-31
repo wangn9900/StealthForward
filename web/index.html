@@ -372,12 +372,19 @@
                     <label class="flex flex-col gap-1.5 text-slate-500">监听端口<input type="number"
                             v-model.number="form.entry.port" placeholder="443"></label>
                     <div class="md:col-span-2">
-                        <button @click="requestCert" :disabled="certLoading || form.entry.cert_task"
+                        <!-- 只有已保存的节点(有 ID)才允许申请证书 -->
+                        <button v-if="form.entry.id" @click="requestCert"
+                            :disabled="certLoading || form.entry.cert_task"
                             class="w-full p-3 glass text-indigo-400 text-xs rounded-xl border border-indigo-500/20 active:scale-95 transition disabled:opacity-50">
                             <span v-if="form.entry.cert_task">⏳ 中转机正在申请中...</span>
                             <span v-else-if="certLoading">正在下发指令...</span>
                             <span v-else>一键申请部署域名证书</span>
                         </button>
+                        <!-- 新节点提示保存 -->
+                        <div v-else
+                            class="w-full p-3 bg-slate-800/50 text-slate-500 text-[10px] text-center rounded-xl border border-dashed border-white/10 uppercase tracking-widest">
+                            请先保存节点以激活「一键签发证书」功能
+                        </div>
                     </div>
                     <label class="flex flex-col gap-1.5 text-slate-500">证书路径<input v-model="form.entry.certificate"
                             placeholder="/etc/stealthforward/certs/cert.crt"></label>
