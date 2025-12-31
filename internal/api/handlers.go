@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -158,16 +159,6 @@ func IssueCertHandler(c *gin.Context) {
 		return
 	}
 
-	// 检查 80 端口是否被占用 (通常是 Nginx 或宝塔)
-	ln, lerr := net.Listen("tcp", ":80")
-	if lerr != nil {
-		c.JSON(http.StatusConflict, gin.H{
-			"error": "端口 80 已被占用（通常是 Nginx 或宝塔）。请先停止占用该端口的服务，或者在宝塔面板手动申请证书并填写路径。",
-		})
-		return
-	}
-	ln.Close()
-
 	// 定义证书存放路径
 	certDir := "/etc/stealthforward/certs/" + req.Domain
 	exec.Command("mkdir", "-p", certDir).Run()
@@ -176,12 +167,14 @@ func IssueCertHandler(c *gin.Context) {
 	acmePath := home + "/.acme.sh/acme.sh"
 
 	// 方案 A 增强：全自动探测模式
-	// 常见的 Webroot 路径（按优先级排列）
-	commonWebroots := []string{"/var/www/html", "/usr/share/nginx/html", "/var/www/v2board/public"}
+	// 增加宝塔默认路径支持: /www/wwwroot/域名
+	btPath := "/www/wwwroot/" + req.Domain
+	commonWebroots := []string{btPath, "/var/www/html", "/usr/share/nginx/html", "/var/www/v2board/public"}
 	var finalWebroot string
 	for _, path := range commonWebroots {
 		if _, err := os.Stat(path); err == nil {
 			finalWebroot = path
+			log.Printf("Detected webroot: %s", finalWebroot)
 			break
 		}
 	}
@@ -189,23 +182,28 @@ func IssueCertHandler(c *gin.Context) {
 	var output []byte
 	var err error
 
-	// 检查 80 端口是否被占用 (简易检测)
+	// 检查 80 端口是否被占用
+	ln, lerr := net.Listen("tcp", ":80")
 	portInUse := false
-	checkCmd := exec.Command("sh", "-c", "lsof -i :80 | grep LISTEN")
-	if errCheck := checkCmd.Run(); errCheck == nil {
+	if lerr != nil {
 		portInUse = true
+	} else {
+		ln.Close()
 	}
 
 	if portInUse && finalWebroot != "" {
-		// 1. 如果 80 占用且有 webroot，走 webroot 模式 (无感)
+		// 1. 如果 80 占用且有 webroot (如宝塔环境)，走 webroot 模式 (无感)
+		log.Println("Port 80 occupied, using webroot mode...")
 		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "-w", finalWebroot, "--force").CombinedOutput()
 	} else if portInUse && finalWebroot == "" {
-		// 2. 如果 80 占用但找不到路径，尝试停掉 nginx (后备方案)
+		// 2. 如果 80 占用但找不到路径，尝试停掉 nginx (作为兜底)
+		log.Println("Port 80 occupied and no webroot found, trying to stop nginx temporarily...")
 		exec.Command("systemctl", "stop", "nginx").Run()
 		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
 		exec.Command("systemctl", "start", "nginx").Run()
 	} else {
 		// 3. 80 没被占用，直接走 standalone
+		log.Println("Using standalone mode...")
 		output, err = exec.Command(acmePath, "--issue", "-d", req.Domain, "--standalone", "--force").CombinedOutput()
 	}
 
