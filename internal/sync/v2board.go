@@ -62,6 +62,9 @@ func syncAllNodes() {
 
 // syncSingleTarget 负责执行具体的拉取和更新动作
 func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint) {
+	if v2bNodeID <= 0 {
+		return
+	}
 	log.Printf(">>>> [D-Sync] 正在从 V2Board 拉取: NodeID=%d, Type=%s, URL=%s", v2bNodeID, v2bType, entry.V2boardURL)
 	users, err := fetchUsersFromV2Board(entry.V2boardURL, entry.V2boardKey, v2bNodeID, v2bType)
 	if err != nil {

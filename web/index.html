@@ -582,7 +582,18 @@
                     this.hideModal(); this.fetchData();
                 },
                 async submitRule() { await this.apiPost('/api/v1/rules', this.form.rule); this.hideModal(); this.fetchData(); },
-                async submitMapping() { await this.apiPost('/api/v1/mappings', this.form.mapping); this.hideModal(); this.fetchData(); },
+                async submitMapping() {
+                    // 修正字段名以匹配后端模型 (v2board_node_id, target_exit_id)
+                    const payload = {
+                        entry_node_id: this.form.mapping.entry_node_id,
+                        v2board_node_id: parseInt(this.form.mapping.v2board_node_id),
+                        v2board_type: this.form.mapping.v2board_type,
+                        target_exit_id: this.form.mapping.target_exit_id
+                    };
+                    await this.apiPost('/api/v1/mappings', payload);
+                    this.hideModal();
+                    this.fetchData();
+                },
                 async requestCert() {
                     if (!this.form.entry.domain) return alert('域名不能为空');
                     this.certLoading = true;
