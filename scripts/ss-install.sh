@@ -23,9 +23,9 @@ mkdir -p /etc/sing-box
 
 # 3. 生成随机参数
 PORT=$((RANDOM % 10000 + 20000))
-# 生成 16 字节密钥 (Base64)
+# 生成传统 SS AEAD 密码
 PASSWORD=$(openssl rand -base64 16)
-METHOD="2022-blake3-aes-128-gcm"
+METHOD="chacha20-ietf-poly1305"
 
 # 4. 写入配置文件
 cat > /etc/sing-box/config.json <<EOF
