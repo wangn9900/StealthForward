@@ -27,17 +27,20 @@ var (
 // CollectTraffic 接收来自 Agent 的流量快照
 func CollectTraffic(report models.NodeTrafficReport) {
 	for _, t := range report.Traffic {
-		lookupEmail := t.UserEmail
-		parts := strings.Split(lookupEmail, "-")
-		if len(parts) > 1 {
-			lookupEmail = parts[len(parts)-1]
-		}
-
+		// 精确匹配：必须是这个入口下的这个特定标签 (例如 n21-ed296cba)
 		var rule models.ForwardingRule
-		err := database.DB.Where("user_email LIKE ?", "%"+lookupEmail+"%").First(&rule).Error
+		err := database.DB.Where("user_email = ? AND entry_node_id = ?", t.UserEmail, report.NodeID).First(&rule).Error
 		if err != nil {
-			log.Printf("[Traffic] 未识别用户标签 %s", t.UserEmail)
-			continue
+			// 兜底：如果完全匹配失败，尝试去掉前缀匹配 UUID (兼容旧版或特殊标签)
+			lookupUUID := t.UserEmail
+			if parts := strings.Split(t.UserEmail, "-"); len(parts) > 1 {
+				lookupUUID = parts[len(parts)-1]
+			}
+			err = database.DB.Where("user_id = ? AND entry_node_id = ?", lookupUUID, report.NodeID).First(&rule).Error
+			if err != nil {
+				log.Printf("[Traffic] 无法定位用户规则: %s (Entry #%d)", t.UserEmail, report.NodeID)
+				continue
+			}
 		}
 
 		if rule.V2boardUID == 0 {

@@ -42,14 +42,14 @@ func syncAllNodes() {
 	for _, entry := range entries {
 		processedUUIDs := make(map[string]bool) // 记录已由 Mapping 处理过的用户，防止被默认规则覆盖
 
-		// 1. 先同步 Mapping 规则 (最高优先级)
+		// 1. 先同步 Mapping 规则 (最高优先级，按 ID 降序排列，让新节点/手动节点优先夺取用户)
 		var mappings []models.NodeMapping
-		database.DB.Where("entry_node_id = ?", entry.ID).Find(&mappings)
+		database.DB.Where("entry_node_id = ?", entry.ID).Order("id DESC").Find(&mappings)
 
 		var activeUUIDs []string
 		for _, m := range mappings {
-			log.Printf(">>>> [D-Sync] 优先处理映射任务: NodeID %d -> ExitID %d", m.V2boardNodeID, m.TargetExitID)
-			uuids := syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID, true, processedUUIDs)
+			log.Printf(">>>> [D-Sync] 优先分流同步: V2B节点#%d -> 落地ID#%d", m.V2boardNodeID, m.TargetExitID)
+			uuids := syncSingleTarget(entry, m.V2boardNodeID, m.V2boardType, m.TargetExitID, processedUUIDs)
 			activeUUIDs = append(activeUUIDs, uuids...)
 		}
 
@@ -59,7 +59,7 @@ func syncAllNodes() {
 			if nodeType == "" {
 				nodeType = "v2ray"
 			}
-			uuids := syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID, false, processedUUIDs)
+			uuids := syncSingleTarget(entry, entry.V2boardNodeID, nodeType, entry.TargetExitID, processedUUIDs)
 			activeUUIDs = append(activeUUIDs, uuids...)
 		}
 
@@ -72,7 +72,7 @@ func syncAllNodes() {
 	}
 }
 
-func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint, isPriority bool, processed map[string]bool) []string {
+func syncSingleTarget(entry models.EntryNode, v2bNodeID int, v2bType string, targetExitID uint, processed map[string]bool) []string {
 	if v2bNodeID <= 0 {
 		return nil
 	}
