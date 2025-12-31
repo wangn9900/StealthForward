@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -86,6 +87,21 @@ func CreateExitNodeHandler(c *gin.Context) {
 func ListExitNodesHandler(c *gin.Context) {
 	var exits []models.ExitNode
 	database.DB.Find(&exits)
+
+	// 后端纠偏：如果 port 为 0，尝试从 Config JSON 里找
+	for i := range exits {
+		if exits[i].Port == 0 && exits[i].Config != "" {
+			var cfg map[string]interface{}
+			if err := json.Unmarshal([]byte(exits[i].Config), &cfg); err == nil {
+				// 尝试多个可能的端口字段
+				if p, ok := cfg["server_port"].(float64); ok {
+					exits[i].Port = int(p)
+				} else if p, ok := cfg["port"].(float64); ok {
+					exits[i].Port = int(p)
+				}
+			}
+		}
+	}
 	c.JSON(http.StatusOK, exits)
 }
 
