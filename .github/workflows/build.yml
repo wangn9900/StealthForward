@@ -33,21 +33,15 @@ jobs:
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} cmd/agent/main.go
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
 
-      - name: Clone and Build Sing-box Mod (with VLESS Fallback)
+      - name: Build Standalone Sing-box Mod (with VLESS Fallback)
         run: |
-          # 从 wangn9900 的魔改版 sing-box_mod 拉取 (dev-next 分支包含 VLESS fallback)
-          git clone --depth 1 --branch dev-next https://github.com/wangn9900/sing-box_mod.git sing-box_mod
-          
-          cd sing-box_mod
+          cd ../V2bX/sing-box_mod
           
           # 确保依赖正确
           go mod tidy
           
           # 编译魔改版 sing-box 核心
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
-          
-          cd ..
-          rm -rf sing-box_mod
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../../StealthForward/sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
