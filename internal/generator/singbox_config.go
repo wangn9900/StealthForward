@@ -41,15 +41,24 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"strategy": "prefer_ipv4",
 		},
 	}
+
+	// 统一证书路径逻辑
+	certPath := entry.Certificate
+	if certPath == "" {
+		certPath = "/etc/stealthforward/certs/" + entry.Domain + "/cert.crt"
+	}
+	keyPath := entry.Key
+	if keyPath == "" {
+		keyPath = "/etc/stealthforward/certs/" + entry.Domain + "/cert.key"
+	}
+
 	// 注入证书资产到 Provision，实现 Agent 无感恢复
 	if entry.CertBody != "" && entry.KeyBody != "" {
-		config.Provision[entry.Certificate] = entry.CertBody
-		config.Provision[entry.Key] = entry.KeyBody
+		config.Provision[certPath] = entry.CertBody
+		config.Provision[keyPath] = entry.KeyBody
 	}
 
 	// 1. 构建 Inbound (VLESS + Vision)
-	// 恢复 fallback 字段：即便官方原版不支持，如果有自研内核（如 V2bX 的）则能识别
-	// 如果是官方内核，我们通过下面的逻辑确保它不会 Crash
 	vlessInbound := map[string]interface{}{
 		"type":                       "vless",
 		"tag":                        "vless-in",
@@ -73,7 +82,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 注入“特色”回落配置 (针对 V2bX/Tox 支持的单数格式)
+	// 注意：这里使用单数 fallback，这是 V2bX/Tox 自研内核的特征标识
 	vlessInbound["fallback"] = map[string]interface{}{
 		"server":      fallbackHost,
 		"server_port": fallbackPort,
@@ -92,8 +101,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	vlessInbound["tls"] = map[string]interface{}{
 		"enabled":          true,
 		"server_name":      entry.Domain,
-		"certificate_path": entry.Certificate,
-		"key_path":         entry.Key,
+		"certificate_path": certPath,
+		"key_path":         keyPath,
 		"min_version":      "1.2",
 		"alpn":             []string{"http/1.1", "h2"},
 	}

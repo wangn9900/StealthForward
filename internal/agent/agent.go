@@ -117,10 +117,20 @@ func (a *Agent) ApplyConfig(configStr string) error {
 		}
 	}
 
+	// 2. 移除 root 级的 provision 字段后再写入文件，防止内核解码失败
+	var configMap map[string]interface{}
+	finalConfigStr := configStr
+	if err := json.Unmarshal([]byte(configStr), &configMap); err == nil {
+		delete(configMap, "provision")
+		if bytes, err := json.MarshalIndent(configMap, "", "  "); err == nil {
+			finalConfigStr = string(bytes)
+		}
+	}
+
 	configPath := filepath.Join(a.cfg.LocalConfigDir, "config.json")
 
-	// 2. 写入文件
-	err := os.WriteFile(configPath, []byte(configStr), 0644)
+	// 3. 写入文件
+	err := os.WriteFile(configPath, []byte(finalConfigStr), 0644)
 	if err != nil {
 		return err
 	}
