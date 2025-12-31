@@ -75,8 +75,10 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	users := []map[string]interface{}{}
 	for _, rule := range rules {
+		// 生成与路由匹配的唯一标识：n<ExitID>-<UUID[:8]>
+		userTag := fmt.Sprintf("n%d-%s", rule.ExitNodeID, rule.UserEmail[:8])
 		users = append(users, map[string]interface{}{
-			"name": rule.UserEmail, // 必须提供 name 才能在路由中使用 user 字段匹配
+			"name": userTag, // 用于路由匹配
 			"uuid": rule.UserID,
 			"flow": "xtls-rprx-vision",
 		})
@@ -98,6 +100,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	for _, exit := range exits {
 		var exitOutbound map[string]interface{}
 		json.Unmarshal([]byte(exit.Config), &exitOutbound) // 适配 Shadowsocks 格式
+
 		if exit.Protocol == "ss" {
 			exitOutbound["type"] = "shadowsocks"
 			if cipher, ok := exitOutbound["cipher"]; ok {
@@ -140,11 +143,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	exitToUsers := make(map[uint][]string)
 	for _, rule := range rules {
 		if rule.ExitNodeID != 0 {
-			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
+			userTag := fmt.Sprintf("n%d-%s", rule.ExitNodeID, rule.UserEmail[:8])
+			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], userTag)
 		}
 	}
 
-	for exitID, emails := range exitToUsers {
+	for exitID, tags := range exitToUsers {
 		var exitName string
 		for _, e := range exits {
 			if e.ID == exitID {
@@ -152,9 +156,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				break
 			}
 		}
-		if exitName != "" && len(emails) > 0 {
+		if exitName != "" && len(tags) > 0 {
 			routingRules = append(routingRules, map[string]interface{}{
-				"user":     emails,
+				"user":     tags,
 				"outbound": "out-" + exitName,
 			})
 		}
