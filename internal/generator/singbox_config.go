@@ -25,9 +25,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		Log: map[string]interface{}{
 			"level": "debug",
 		},
-		Experimental: map[string]interface{}{
-			"control": "127.0.0.1:9090", // 开启控制 API 用于流量统计
-		},
 		Provision: make(map[string]string),
 		DNS: map[string]interface{}{
 			"servers": []interface{}{

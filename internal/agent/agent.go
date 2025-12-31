@@ -104,6 +104,9 @@ func (a *Agent) ApplyConfig(configStr string) error {
 	}
 	if err := json.Unmarshal([]byte(configStr), &fullConfig); err == nil {
 		for path, content := range fullConfig.Provision {
+			if path == "" {
+				continue
+			}
 			dir := filepath.Dir(path)
 			os.MkdirAll(dir, 0755)
 			if err := os.WriteFile(path, []byte(content), 0600); err != nil {
