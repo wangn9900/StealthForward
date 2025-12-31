@@ -138,8 +138,14 @@
                 <div class="text-3xl font-light text-indigo-400">{{ mappings.length }} <span
                         class="text-xs text-slate-500 font-normal">Fixed</span></div>
             </div>
-            <div class="glass p-5 rounded-3xl border-indigo-500/20 border-t pulse">
-                <div class="text-indigo-400 text-xs mb-1 uppercase tracking-widest font-bold">总链路数</div>
+            <div class="glass p-5 rounded-3xl border-indigo-500/20 border-t pulse cursor-pointer hover:bg-indigo-500/5 transition"
+                @click="showDashboard = !showDashboard">
+                <div
+                    class="text-indigo-400 text-xs mb-1 uppercase tracking-widest font-bold flex justify-between items-center">
+                    <span>总链路数</span>
+                    <span class="text-[8px] border border-indigo-500/30 px-1 rounded">{{ showDashboard ? '点击折叠看板' :
+                        '点击展开看板' }}</span>
+                </div>
                 <div class="text-3xl font-light text-white">{{ rules.length + mappings.length }}</div>
             </div>
         </div>
@@ -147,8 +153,8 @@
         <!-- Main Content Area -->
         <div v-show="activeTab === 'dashboard'"
             class="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
-            <!-- Entry Node List -->
-            <div class="lg:col-span-2 space-y-6">
+            <!-- Entry Node List (Expanded if dashboard hidden) -->
+            <div :class="showDashboard ? 'lg:col-span-2' : 'lg:col-span-3'" class="space-y-6">
                 <div class="flex justify-between items-center px-2">
                     <h2 class="text-xl font-bold flex items-center gap-2">
                         <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
@@ -159,8 +165,9 @@
                 <div class="grid grid-cols-1 gap-4">
                     <div v-for="node in entries" :key="node.id"
                         class="glass p-6 rounded-[2.5rem] relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition"><svg
-                                class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
+                        <div
+                            class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition pointer-events-none">
+                            <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
                             </svg></div>
                         <div class="flex justify-between items-start">
@@ -225,8 +232,8 @@
                 </div>
             </div>
 
-            <!-- Dashboard Task/Rules List -->
-            <div class="space-y-6">
+            <!-- Dashboard Task/Rules List (Collapsible) -->
+            <div v-if="showDashboard" class="space-y-6 animate-in slide-in-from-right-8 duration-300">
                 <div class="flex justify-between items-center px-2">
                     <h2 class="text-xl font-bold flex items-center gap-2">任务看板</h2>
                     <button @click="showModal('rule')" class="text-xs text-indigo-400 transition">+ 用户转发</button>
@@ -520,6 +527,7 @@
             data() {
                 return {
                     activeTab: 'dashboard',
+                    showDashboard: true,
                     entries: [],
                     exits: [],
                     rules: [],
