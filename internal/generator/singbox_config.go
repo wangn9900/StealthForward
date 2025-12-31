@@ -162,9 +162,24 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
+	// 兜底出站：如果没有任何规则匹配，则优先走该节点的默认落地机，若没配则走系统第一个可用落地机
+	finalOutbound := "block"
+	if entry.TargetExitID != 0 {
+		for _, e := range exits {
+			if e.ID == entry.TargetExitID {
+				finalOutbound = "out-" + e.Name
+				break
+			}
+		}
+	}
+	// 如果还是 block，且有出口，强行指向第一个出口作为抢救
+	if finalOutbound == "block" && len(exits) > 0 {
+		finalOutbound = "out-" + exits[0].Name
+	}
+
 	config.Route = map[string]interface{}{
 		"rules": routingRules,
-		"final": "block", // 恢复安全兜底，禁止乱跳
+		"final": finalOutbound,
 	}
 
 	res, _ := json.MarshalIndent(config, "", "  ")

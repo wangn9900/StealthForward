@@ -150,7 +150,7 @@ func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, v2bN
 				UserID:      user.UUID,
 				V2boardUID:  user.ID,
 				UserEmail:   identityTag,
-				Enabled:     targetExitID != 0,
+				Enabled:     true, // 始终启用：只要 V2Board 有此用户，就允许入站。转发去向由 Routing 兜底。
 			}
 			database.DB.Create(&newRule)
 		} else {
@@ -161,7 +161,10 @@ func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, v2bN
 			}
 			if rule.ExitNodeID != targetExitID {
 				rule.ExitNodeID = targetExitID
-				rule.Enabled = targetExitID != 0
+				updated = true
+			}
+			if !rule.Enabled {
+				rule.Enabled = true
 				updated = true
 			}
 			if rule.UserEmail != identityTag {
