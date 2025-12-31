@@ -34,14 +34,25 @@ function install_ss() {
     read -p "请输入端口 [默认 $RANDOM_PORT]: " PORT
     [ -z "$PORT" ] && PORT=$RANDOM_PORT
 
-    # 3. 智能探测 Sing-box
-    SB_BIN="/usr/local/bin/sing-box"
+    # 3. 智能探测 Sing-box (支持探测 V2bX/Xray 进程)
+    SB_BIN=""
     if command -v sing-box &> /dev/null; then
         SB_BIN=$(command -v sing-box)
-        echo -e "${GREEN}检测到系统中已存在 Sing-box 内核: $SB_BIN${PLAIN}"
+    elif command -v V2bX &> /dev/null; then
+        SB_BIN=$(command -v V2bX)
+        echo -e "${GREEN}检测到系统中存在 V2bX 命名的内核: $SB_BIN${PLAIN}"
+    elif pgrep -x "V2bX" > /dev/null; then
+        SB_BIN=$(readlink -f /proc/$(pgrep -x "V2bX" | head -n 1)/exe)
+        echo -e "${GREEN}检测到系统中正在运行 V2bX，将复用其内核: $SB_BIN${PLAIN}"
+    fi
+
+    if [ -n "$SB_BIN" ]; then
+        echo -e "${GREEN}已确定可用内核路径: $SB_BIN${PLAIN}"
+        echo -e "${YELLOW}将直接复用现有内核，不会重复安装，确保不影响您的业务。${PLAIN}"
     else
-        echo -e "${BLUE}未检测到 Sing-box，正在进行轻量化安装...${PLAIN}"
+        echo -e "${BLUE}未检测到兼容内核，正在进行轻量化安装...${PLAIN}"
         bash <(curl -fsSL https://sing-box.app/install.sh)
+        SB_BIN="/usr/local/bin/sing-box"
     fi
 
     # 4. 隔离配置环境
