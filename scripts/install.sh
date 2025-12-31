@@ -226,17 +226,80 @@ EOF
   echo -e "${GREEN}Agent 已安装并在后台运行!${NC}"
 }
 
+uninstall_controller() {
+  echo -e "${RED}正在卸载 StealthForward Controller...${NC}"
+  systemctl stop stealth-controller 2>/dev/null
+  systemctl disable stealth-controller 2>/dev/null
+  rm -f /etc/systemd/system/stealth-controller.service
+  systemctl daemon-reload
+  
+  rm -f $BIN_DIR/stealth-controller
+  rm -f $BIN_DIR/stealth-admin
+  # 注意：这里我们询问是否保留数据库
+  read -p "是否删除所有数据库和配置数据(不可逆)? [y/N]: " del_data
+  if [[ "$del_data" =~ ^[Yy]$ ]]; then
+    rm -rf $INSTALL_DIR
+    echo -e "${YELLOW}已清除所有配置数据和 SQLite 数据库。${NC}"
+  fi
+  
+  echo -e "${GREEN}Controller 卸载完成！${NC}"
+}
+
+uninstall_agent() {
+  echo -e "${RED}正在卸载 StealthForward Agent 及相关组件...${NC}"
+  
+  # 1. 停止并删除 Agent 服务
+  systemctl stop stealth-agent 2>/dev/null
+  systemctl disable stealth-agent 2>/dev/null
+  rm -f /etc/systemd/system/stealth-agent.service
+  rm -f $BIN_DIR/stealth-agent
+  
+  # 2. 停止并删除 Sing-box
+  echo -e "${YELLOW}清理 Sing-box 核心...${NC}"
+  systemctl stop sing-box 2>/dev/null
+  systemctl disable sing-box 2>/dev/null
+  rm -f /etc/systemd/system/sing-box.service
+  rm -f /usr/local/bin/sing-box
+  rm -rf /etc/sing-box
+  
+  # 3. 清理 Nginx 和伪装网站
+  read -p "是否卸载 Nginx 并清除伪装网站数据? [y/N]: " del_nginx
+  if [[ "$del_nginx" =~ ^[Yy]$ ]]; then
+    systemctl stop nginx 2>/dev/null
+    if command -v apt-get &> /dev/null; then
+      apt-get purge -y nginx nginx-common
+      apt-get autoremove -y
+    elif command -v yum &> /dev/null; then
+      yum remove -y nginx
+    fi
+    rm -rf /var/www/html/*
+    echo -e "${YELLOW}Nginx 及伪装页已清除。${NC}"
+  fi
+  
+  # 4. 清理主目录
+  rm -rf $INSTALL_DIR
+  systemctl daemon-reload
+  
+  echo -e "${GREEN}Agent 及其关联组件已彻底清除！${NC}"
+}
+
 main_menu() {
   show_logo
   echo -e "1. 安装 ${GREEN}Controller (中控端)${NC}"
   echo -e "2. 安装 ${GREEN}Agent (入口节点端)${NC}"
+  echo -e "--------------------------------"
+  echo -e "3. ${RED}卸载 Controller${NC}"
+  echo -e "4. ${RED}卸载 Agent (包含清理 Sing-box/Nginx)${NC}"
+  echo -e "--------------------------------"
   echo -e "0. 退出"
   echo ""
-  read -p "请选择 [0-2]: " choice
+  read -p "请选择 [0-4]: " choice
 
   case $choice in
     1) install_controller ;;
     2) install_agent ;;
+    3) uninstall_controller ;;
+    4) uninstall_agent ;;
     0) exit 0 ;;
     *) echo "无效选项" ; sleep 1 ; main_menu ;;
   esac
