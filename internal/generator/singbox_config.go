@@ -13,9 +13,9 @@ import (
 type SingBoxConfig struct {
 	Log       interface{}   `json:"log"`
 	DNS       interface{}   `json:"dns,omitempty"`
-	Inbounds  []interface{} `json:"inbounds"`
-	Outbounds []interface{} `json:"outbounds"`
 	Route     interface{}   `json:"route"`
+	Outbounds []interface{} `json:"outbounds"`
+	Inbounds  []interface{} `json:"inbounds"` // 用户列表最长，挪到最后，方便用户查看
 }
 
 func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule, exits []models.ExitNode) (string, error) {
@@ -130,16 +130,28 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	// Routing - 精准分流逻辑
+	// Routing - 精准分流逻辑 (优化版：例外路由)
 	routingRules := []interface{}{
 		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32"}, "outbound": "direct"},
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
 	}
 
-	// 按落地节点分组生成路由规则，提高 sing-box 运行效率并修正多目标分流
+	// 找到默认出口的 Tag
+	defaultExitTag := "block"
+	if entry.TargetExitID != 0 {
+		for _, e := range exits {
+			if e.ID == entry.TargetExitID {
+				defaultExitTag = "out-" + e.Name
+				break
+			}
+		}
+	}
+
+	// 按落地节点分组生成规则
 	exitToUsers := make(map[uint][]string)
 	for _, rule := range rules {
-		if rule.ExitNodeID != 0 {
+		// 重点优化：如果该用户的目标落地就是默认落地，则不需要写路由规则，直接走 final 即可
+		if rule.ExitNodeID != 0 && rule.ExitNodeID != entry.TargetExitID {
 			exitToUsers[rule.ExitNodeID] = append(exitToUsers[rule.ExitNodeID], rule.UserEmail)
 		}
 	}
@@ -159,9 +171,10 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			})
 		}
 	}
+
 	config.Route = map[string]interface{}{
 		"rules": routingRules,
-		"final": "block", // 严格模式：分流不匹配则直接屏蔽，严禁泄露中转机 IP
+		"final": defaultExitTag, // 将默认落地设为终点，这样默认用户就不用进 rules 列表了
 	}
 
 	res, _ := json.MarshalIndent(config, "", "  ")

@@ -33,19 +33,9 @@ func GetConfigHandler(c *gin.Context) {
 	var rules []models.ForwardingRule
 	database.DB.Where("entry_node_id = ? AND enabled = ?", nodeID, true).Find(&rules)
 
-	// 3. 获取所有涉及的落地节点
-	exitIDs := []uint{}
-	if entry.TargetExitID != 0 {
-		exitIDs = append(exitIDs, entry.TargetExitID)
-	}
-	for _, r := range rules {
-		exitIDs = append(exitIDs, r.ExitNodeID)
-	}
-
+	// 3. 获取所有落地节点 (加载全部，确保动态分流时 outbound 标签始终存在)
 	var exits []models.ExitNode
-	if len(exitIDs) > 0 {
-		database.DB.Where("id IN ?", exitIDs).Find(&exits)
-	}
+	database.DB.Find(&exits)
 
 	// 4. 生成配置
 	config, err := generator.GenerateEntryConfig(&entry, rules, exits)
