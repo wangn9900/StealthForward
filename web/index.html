@@ -7,12 +7,15 @@
     <title>StealthForward | 隐形转发中控中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+SC:wght@400;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --accent: #6366f1;
             --accent-glow: rgba(99, 102, 241, 0.4);
         }
+
         body {
             font-family: 'Outfit', 'Noto Sans SC', sans-serif;
             background: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 100%);
@@ -27,25 +30,74 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        .accent-border { border-left: 4px solid var(--accent); }
-        .gradient-text { background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        /* 脉冲动画 */
-        .pulse { animation: pulse-animation 2s infinite; }
-        @keyframes pulse-animation {
-            0% { box-shadow: 0 0 0 0px var(--accent-glow); }
-            100% { box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); }
+        .accent-border {
+            border-left: 4px solid var(--accent);
         }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.2); border-radius: 10px; }
-        
-        input, select { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; color: white; transition: all 0.3s; }
-        input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 10px var(--accent-glow); }
-        
-        .tab-btn { padding: 8px 20px; border-radius: 12px; transition: all 0.2s; cursor: pointer; border: 1px solid transparent; }
-        .tab-btn.active { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); color: var(--accent); font-weight: 600; }
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 脉冲动画 */
+        .pulse {
+            animation: pulse-animation 2s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% {
+                box-shadow: 0 0 0 0px var(--accent-glow);
+            }
+
+            100% {
+                box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+            }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+        }
+
+        input,
+        select {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .tab-btn {
+            padding: 8px 20px;
+            border-radius: 12px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .tab-btn.active {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: var(--accent);
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -59,11 +111,18 @@
             </div>
             <div class="flex gap-3">
                 <div class="glass flex p-1 rounded-2xl items-center">
-                    <div @click="activeTab = 'dashboard'" :class="['tab-btn', activeTab === 'dashboard' ? 'active' : '']">概览</div>
-                    <div @click="activeTab = 'mappings'" :class="['tab-btn', activeTab === 'mappings' ? 'active' : '']">配置</div>
+                    <div @click="activeTab = 'dashboard'"
+                        :class="['tab-btn', activeTab === 'dashboard' ? 'active' : '']">概览</div>
+                    <div @click="activeTab = 'mappings'" :class="['tab-btn', activeTab === 'mappings' ? 'active' : '']">
+                        配置</div>
                 </div>
-                <button @click="fetchData" class="p-3 px-5 glass rounded-2xl hover:bg-slate-800/50 transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <button @click="fetchData"
+                    class="p-3 px-5 glass rounded-2xl hover:bg-slate-800/50 transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
+                    </svg>
                     刷新
                 </button>
             </div>
@@ -73,15 +132,18 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="glass p-5 rounded-3xl border-t border-white/5">
                 <div class="text-slate-500 text-xs mb-1 uppercase tracking-widest font-bold">入口节点</div>
-                <div class="text-3xl font-light">{{ entries.length }} <span class="text-xs text-indigo-400 font-normal">Active</span></div>
+                <div class="text-3xl font-light">{{ entries.length }} <span
+                        class="text-xs text-indigo-400 font-normal">Active</span></div>
             </div>
             <div class="glass p-5 rounded-3xl border-t border-white/5">
                 <div class="text-slate-500 text-xs mb-1 uppercase tracking-widest font-bold">分流出口</div>
-                <div class="text-3xl font-light">{{ exits.length }} <span class="text-xs text-emerald-400 font-normal">Nodes</span></div>
+                <div class="text-3xl font-light">{{ exits.length }} <span
+                        class="text-xs text-emerald-400 font-normal">Nodes</span></div>
             </div>
             <div class="glass p-5 rounded-3xl border-t border-white/5">
                 <div class="text-slate-500 text-xs mb-1 uppercase tracking-widest font-bold">映射规则</div>
-                <div class="text-3xl font-light text-indigo-400">{{ mappings.length }} <span class="text-xs text-slate-500 font-normal">Fixed</span></div>
+                <div class="text-3xl font-light text-indigo-400">{{ mappings.length }} <span
+                        class="text-xs text-slate-500 font-normal">Fixed</span></div>
             </div>
             <div class="glass p-5 rounded-3xl border-indigo-500/20 border-t pulse">
                 <div class="text-indigo-400 text-xs mb-1 uppercase tracking-widest font-bold">总链路数</div>
@@ -90,7 +152,8 @@
         </div>
 
         <!-- Main Content Area -->
-        <div v-show="activeTab === 'dashboard'" class="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+        <div v-show="activeTab === 'dashboard'"
+            class="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
             <!-- Entry Node List -->
             <div class="lg:col-span-2 space-y-6">
                 <div class="flex justify-between items-center px-2">
@@ -101,24 +164,68 @@
                     <button @click="showModal('entry')" class="text-sm text-indigo-400 hover:underline">+ 新增</button>
                 </div>
                 <div class="grid grid-cols-1 gap-4">
-                    <div v-for="node in entries" :key="node.id" class="glass p-6 rounded-[2.5rem] relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition"><svg class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path></svg></div>
+                    <div v-for="node in entries" :key="node.id"
+                        class="glass p-6 rounded-[2.5rem] relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition"><svg
+                                class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
+                            </svg></div>
                         <div class="flex justify-between items-start">
                             <div class="flex-1">
                                 <div class="flex items-center gap-3">
                                     <h3 class="text-xl font-bold">{{ node.name }}</h3>
-                                    <span class="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-bold">ID #{{node.id}}</span>
+                                    <span
+                                        class="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-bold">ID
+                                        #{{node.id}}</span>
+                                    <!-- 证书状态标识 -->
+                                    <span v-if="node.cert_task"
+                                        class="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full animate-pulse">
+                                        <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                            </path>
+                                        </svg>
+                                        中转机申请中...
+                                    </span>
+                                    <span v-else-if="node.cert_body"
+                                        class="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        证书已生效 (云端备份)
+                                    </span>
                                 </div>
-                                <div class="font-mono text-slate-500 text-sm mt-1">{{ node.domain }} <span class="text-slate-700 mx-2">|</span> {{ node.port }}</div>
+                                <div class="font-mono text-slate-500 text-sm mt-1">{{ node.domain }} <span
+                                        class="text-slate-700 mx-2">|</span> {{ node.port }}</div>
                                 <!-- 节点标签展示 -->
                                 <div class="flex gap-2 mt-4">
-                                    <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]"><div class="text-slate-500 mb-0.5 uppercase tracking-tighter">默认落地</div> {{ findNodeName('exits', node.target_exit_id) || '不绑定' }}</div>
-                                    <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]"><div class="text-slate-500 mb-0.5 uppercase tracking-tighter">API 同步</div> {{ node.v2board_url ? '已开启' : '未开启' }}</div>
+                                    <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]">
+                                        <div class="text-slate-500 mb-0.5 uppercase tracking-tighter">默认落地</div> {{
+                                        findNodeName('exits', node.target_exit_id) || '不绑定' }}
+                                    </div>
+                                    <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]">
+                                        <div class="text-slate-500 mb-0.5 uppercase tracking-tighter">API 同步</div> {{
+                                        node.v2board_url ? '已开启' : '未开启' }}
+                                    </div>
                                 </div>
                             </div>
                             <div class="flex flex-col gap-2">
-                                <button @click="editEntry(node)" class="p-3 glass rounded-2xl text-indigo-400 hover:scale-110 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
-                                <button @click="deleteItem('entries', node.id)" class="p-3 glass rounded-2xl text-rose-500 hover:scale-110 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                <button @click="editEntry(node)"
+                                    class="p-3 glass rounded-2xl text-indigo-400 hover:scale-110 transition"><svg
+                                        class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                        </path>
+                                    </svg></button>
+                                <button @click="deleteItem('entries', node.id)"
+                                    class="p-3 glass rounded-2xl text-rose-500 hover:scale-110 transition"><svg
+                                        class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg></button>
                             </div>
                         </div>
                     </div>
@@ -133,27 +240,36 @@
                 </div>
                 <div class="glass p-1 rounded-3xl overflow-hidden min-h-[400px]">
                     <div class="max-h-[700px] overflow-y-auto custom-scrollbar p-3 space-y-3">
-                        <div v-for="rule in rules" :key="rule.id" class="p-4 bg-slate-800/40 border border-white/5 rounded-2xl flex justify-between items-center hover:bg-indigo-500/5 transition group">
+                        <div v-for="rule in rules" :key="rule.id"
+                            class="p-4 bg-slate-800/40 border border-white/5 rounded-2xl flex justify-between items-center hover:bg-indigo-500/5 transition group">
                             <div>
                                 <div class="text-sm font-bold truncate w-40">{{ rule.user_email }}</div>
                                 <div class="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                                     <span class="text-indigo-300">#{{ rule.entry_node_id }}</span>
-                                    <svg class="w-3 h-3 text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path d="M7 10l5 5 5-5H7z"></path></svg>
+                                    <svg class="w-3 h-3 text-slate-700" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M7 10l5 5 5-5H7z"></path>
+                                    </svg>
                                     <span class="text-emerald-300">#{{ rule.exit_node_id }}</span>
                                 </div>
                             </div>
-                            <button @click="deleteItem('rules', rule.id)" class="opacity-0 group-hover:opacity-100 p-2 text-rose-400 hover:scale-125 transition">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"></path></svg>
+                            <button @click="deleteItem('rules', rule.id)"
+                                class="opacity-0 group-hover:opacity-100 p-2 text-rose-400 hover:scale-125 transition">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z">
+                                    </path>
+                                </svg>
                             </button>
                         </div>
-                        <div v-if="rules.length === 0" class="flex flex-col items-center justify-center pt-20 text-slate-600">
-                             <div class="text-sm">暂无手动规则</div>
-                             <div class="text-[10px]">所有用户可能由映射关系自动化处理</div>
+                        <div v-if="rules.length === 0"
+                            class="flex flex-col items-center justify-center pt-20 text-slate-600">
+                            <div class="text-sm">暂无手动规则</div>
+                            <div class="text-[10px]">所有用户可能由映射关系自动化处理</div>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Exit Node Section (Wide) -->
             <div class="lg:col-span-3 space-y-6">
                 <div class="flex justify-between items-center px-2">
@@ -161,15 +277,30 @@
                     <button @click="showModal('exit')" class="text-sm text-emerald-400 hover:underline">+ 新增</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div v-for="node in exits" :key="node.id" class="glass p-5 rounded-3xl group border-l-4 border-emerald-500/30">
+                    <div v-for="node in exits" :key="node.id"
+                        class="glass p-5 rounded-3xl group border-l-4 border-emerald-500/30">
                         <div class="flex justify-between items-start mb-3">
                             <div>
-                                <div class="font-bold flex items-center gap-2">{{ node.name }} <span class="bg-emerald-500/10 text-emerald-400 text-[8px] p-1 px-1.5 rounded uppercase">{{node.protocol}}</span></div>
-                                <div class="text-[10px] text-slate-500 mt-1 font-mono truncate w-32">{{ node.address }}:{{ node.port }}</div>
+                                <div class="font-bold flex items-center gap-2">{{ node.name }} <span
+                                        class="bg-emerald-500/10 text-emerald-400 text-[8px] p-1 px-1.5 rounded uppercase">{{node.protocol}}</span>
+                                </div>
+                                <div class="text-[10px] text-slate-500 mt-1 font-mono truncate w-32">{{ node.address
+                                    }}:{{ node.port }}</div>
                             </div>
                             <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                                <button @click="editExit(node)" class="p-1.5 glass rounded-lg text-emerald-400"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
-                                <button @click="deleteItem('exits', node.id)" class="p-1.5 glass rounded-lg text-rose-500"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                <button @click="editExit(node)" class="p-1.5 glass rounded-lg text-emerald-400"><svg
+                                        class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                        </path>
+                                    </svg></button>
+                                <button @click="deleteItem('exits', node.id)"
+                                    class="p-1.5 glass rounded-lg text-rose-500"><svg class="w-3.5 h-3.5" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg></button>
                             </div>
                         </div>
                     </div>
@@ -179,15 +310,16 @@
 
         <!-- Intelligent Mapping View -->
         <div v-show="activeTab === 'mappings'" class="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div class="glass p-8 rounded-[3rem] border-indigo-500/10">
+            <div class="glass p-8 rounded-[3rem] border-indigo-500/10">
                 <div class="flex justify-between items-center mb-8">
                     <div>
                         <h2 class="text-2xl font-bold">智能分流映射 (Routing Policy)</h2>
                         <p class="text-slate-500 text-sm">单入口 443 转发上百节点的“心脏” | 根据节点 ID 动态流转</p>
                     </div>
-                    <button @click="showModal('mapping')" class="accent-gradient p-3 px-8 rounded-full text-sm font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition">添加分流规则</button>
+                    <button @click="showModal('mapping')"
+                        class="accent-gradient p-3 px-8 rounded-full text-sm font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition">添加分流规则</button>
                 </div>
-                
+
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="text-slate-500 text-[10px] uppercase tracking-widest border-b border-white/5">
@@ -201,58 +333,83 @@
                         </thead>
                         <tbody class="text-sm divide-y divide-white/5">
                             <tr v-for="m in mappings" :key="m.id" class="hover:bg-white/5 transition group">
-                                <td class="py-5 px-4 font-bold text-indigo-400">#{{ m.entry_node_id }} {{ findNodeName('entries', m.entry_node_id) }}</td>
-                                <td class="py-5 px-4"><span class="px-3 py-1 bg-slate-800 rounded-full border border-white/5 text-xs">Node #{{ m.v2board_node_id }}</span></td>
-                                <td class="py-5 px-4 font-bold text-emerald-400">#{{ m.target_exit_id }} {{ findNodeName('exits', m.target_exit_id) }}</td>
-                                <td class="py-5 px-4"><span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse"></span> 实时同步中</span></td>
+                                <td class="py-5 px-4 font-bold text-indigo-400">#{{ m.entry_node_id }} {{
+                                    findNodeName('entries', m.entry_node_id) }}</td>
+                                <td class="py-5 px-4"><span
+                                        class="px-3 py-1 bg-slate-800 rounded-full border border-white/5 text-xs">Node
+                                        #{{ m.v2board_node_id }}</span></td>
+                                <td class="py-5 px-4 font-bold text-emerald-400">#{{ m.target_exit_id }} {{
+                                    findNodeName('exits', m.target_exit_id) }}</td>
+                                <td class="py-5 px-4"><span class="flex items-center gap-1.5"><span
+                                            class="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse"></span> 实时同步中</span>
+                                </td>
                                 <td class="py-5 px-4 text-right">
-                                    <button @click="deleteItem('mappings', m.id)" class="p-2 glass rounded-xl text-rose-400 opacity-0 group-hover:opacity-100 hover:scale-110 transition">删除</button>
+                                    <button @click="deleteItem('mappings', m.id)"
+                                        class="p-2 glass rounded-xl text-rose-400 opacity-0 group-hover:opacity-100 hover:scale-110 transition">删除</button>
                                 </td>
                             </tr>
                             <tr v-if="mappings.length === 0">
-                                <td colspan="5" class="py-20 text-center text-slate-600 italic">尚未定义任何分流策略，流量将回退到各个入口的“默认落地”。</td>
+                                <td colspan="5" class="py-20 text-center text-slate-600 italic">
+                                    尚未定义任何分流策略，流量将回退到各个入口的“默认落地”。</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-             </div>
+            </div>
         </div>
 
         <!-- Modal System -->
         <!-- Add/Edit Entry Modal -->
-        <div v-if="modal.type === 'entry'" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-             <div class="glass w-full max-w-xl p-8 rounded-[3rem] animate-in zoom-in-95 duration-300">
+        <div v-if="modal.type === 'entry'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass w-full max-w-xl p-8 rounded-[3rem] animate-in zoom-in-95 duration-300">
                 <h3 class="text-2xl font-bold mb-6">入站节点配置</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">显示名称<input v-model="form.entry.name" placeholder="美国 01 / 日本入口"></label>
-                    <label class="flex flex-col gap-1.5 text-slate-500">解析域名 (TLS)<input v-model="form.entry.domain" placeholder="example.com"></label>
-                    <label class="flex flex-col gap-1.5 text-slate-500">监听端口<input type="number" v-model.number="form.entry.port" placeholder="443"></label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">显示名称<input
+                            v-model="form.entry.name" placeholder="美国 01 / 日本入口"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">解析域名 (TLS)<input v-model="form.entry.domain"
+                            placeholder="example.com"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">监听端口<input type="number"
+                            v-model.number="form.entry.port" placeholder="443"></label>
                     <div class="md:col-span-2">
-                         <button @click="requestCert" :disabled="certLoading" class="w-full p-3 glass text-indigo-400 text-xs rounded-xl border border-indigo-500/20 active:scale-95 transition">
-                             {{ certLoading ? '证书签发中...' : '一键申请部署域名证书' }}
-                         </button>
+                        <button @click="requestCert" :disabled="certLoading || form.entry.cert_task"
+                            class="w-full p-3 glass text-indigo-400 text-xs rounded-xl border border-indigo-500/20 active:scale-95 transition disabled:opacity-50">
+                            <span v-if="form.entry.cert_task">⏳ 中转机正在申请中...</span>
+                            <span v-else-if="certLoading">正在下发指令...</span>
+                            <span v-else>一键申请部署域名证书</span>
+                        </button>
                     </div>
-                    <label class="flex flex-col gap-1.5 text-slate-500">证书路径<input v-model="form.entry.certificate" placeholder="/etc/stealthforward/certs/cert.crt"></label>
-                    <label class="flex flex-col gap-1.5 text-slate-500">私钥路径<input v-model="form.entry.key" placeholder="/etc/stealthforward/certs/cert.key"></label>
-                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">回落托管 (HTTP)<input v-model="form.entry.fallback" placeholder="127.0.0.1:80"></label>
-                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">V2Board API 同步 (可选)</label>
-                    <input class="md:col-span-2" v-model="form.entry.v2board_url" placeholder="API 地址: https://v2.mysite.com">
+                    <label class="flex flex-col gap-1.5 text-slate-500">证书路径<input v-model="form.entry.certificate"
+                            placeholder="/etc/stealthforward/certs/cert.crt"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">私钥路径<input v-model="form.entry.key"
+                            placeholder="/etc/stealthforward/certs/cert.key"></label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">回落托管 (HTTP)<input
+                            v-model="form.entry.fallback" placeholder="127.0.0.1:80"></label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">V2Board
+                        API 同步 (可选)</label>
+                    <input class="md:col-span-2" v-model="form.entry.v2board_url"
+                        placeholder="API 地址: https://v2.mysite.com">
                     <input v-model="form.entry.v2board_key" type="password" placeholder="通讯令牌 (Key)">
                     <div class="grid grid-cols-2 gap-2">
                         <input type="number" v-model.number="form.entry.v2board_node_id" placeholder="默认节点ID">
-                        <select v-model="form.entry.v2board_type"><option value="v2ray">V2ray</option><option value="vless">VLESS</option><option value="shadowsocks">Shadowsocks</option></select>
+                        <select v-model="form.entry.v2board_type">
+                            <option value="v2ray">V2ray</option>
+                            <option value="vless">VLESS</option>
+                            <option value="shadowsocks">Shadowsocks</option>
+                        </select>
                     </div>
                 </div>
                 <div class="flex gap-4 mt-8">
                     <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
                     <button @click="submitEntry" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存节点</button>
                 </div>
-             </div>
+            </div>
         </div>
 
         <!-- Add Mapping Modal -->
-        <div v-if="modal.type === 'mapping'" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-             <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
+        <div v-if="modal.type === 'mapping'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
                 <h3 class="text-2xl font-bold mb-6 text-indigo-400">新增智能映射</h3>
                 <div class="space-y-4 text-sm">
                     <label class="flex flex-col gap-1.5 text-slate-500">选择入站入口
@@ -269,19 +426,24 @@
                         </select>
                     </label>
                     <label class="flex flex-col gap-1.5 text-slate-500">节点协议
-                        <select v-model="form.mapping.v2board_type"><option value="v2ray">V2ray</option><option value="vless">VLESS</option><option value="shadowsocks">Shadowsocks</option></select>
+                        <select v-model="form.mapping.v2board_type">
+                            <option value="v2ray">V2ray</option>
+                            <option value="vless">VLESS</option>
+                            <option value="shadowsocks">Shadowsocks</option>
+                        </select>
                     </label>
                 </div>
                 <div class="flex gap-4 mt-8">
                     <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
                     <button @click="submitMapping" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">激活策略</button>
                 </div>
-             </div>
+            </div>
         </div>
 
         <!-- Add Exit/Rule Modal (Simplified placeholders for consistency) -->
-        <div v-if="modal.type === 'exit' || modal.type === 'rule'" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-             <div class="glass w-full max-w-md p-8 rounded-[3rem]">
+        <div v-if="modal.type === 'exit' || modal.type === 'rule'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="glass w-full max-w-md p-8 rounded-[3rem]">
                 <h3 class="text-2xl font-bold mb-6">{{ modal.type === 'exit' ? '新增落地机' : '手动链路配置' }}</h3>
                 <div class="space-y-4 text-sm" v-if="modal.type === 'exit'">
                     <input v-model="form.exit.name" placeholder="备注名称">
@@ -289,22 +451,31 @@
                         <input class="flex-1" v-model="form.exit.server" placeholder="落地地址">
                         <input class="w-24" type="number" v-model.number="form.exit.server_port" placeholder="端口">
                     </div>
-                    <select v-model="form.exit.protocol"><option value="ss">Shadowsocks</option><option value="vless">VLESS</option><option value="socks">SOCKS5</option></select>
+                    <select v-model="form.exit.protocol">
+                        <option value="ss">Shadowsocks</option>
+                        <option value="vless">VLESS</option>
+                        <option value="socks">SOCKS5</option>
+                    </select>
                     <input v-model="form.exit.password" placeholder="密钥 / UUID">
                 </div>
                 <div class="space-y-4 text-sm" v-if="modal.type === 'rule'">
                     <input v-model="form.rule.user_email" placeholder="用户 Email / 备注">
                     <input v-model="form.rule.user_id" placeholder="VLESS UUID">
                     <div class="flex gap-2">
-                        <select class="flex-1" v-model.number="form.rule.entry_node_id"><option v-for="e in entries" :value="e.id">{{e.name}}</option></select>
-                        <select class="flex-1" v-model.number="form.rule.exit_node_id"><option v-for="ex in exits" :value="ex.id">{{ex.name}}</option></select>
+                        <select class="flex-1" v-model.number="form.rule.entry_node_id">
+                            <option v-for="e in entries" :value="e.id">{{e.name}}</option>
+                        </select>
+                        <select class="flex-1" v-model.number="form.rule.exit_node_id">
+                            <option v-for="ex in exits" :value="ex.id">{{ex.name}}</option>
+                        </select>
                     </div>
                 </div>
                 <div class="flex gap-4 mt-8">
                     <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                    <button @click="modal.type === 'exit' ? submitExit() : submitRule()" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存</button>
+                    <button @click="modal.type === 'exit' ? submitExit() : submitRule()"
+                        class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存</button>
                 </div>
-             </div>
+            </div>
         </div>
     </div>
 
@@ -345,14 +516,14 @@
                 },
                 promptLogin() {
                     const t = prompt('请输入管理口令 (STEALTH_ADMIN_TOKEN):');
-                    if(t) { localStorage.setItem('stealth_token', t); this.fetchData(); }
+                    if (t) { localStorage.setItem('stealth_token', t); this.fetchData(); }
                 },
                 showModal(type) { this.modal.type = type; },
                 hideModal() { this.modal.type = null },
                 async submitEntry() { await this.apiPost('/api/v1/entries', this.form.entry); this.hideModal(); this.fetchData(); },
-                async submitExit() { 
+                async submitExit() {
                     const cfg = { server: this.form.exit.server, server_port: this.form.exit.server_port };
-                    if(this.form.exit.protocol === 'ss') cfg.password = this.form.exit.password;
+                    if (this.form.exit.protocol === 'ss') cfg.password = this.form.exit.password;
                     else cfg.uuid = this.form.exit.password;
                     await this.apiPost('/api/v1/exits', { name: this.form.exit.name, protocol: this.form.exit.protocol, config: JSON.stringify(cfg) });
                     this.hideModal(); this.fetchData();
@@ -360,11 +531,15 @@
                 async submitRule() { await this.apiPost('/api/v1/rules', this.form.rule); this.hideModal(); this.fetchData(); },
                 async submitMapping() { await this.apiPost('/api/v1/mappings', this.form.mapping); this.hideModal(); this.fetchData(); },
                 async requestCert() {
-                    if(!this.form.entry.domain) return alert('域名不能为空');
+                    if (!this.form.entry.domain) return alert('域名不能为空');
                     this.certLoading = true;
                     try {
                         const res = await this.apiPost('/api/v1/entries/issue-cert', { domain: this.form.entry.domain });
-                        if(res.cert) { this.form.entry.certificate = res.cert; this.form.entry.key = res.key; alert('签发成功'); }
+                        if (res.message) {
+                            alert(res.message);
+                            this.form.entry.cert_task = true; // 本地立即显示处理中
+                            this.fetchData(); // 刷新获取最新节点状态
+                        }
                     } finally { this.certLoading = false; }
                 },
                 async apiPost(url, data) {
@@ -372,7 +547,7 @@
                     return res.json();
                 },
                 async deleteItem(type, id) {
-                    if(!confirm('确定删除?')) return;
+                    if (!confirm('确定删除?')) return;
                     await fetch(`/api/v1/${type}/${id}`, { method: 'DELETE', headers: { 'Authorization': localStorage.getItem('stealth_token') || '' } });
                     this.fetchData();
                 },
@@ -380,15 +555,16 @@
                     const n = this[list].find(i => i.id == id);
                     return n ? n.name : '';
                 },
-                editEntry(n) { this.form.entry = {...n}; this.showModal('entry'); },
-                editExit(n) { 
-                    this.form.exit = {...n};
+                editEntry(n) { this.form.entry = { ...n }; this.showModal('entry'); },
+                editExit(n) {
+                    this.form.exit = { ...n };
                     const c = JSON.parse(n.config);
                     this.form.exit.server = c.server; this.form.exit.server_port = c.server_port; this.form.exit.password = c.password || c.uuid;
-                    this.showModal('exit'); 
+                    this.showModal('exit');
                 }
             }
         }).mount('#app')
     </script>
 </body>
+
 </html>
