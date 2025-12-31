@@ -80,6 +80,19 @@ func CreateExitNodeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 自动从 Config JSON 中提取端口并同步到 Port 字段
+	if exit.Port == 0 && exit.Config != "" {
+		var cfg map[string]interface{}
+		if err := json.Unmarshal([]byte(exit.Config), &cfg); err == nil {
+			if p, ok := cfg["server_port"].(float64); ok {
+				exit.Port = int(p)
+			} else if p, ok := cfg["port"].(float64); ok {
+				exit.Port = int(p)
+			}
+		}
+	}
+
 	database.DB.Save(&exit)
 	c.JSON(http.StatusOK, exit)
 }
