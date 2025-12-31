@@ -194,12 +194,12 @@ install_agent() {
   cat > /etc/systemd/system/stealth-agent.service <<EOF
 [Unit]
 Description=StealthForward Agent Service
-After=network.target
+After=network.target stealth-core.service
 
 [Service]
 Type=simple
 User=root
-ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir /etc/sing-box -www $INSTALL_DIR/www -token "$CTRL_TOKEN" -fallback-port 8081
+ExecStart=$BIN_DIR/stealth-agent -controller $CTRL_ADDR -node $NODE_ID -dir $INSTALL_DIR/core -www $INSTALL_DIR/www -token "$CTRL_TOKEN" -fallback-port 8081 -corepath $BIN_DIR/stealth-core
 Restart=always
 RestartSec=10
 
@@ -241,13 +241,13 @@ uninstall_agent() {
   rm -f /etc/systemd/system/stealth-agent.service
   rm -f $BIN_DIR/stealth-agent
   
-  # 2. 停止并删除 Sing-box
-  echo -e "${YELLOW}清理 Sing-box 核心...${NC}"
-  systemctl stop sing-box 2>/dev/null
-  systemctl disable sing-box 2>/dev/null
-  rm -f /etc/systemd/system/sing-box.service
-  rm -f /usr/local/bin/sing-box
-  rm -rf /etc/sing-box
+  # 2. 停止并删除 Stealth Core (隔离版内核)
+  echo -e "${YELLOW}清理 Stealth Core 核心...${NC}"
+  systemctl stop stealth-core 2>/dev/null
+  systemctl disable stealth-core 2>/dev/null
+  rm -f /etc/systemd/system/stealth-core.service
+  rm -f $BIN_DIR/stealth-core
+  rm -rf $INSTALL_DIR/core
   
   # 3. 清理 Nginx 和伪装网站
   read -p "是否卸载 Nginx 并清除伪装网站数据? [y/N]: " del_nginx
