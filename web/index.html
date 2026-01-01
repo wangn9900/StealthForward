@@ -528,206 +528,207 @@
                 </div>
             </div>
         </div>
-    </div>
-    </div>
 
-    <!-- Modal System -->
-    <!-- Add/Edit Entry Modal -->
-    <div v-if="modal.type === 'entry'"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="glass w-full max-w-xl p-8 rounded-[3rem] animate-in zoom-in-95 duration-300">
-            <h3 class="text-2xl font-bold mb-6">入站节点配置</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">显示名称<input v-model="form.entry.name"
-                        placeholder="美国 01 / 日本入口"></label>
-                <label class="flex flex-col gap-1.5 text-slate-500">解析域名 (TLS)<input v-model="form.entry.domain"
-                        placeholder="example.com"></label>
-                <label class="flex flex-col gap-1.5 text-slate-500">监听端口<input type="number"
-                        v-model.number="form.entry.port" placeholder="443"></label>
-                <div class="md:col-span-2">
-                    <!-- 只有已保存的节点(有 ID)才允许申请证书 -->
-                    <button v-if="form.entry.id" @click="requestCert" :disabled="certLoading || form.entry.cert_task"
-                        class="w-full p-3 glass text-indigo-400 text-xs rounded-xl border border-indigo-500/20 active:scale-95 transition disabled:opacity-50">
-                        <span v-if="form.entry.cert_task">⏳ 中转机正在申请中...</span>
-                        <span v-else-if="certLoading">正在下发指令...</span>
-                        <span v-else>一键申请部署域名证书</span>
+
+        <!-- Modal System -->
+        <!-- Add/Edit Entry Modal -->
+        <div v-if="modal.type === 'entry'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass w-full max-w-xl p-8 rounded-[3rem] animate-in zoom-in-95 duration-300">
+                <h3 class="text-2xl font-bold mb-6">入站节点配置</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">显示名称<input
+                            v-model="form.entry.name" placeholder="美国 01 / 日本入口"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">解析域名 (TLS)<input v-model="form.entry.domain"
+                            placeholder="example.com"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">监听端口<input type="number"
+                            v-model.number="form.entry.port" placeholder="443"></label>
+                    <div class="md:col-span-2">
+                        <!-- 只有已保存的节点(有 ID)才允许申请证书 -->
+                        <button v-if="form.entry.id" @click="requestCert"
+                            :disabled="certLoading || form.entry.cert_task"
+                            class="w-full p-3 glass text-indigo-400 text-xs rounded-xl border border-indigo-500/20 active:scale-95 transition disabled:opacity-50">
+                            <span v-if="form.entry.cert_task">⏳ 中转机正在申请中...</span>
+                            <span v-else-if="certLoading">正在下发指令...</span>
+                            <span v-else>一键申请部署域名证书</span>
+                        </button>
+                        <!-- 新节点提示保存 -->
+                        <div v-else
+                            class="w-full p-3 bg-slate-800/50 text-slate-500 text-[10px] text-center rounded-xl border border-dashed border-white/10 uppercase tracking-widest">
+                            请先保存节点以激活「一键签发证书」功能
+                        </div>
+                    </div>
+                    <label class="flex flex-col gap-1.5 text-slate-500">证书路径<input v-model="form.entry.certificate"
+                            placeholder="/etc/stealthforward/certs/cert.crt"></label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">私钥路径<input v-model="form.entry.key"
+                            placeholder="/etc/stealthforward/certs/cert.key"></label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">回落托管 (HTTP)<input
+                            v-model="form.entry.fallback" placeholder="127.0.0.1:80"></label>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">V2Board
+                        API 同步 (可选)</label>
+                    <input class="md:col-span-2" v-model="form.entry.v2board_url"
+                        placeholder="API 地址: https://v2.mysite.com">
+                    <input v-model="form.entry.v2board_key" type="password" placeholder="通讯令牌 (Key)">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" v-model.number="form.entry.v2board_node_id" placeholder="默认节点ID">
+                        <select v-model="form.entry.v2board_type">
+                            <option value="v2ray">V2ray</option>
+                            <option value="vless">VLESS</option>
+                            <option value="shadowsocks">Shadowsocks</option>
+                            <option value="anytls">AnyTLS</option>
+                        </select>
+                    </div>
+                    <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">目标落地机
+                        (流量转发目的地)</label>
+                    <select class="md:col-span-2" v-model.number="form.entry.target_exit_id">
+                        <option :value="0">不绑定 (所有用户将无法连接)</option>
+                        <option v-for="ex in exits" :key="ex.id" :value="ex.id">{{ ex.name }} — 发往此机器</option>
+                    </select>
+                </div>
+                <div class="flex gap-4 mt-8">
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="submitEntry" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存节点</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rotate IP Modal -->
+        <div v-if="modal.type === 'rotate'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
+                <div class="mb-6">
+                    <h3 class="text-2xl font-bold text-amber-500 mb-2">Auto Heal / 自动换IP</h3>
+                    <p class="text-xs text-slate-500">此操作将申请新的 AWS EIP 并绑定到实例，同时更新 Cloudflare DNS。业务可能会中断 1-2
+                        分钟。</p>
+                </div>
+                <div class="space-y-4 text-sm">
+                    <label class="flex flex-col gap-1.5 text-slate-500">AWS Region
+                        <input v-model="form.rotate.region" placeholder="ap-northeast-1">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">Instance ID
+                        <input v-model="form.rotate.instance_id" placeholder="i-0123456789abcdef0">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">Zone Name (Cloudflare)
+                        <input v-model="form.rotate.zone_name" placeholder="2233006.xyz">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">Record Name (DNS Prefix)
+                        <input v-model="form.rotate.record_name" placeholder="transitnodeawjp">
+                    </label>
+                </div>
+                <div class="flex gap-4 mt-8">
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="submitRotate" :disabled="rotateLoading"
+                        class="flex-1 p-4 bg-amber-600 hover:bg-amber-500 rounded-2xl font-bold disabled:opacity-50">
+                        {{ rotateLoading ? '正在执行...' : '确认执行' }}
                     </button>
-                    <!-- 新节点提示保存 -->
-                    <div v-else
-                        class="w-full p-3 bg-slate-800/50 text-slate-500 text-[10px] text-center rounded-xl border border-dashed border-white/10 uppercase tracking-widest">
-                        请先保存节点以激活「一键签发证书」功能
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Mapping Modal -->
+        <div v-if="modal.type === 'mapping'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
+                <h3 class="text-2xl font-bold mb-6 text-indigo-400">{{ form.mapping.id ? '编辑分流规则' : '新增分流规则' }}</h3>
+                <div class="space-y-4 text-sm">
+                    <label class="flex flex-col gap-1.5 text-slate-500">选择入站入口
+                        <select v-model.number="form.mapping.entry_node_id">
+                            <option v-for="e in entries" :value="e.id">{{e.name}} (#{{e.id}})</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">V2B 节点 ID
+                        <input type="number" v-model.number="form.mapping.v2board_node_id" placeholder="21">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">目标落地出口
+                        <select v-model.number="form.mapping.target_exit_id">
+                            <option v-for="ex in exits" :value="ex.id">{{ex.name}} (#{{ex.id}})</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">独立监听端口 <span
+                            class="text-xs text-slate-600">(留空则用入口默认端口)</span>
+                        <input type="number" v-model.number="form.mapping.port" placeholder="4434">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">节点协议
+                        <select v-model="form.mapping.v2board_type">
+                            <option value="v2ray">V2ray</option>
+                            <option value="vless">VLESS</option>
+                            <option value="shadowsocks">Shadowsocks</option>
+                            <option value="anytls">AnyTLS</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="flex gap-4 mt-8">
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="submitMapping" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">{{
+                        form.mapping.id ? '保存修改' : '立即创建' }}</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Exit/Rule Modal (Simplified placeholders for consistency) -->
+        <div v-if="modal.type === 'exit' || modal.type === 'rule'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="glass w-full max-w-md p-8 rounded-[3rem]">
+                <h3 class="text-2xl font-bold mb-6">{{ modal.type === 'exit' ? '新增落地机' : '手动链路配置' }}</h3>
+                <div class="space-y-4 text-sm" v-if="modal.type === 'exit'">
+                    <label class="flex flex-col gap-1 text-slate-500">落地机备注名称<input v-model="form.exit.name"
+                            placeholder="香港落地 01"></label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 flex flex-col gap-1 text-slate-500">落地机地址<input v-model="form.exit.server"
+                                placeholder="1.2.3.4"></label>
+                        <label class="w-24 flex flex-col gap-1 text-slate-500">端口<input type="number"
+                                v-model.number="form.exit.server_port" placeholder="443"></label>
+                    </div>
+                    <label class="flex flex-col gap-1 text-slate-500">传输协议
+                        <select v-model="form.exit.protocol">
+                            <option value="ss">Shadowsocks (传统/2022)</option>
+                            <option value="vless">VLESS (XTLS-Vision)</option>
+                            <option value="socks">Standard SOCKS5</option>
+                        </select>
+                    </label>
+                    <!-- SS 专用加密方式 -->
+                    <label v-if="form.exit.protocol === 'ss'" class="flex flex-col gap-1 text-slate-500">加密方式
+                        (Cipher/Method)
+                        <select v-model="form.exit.method">
+                            <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm (SS-2022 推荐)</option>
+                            <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm (SS-2022 高强)</option>
+                            <option value="2022-blake3-chacha20-poly1305">2022-blake3-chacha20-poly1305</option>
+                            <option value="aes-128-gcm">aes-128-gcm (AEAD)</option>
+                            <option value="aes-192-gcm">aes-192-gcm (AEAD)</option>
+                            <option value="aes-256-gcm">aes-256-gcm (AEAD)</option>
+                            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305 (AEAD)</option>
+                            <option value="xchacha20-ietf-poly1305">xchacha20-ietf-poly1305 (AEAD)</option>
+                            <option value="none">none (不推荐)</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1 text-slate-500">{{ form.exit.protocol === 'ss' ? '连接密码 (Password)'
+                        : 'UUID / 凭据' }}
+                        <input v-model="form.exit.password" placeholder="填写对应的密钥内容">
+                    </label>
+                </div>
+                <div class="space-y-4 text-sm" v-if="modal.type === 'rule'">
+                    <label class="flex flex-col gap-1 text-slate-500">用户备注 / Email<input v-model="form.rule.user_email"
+                            placeholder="v2b-user-01"></label>
+                    <label class="flex flex-col gap-1 text-slate-500">VLESS UUID<input v-model="form.rule.user_id"
+                            placeholder="用户 UUID"></label>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <label class="flex flex-col gap-1 text-slate-500 text-xs">入口节点
+                            <select v-model.number="form.rule.entry_node_id">
+                                <option v-for="e in entries" :value="e.id">{{e.name}}</option>
+                            </select>
+                        </label>
+                        <label class="flex flex-col gap-1 text-slate-500 text-xs">落地节点
+                            <select v-model.number="form.rule.exit_node_id">
+                                <option v-for="ex in exits" :value="ex.id">{{ex.name}}</option>
+                            </select>
+                        </label>
                     </div>
                 </div>
-                <label class="flex flex-col gap-1.5 text-slate-500">证书路径<input v-model="form.entry.certificate"
-                        placeholder="/etc/stealthforward/certs/cert.crt"></label>
-                <label class="flex flex-col gap-1.5 text-slate-500">私钥路径<input v-model="form.entry.key"
-                        placeholder="/etc/stealthforward/certs/cert.key"></label>
-                <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500">回落托管 (HTTP)<input
-                        v-model="form.entry.fallback" placeholder="127.0.0.1:80"></label>
-                <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">V2Board
-                    API 同步 (可选)</label>
-                <input class="md:col-span-2" v-model="form.entry.v2board_url"
-                    placeholder="API 地址: https://v2.mysite.com">
-                <input v-model="form.entry.v2board_key" type="password" placeholder="通讯令牌 (Key)">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="number" v-model.number="form.entry.v2board_node_id" placeholder="默认节点ID">
-                    <select v-model="form.entry.v2board_type">
-                        <option value="v2ray">V2ray</option>
-                        <option value="vless">VLESS</option>
-                        <option value="shadowsocks">Shadowsocks</option>
-                        <option value="anytls">AnyTLS</option>
-                    </select>
+                <div class="flex gap-4 mt-8">
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="modal.type === 'exit' ? submitExit() : submitRule()"
+                        class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存</button>
                 </div>
-                <label class="md:col-span-2 flex flex-col gap-1.5 text-slate-500 text-indigo-400 font-bold">目标落地机
-                    (流量转发目的地)</label>
-                <select class="md:col-span-2" v-model.number="form.entry.target_exit_id">
-                    <option :value="0">不绑定 (所有用户将无法连接)</option>
-                    <option v-for="ex in exits" :key="ex.id" :value="ex.id">{{ ex.name }} — 发往此机器</option>
-                </select>
-            </div>
-            <div class="flex gap-4 mt-8">
-                <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                <button @click="submitEntry" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存节点</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Rotate IP Modal -->
-    <div v-if="modal.type === 'rotate'"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
-            <div class="mb-6">
-                <h3 class="text-2xl font-bold text-amber-500 mb-2">Auto Heal / 自动换IP</h3>
-                <p class="text-xs text-slate-500">此操作将申请新的 AWS EIP 并绑定到实例，同时更新 Cloudflare DNS。业务可能会中断 1-2
-                    分钟。</p>
-            </div>
-            <div class="space-y-4 text-sm">
-                <label class="flex flex-col gap-1.5 text-slate-500">AWS Region
-                    <input v-model="form.rotate.region" placeholder="ap-northeast-1">
-                </label>
-                <label class="flex flex-col gap-1.5 text-slate-500">Instance ID
-                    <input v-model="form.rotate.instance_id" placeholder="i-0123456789abcdef0">
-                </label>
-                <label class="flex flex-col gap-1.5 text-slate-500">Zone Name (Cloudflare)
-                    <input v-model="form.rotate.zone_name" placeholder="2233006.xyz">
-                </label>
-                <label class="flex flex-col gap-1.5 text-slate-500">Record Name (DNS Prefix)
-                    <input v-model="form.rotate.record_name" placeholder="transitnodeawjp">
-                </label>
-            </div>
-            <div class="flex gap-4 mt-8">
-                <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                <button @click="submitRotate" :disabled="rotateLoading"
-                    class="flex-1 p-4 bg-amber-600 hover:bg-amber-500 rounded-2xl font-bold disabled:opacity-50">
-                    {{ rotateLoading ? '正在执行...' : '确认执行' }}
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Mapping Modal -->
-    <div v-if="modal.type === 'mapping'"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
-            <h3 class="text-2xl font-bold mb-6 text-indigo-400">{{ form.mapping.id ? '编辑分流规则' : '新增分流规则' }}</h3>
-            <div class="space-y-4 text-sm">
-                <label class="flex flex-col gap-1.5 text-slate-500">选择入站入口
-                    <select v-model.number="form.mapping.entry_node_id">
-                        <option v-for="e in entries" :value="e.id">{{e.name}} (#{{e.id}})</option>
-                    </select>
-                </label>
-                <label class="flex flex-col gap-1.5 text-slate-500">V2B 节点 ID
-                    <input type="number" v-model.number="form.mapping.v2board_node_id" placeholder="21">
-                </label>
-                <label class="flex flex-col gap-1.5 text-slate-500">目标落地出口
-                    <select v-model.number="form.mapping.target_exit_id">
-                        <option v-for="ex in exits" :value="ex.id">{{ex.name}} (#{{ex.id}})</option>
-                    </select>
-                </label>
-                <label class="flex flex-col gap-1.5 text-slate-500">独立监听端口 <span
-                        class="text-xs text-slate-600">(留空则用入口默认端口)</span>
-                    <input type="number" v-model.number="form.mapping.port" placeholder="4434">
-                </label>
-                <label class="flex flex-col gap-1.5 text-slate-500">节点协议
-                    <select v-model="form.mapping.v2board_type">
-                        <option value="v2ray">V2ray</option>
-                        <option value="vless">VLESS</option>
-                        <option value="shadowsocks">Shadowsocks</option>
-                        <option value="anytls">AnyTLS</option>
-                    </select>
-                </label>
-            </div>
-            <div class="flex gap-4 mt-8">
-                <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                <button @click="submitMapping" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">{{
-                    form.mapping.id ? '保存修改' : '立即创建' }}</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Exit/Rule Modal (Simplified placeholders for consistency) -->
-    <div v-if="modal.type === 'exit' || modal.type === 'rule'"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="glass w-full max-w-md p-8 rounded-[3rem]">
-            <h3 class="text-2xl font-bold mb-6">{{ modal.type === 'exit' ? '新增落地机' : '手动链路配置' }}</h3>
-            <div class="space-y-4 text-sm" v-if="modal.type === 'exit'">
-                <label class="flex flex-col gap-1 text-slate-500">落地机备注名称<input v-model="form.exit.name"
-                        placeholder="香港落地 01"></label>
-                <div class="flex gap-2">
-                    <label class="flex-1 flex flex-col gap-1 text-slate-500">落地机地址<input v-model="form.exit.server"
-                            placeholder="1.2.3.4"></label>
-                    <label class="w-24 flex flex-col gap-1 text-slate-500">端口<input type="number"
-                            v-model.number="form.exit.server_port" placeholder="443"></label>
-                </div>
-                <label class="flex flex-col gap-1 text-slate-500">传输协议
-                    <select v-model="form.exit.protocol">
-                        <option value="ss">Shadowsocks (传统/2022)</option>
-                        <option value="vless">VLESS (XTLS-Vision)</option>
-                        <option value="socks">Standard SOCKS5</option>
-                    </select>
-                </label>
-                <!-- SS 专用加密方式 -->
-                <label v-if="form.exit.protocol === 'ss'" class="flex flex-col gap-1 text-slate-500">加密方式
-                    (Cipher/Method)
-                    <select v-model="form.exit.method">
-                        <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm (SS-2022 推荐)</option>
-                        <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm (SS-2022 高强)</option>
-                        <option value="2022-blake3-chacha20-poly1305">2022-blake3-chacha20-poly1305</option>
-                        <option value="aes-128-gcm">aes-128-gcm (AEAD)</option>
-                        <option value="aes-192-gcm">aes-192-gcm (AEAD)</option>
-                        <option value="aes-256-gcm">aes-256-gcm (AEAD)</option>
-                        <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305 (AEAD)</option>
-                        <option value="xchacha20-ietf-poly1305">xchacha20-ietf-poly1305 (AEAD)</option>
-                        <option value="none">none (不推荐)</option>
-                    </select>
-                </label>
-                <label class="flex flex-col gap-1 text-slate-500">{{ form.exit.protocol === 'ss' ? '连接密码 (Password)'
-                    : 'UUID / 凭据' }}
-                    <input v-model="form.exit.password" placeholder="填写对应的密钥内容">
-                </label>
-            </div>
-            <div class="space-y-4 text-sm" v-if="modal.type === 'rule'">
-                <label class="flex flex-col gap-1 text-slate-500">用户备注 / Email<input v-model="form.rule.user_email"
-                        placeholder="v2b-user-01"></label>
-                <label class="flex flex-col gap-1 text-slate-500">VLESS UUID<input v-model="form.rule.user_id"
-                        placeholder="用户 UUID"></label>
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <label class="flex flex-col gap-1 text-slate-500 text-xs">入口节点
-                        <select v-model.number="form.rule.entry_node_id">
-                            <option v-for="e in entries" :value="e.id">{{e.name}}</option>
-                        </select>
-                    </label>
-                    <label class="flex flex-col gap-1 text-slate-500 text-xs">落地节点
-                        <select v-model.number="form.rule.exit_node_id">
-                            <option v-for="ex in exits" :value="ex.id">{{ex.name}}</option>
-                        </select>
-                    </label>
-                </div>
-            </div>
-            <div class="flex gap-4 mt-8">
-                <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                <button @click="modal.type === 'exit' ? submitExit() : submitRule()"
-                    class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存</button>
             </div>
         </div>
     </div>
