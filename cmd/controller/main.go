@@ -75,6 +75,8 @@ func main() {
 		v1.GET("/node/:id/config", api.GetConfigHandler)
 		// Agent 上报流量的接口
 		v1.POST("/node/:id/traffic", api.ReportTrafficHandler)
+		// Agent 一键换 IP 接口 (AWS Only)
+		v1.POST("/node/:id/rotate-ip", api.RotateIPHandler)
 
 		// 分流映射管理 (NodeMappings)
 		v1.GET("/mappings", api.ListNodeMappingsHandler)

@@ -366,5 +366,42 @@ func ImportConfigHandler(c *gin.Context) {
 	// 触发一次全量同步
 	sync.GlobalSyncNow()
 
-	c.JSON(http.StatusOK, gin.H{"message": "配置恢复成功，已触发全量同步"})
+
+// RotateIPHandler 主动更换 AWS 节点 IP
+func RotateIPHandler(c *gin.Context) {
+	nodeIDStr := c.Param("id")
+	// 校验节点是否存在
+	var entry models.EntryNode
+	if err := database.DB.First(&entry, "id = ?", nodeIDStr).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "entry node not found"})
+		return
+	}
+
+	var req struct {
+		Region     string `json:"region" binding:"required"`
+		InstanceID string `json:"instance_id" binding:"required"`
+		ZoneName   string `json:"zone_name" binding:"required"`
+		RecordName string `json:"record_name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 异步执行，避免 API 超时 (AWS 换 IP 可能比较慢)
+	// 但为了反馈结果，这里简化为同步执行（或者您可以改为返回 TaskID）
+	newIP, err := cloud.RotateIPForInstance(c.Request.Context(), req.Region, req.InstanceID, req.ZoneName, req.RecordName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Rotate failed: " + err.Error()})
+		return
+	}
+
+	// 成功后，更新数据库中的 IP 字段 (尽管我们主要用域名，但更新一下 IP 数据更好)
+	entry.IP = newIP
+	database.DB.Save(&entry)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "IP rotated successfully",
+		"new_ip":  newIP,
+	})
 }
