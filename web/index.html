@@ -121,6 +121,15 @@
                     </svg>
                     刷新
                 </button>
+                <button @click="logout"
+                    class="p-3 px-5 glass rounded-2xl hover:bg-slate-800/50 transition flex items-center gap-2 text-red-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                        </path>
+                    </svg>
+                    退出
+                </button>
             </div>
         </div>
 
@@ -756,22 +765,35 @@
                         this.loginError = 'Invalid Password';
                     }
                 },
+                logout() {
+                    localStorage.removeItem('stealth_token');
+                    this.isAuthenticated = false;
+                    this.loginPassword = '';
+                    this.entries = [];
+                    this.exits = [];
+                    this.rules = [];
+                },
                 async fetchData() {
                     if (!this.isAuthenticated) return;
                     const headers = { 'Authorization': localStorage.getItem('stealth_token') || '' };
                     try {
-                        const [e, x, r, m] = await Promise.all([
-                            fetch('/api/v1/entries', { headers }).then(res => res.json()),
-                            fetch('/api/v1/exits', { headers }).then(res => res.json()),
-                            fetch('/api/v1/rules', { headers }).then(res => res.json()),
-                            fetch('/api/v1/mappings', { headers }).then(res => res.json())
-                        ])
+                        const responses = await Promise.all([
+                            fetch('/api/v1/entries', { headers }),
+                            fetch('/api/v1/exits', { headers }),
+                            fetch('/api/v1/rules', { headers }),
+                            fetch('/api/v1/mappings', { headers })
+                        ]);
 
-                        if (e.error === 'unauthorized') {
-                            this.isAuthenticated = false; // Token expired
-                            return;
+                        // Check for 401 on any request
+                        for (const r of responses) {
+                            if (r.status === 401) {
+                                console.warn('Unauthorized, forcing logout');
+                                this.logout();
+                                return;
+                            }
                         }
 
+                        const [e, x, r, m] = await Promise.all(responses.map(res => res.json()));
                         this.entries = e; this.exits = x; this.rules = r; this.mappings = m;
                     } catch (err) { console.error('Data fail', err) }
                 },
