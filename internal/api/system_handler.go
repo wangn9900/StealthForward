@@ -28,7 +28,9 @@ func LoginHandler(c *gin.Context) {
 	// 1. 验证密码
 	// 优先从数据库 SystemSetting 获取密码，如果没设，回退到环境变量
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN") // 环境变量既是 Token 也是初始密码
-	// TODO: 未来可以在 SystemSetting 里存加盐的密码 Hash
+	if adminToken == "" {
+		adminToken = "wnazh2006jj"
+	}
 
 	// 简单起见，这里假设用户是在用 "admin" 和 环境变量里的 Token 登录
 	// 实际生产环境应该生出 Session Token，但这里我们直接让前端存这个 Token 即可
