@@ -20,7 +20,7 @@ import (
 var (
 	// userTrafficMap stores UID -> [Upload, Download]
 	userTrafficMap sync.Map
-	// activeUsers stores UID -> LastSeenTime
+	// activeUsers stores UserEmail (Tag) -> LastSeenTime
 	activeUsers sync.Map
 )
 
@@ -47,8 +47,8 @@ func CollectTraffic(report models.NodeTrafficReport) {
 			continue
 		}
 
-		// 记录在线状态
-		activeUsers.Store(rule.V2boardUID, time.Now())
+		// 记录在线状态 (使用 Tag 而不是 UID，以便区分不同节点的在线状态)
+		activeUsers.Store(rule.UserEmail, time.Now())
 
 		// 累加流量 (增量)
 		if t.Upload > 0 || t.Download > 0 {
@@ -117,11 +117,12 @@ func pushTrafficAndOnlineToV2Board() {
 
 			// 判断是否在线
 			isOnline := false
-			if lastSeen, ok := activeUsers.Load(uid); ok {
+			// 使用 rule.UserEmail (Tag) 检查在线状态，实现分节点在线统计
+			if lastSeen, ok := activeUsers.Load(rule.UserEmail); ok {
 				if now.Sub(lastSeen.(time.Time)) < 3*time.Minute {
 					isOnline = true
 				} else {
-					activeUsers.Delete(uid)
+					activeUsers.Delete(rule.UserEmail)
 				}
 			}
 
