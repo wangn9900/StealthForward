@@ -197,7 +197,7 @@ EOF
 install_ss_exit() {
   show_logo
   echo -e "${BLUE}开始安装 Shadowsocks 落地转发端 (Exit)...${NC}"
-  echo -e "${YELLOW}该功能会启动一个独立的 SS 服务，不影响现有的 V2bX 或 Xray。${NC}\n"
+  echo -e "${YELLOW}该功能会启动一个独立的 SS 服务，不影响现有的其他代理服务。${NC}\n"
   
   # 直接调用专用的 SS 安装脚本
   bash <(curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/ss-install.sh)
