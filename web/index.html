@@ -109,6 +109,8 @@
                         :class="['tab-btn', activeTab === 'dashboard' ? 'active' : '']">概览</div>
                     <div @click="activeTab = 'mappings'" :class="['tab-btn', activeTab === 'mappings' ? 'active' : '']">
                         配置</div>
+                    <div @click="activeTab = 'settings'" :class="['tab-btn', activeTab === 'settings' ? 'active' : '']">
+                        系统</div>
                 </div>
                 <button @click="fetchData"
                     class="p-3 px-5 glass rounded-2xl hover:bg-slate-800/50 transition flex items-center gap-2">
@@ -221,6 +223,14 @@
                                             d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                         </path>
                                     </svg></button>
+                                <!-- Rotate IP Button -->
+                                <button @click="showRotateModal(node)" :title="'Auto Heal / Rotate IP'"
+                                    class="p-3 glass rounded-2xl text-amber-500 hover:scale-110 active:scale-95 transition cursor-pointer">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </button>
                                 <button @click="deleteItem('entries', node.id)"
                                     class="p-3 glass rounded-2xl text-rose-500 hover:scale-110 active:scale-95 transition cursor-pointer"><svg
                                         class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,6 +246,8 @@
 
             <!-- Dashboard Task/Rules List (Narrow Sidebar) -->
             <div v-if="showDashboard" class="lg:col-span-1 space-y-6 animate-in slide-in-from-right-8 duration-300">
+                <!-- ... existing dashboard code ... -->
+
                 <div class="flex justify-between items-center px-2">
                     <h2 class="text-xl font-bold flex items-center gap-2">任务看板</h2>
                     <button @click="addRule" class="text-xs text-indigo-400 transition">+ 用户转发</button>
@@ -396,6 +408,89 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- System Settings View -->
+                <div v-show="activeTab === 'settings'"
+                    class="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
+                    <div class="glass p-8 rounded-[3rem]">
+                        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                            <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            全局资源配置 (Infrastructure)
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <h3 class="text-lg font-bold text-slate-400 border-b border-white/5 pb-2">AWS
+                                    Credentials</h3>
+                                <label class="block text-sm text-slate-500">Access Key ID
+                                    <input v-model="settings['aws.access_key_id']" class="w-full mt-1"
+                                        placeholder="AKIA...">
+                                </label>
+                                <label class="block text-sm text-slate-500">Secret Access Key
+                                    <input v-model="settings['aws.secret_access_key']" type="password"
+                                        class="w-full mt-1" placeholder="wJalrX...">
+                                </label>
+                                <label class="block text-sm text-slate-500">Default Region
+                                    <select v-model="settings['aws.default_region']" class="w-full mt-1">
+                                        <option value="ap-northeast-1">Tokyo (ap-northeast-1)</option>
+                                        <option value="ap-east-1">Hong Kong (ap-east-1)</option>
+                                        <option value="ap-southeast-1">Singapore (ap-southeast-1)</option>
+                                        <option value="us-west-1">California (us-west-1)</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="space-y-4">
+                                <h3 class="text-lg font-bold text-slate-400 border-b border-white/5 pb-2">Cloudflare DNS
+                                </h3>
+                                <label class="block text-sm text-slate-500">API Token (Edit Zone DNS)
+                                    <input v-model="settings['cloudflare.api_token']" type="password"
+                                        class="w-full mt-1" placeholder="X-Auth-Key...">
+                                </label>
+                                <label class="block text-sm text-slate-500">Default Zone (e.g. 2233006.xyz)
+                                    <input v-model="settings['cloudflare.default_zone']" class="w-full mt-1"
+                                        placeholder="example.com">
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mt-8 flex justify-end">
+                            <button @click="saveSettings"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-500/20 active:scale-95">
+                                保存系统配置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login / Auth Modal (Full Screen) -->
+                <div v-if="!isAuthenticated"
+                    class="fixed inset-0 bg-[#020617] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-500">
+                    <div class="w-full max-w-md space-y-8">
+                        <div class="text-center">
+                            <h1 class="text-5xl font-extrabold tracking-tighter gradient-text mb-2">StealthForward</h1>
+                            <p class="text-slate-500">Restricted Access Control System</p>
+                        </div>
+                        <div class="glass p-8 rounded-[2rem] space-y-6">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Admin
+                                    Password</label>
+                                <input type="password" v-model="loginPassword" @keyup.enter="performLogin"
+                                    class="w-full mt-2 bg-slate-900/50 border-slate-700 focus:border-indigo-500 transition p-4 rounded-xl text-lg text-center tracking-widest"
+                                    placeholder="••••••••••••" autofocus>
+                            </div>
+                            <button @click="performLogin"
+                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-4 rounded-xl font-bold transition shadow-lg shadow-indigo-500/20 active:scale-95 mb-2">
+                                UNLOCK CONSOLE
+                            </button>
+                            <p v-if="loginError" class="text-center text-rose-500 text-sm animate-pulse">{{ loginError
+                                }}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -457,6 +552,39 @@
                 <div class="flex gap-4 mt-8">
                     <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
                     <button @click="submitEntry" class="flex-1 p-4 bg-indigo-600 rounded-2xl font-bold">保存节点</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rotate IP Modal -->
+        <div v-if="modal.type === 'rotate'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
+                <div class="mb-6">
+                    <h3 class="text-2xl font-bold text-amber-500 mb-2">Auto Heal / 自动换IP</h3>
+                    <p class="text-xs text-slate-500">此操作将申请新的 AWS EIP 并绑定到实例，同时更新 Cloudflare DNS。业务可能会中断 1-2
+                        分钟。</p>
+                </div>
+                <div class="space-y-4 text-sm">
+                    <label class="flex flex-col gap-1.5 text-slate-500">AWS Region
+                        <input v-model="form.rotate.region" placeholder="ap-northeast-1">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">Instance ID
+                        <input v-model="form.rotate.instance_id" placeholder="i-0123456789abcdef0">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">Zone Name (Cloudflare)
+                        <input v-model="form.rotate.zone_name" placeholder="2233006.xyz">
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">Record Name (DNS Prefix)
+                        <input v-model="form.rotate.record_name" placeholder="transitnodeawjp">
+                    </label>
+                </div>
+                <div class="flex gap-4 mt-8">
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="submitRotate" :disabled="rotateLoading"
+                        class="flex-1 p-4 bg-amber-600 hover:bg-amber-500 rounded-2xl font-bold disabled:opacity-50">
+                        {{ rotateLoading ? '正在执行...' : '确认执行' }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -576,23 +704,60 @@
                 return {
                     activeTab: 'dashboard',
                     showDashboard: true,
+                    isAuthenticated: false,
+                    loginPassword: '',
+                    loginError: '',
                     entries: [],
                     exits: [],
                     rules: [],
                     mappings: [],
+                    settings: {},
                     certLoading: false,
+                    rotateLoading: false,
                     modal: { type: null },
                     form: {
                         entry: { id: null, name: '', port: 443, domain: '', certificate: '', key: '', fallback: '127.0.0.1:80', target_exit_id: 0, v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
                         exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, password: '', method: '2022-blake3-aes-128-gcm' },
                         rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null },
-                        mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray', port: null }
+                        mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray', port: null },
+                        rotate: { node_id: null, region: '', instance_id: '', zone_name: '', record_name: '' }
                     }
                 }
             },
-            mounted() { this.fetchData() },
+            mounted() { this.checkAuth(); },
+            watch: {
+                activeTab(newVal) {
+                    if (newVal === 'settings') this.fetchSettings();
+                }
+            },
             methods: {
+                checkAuth() {
+                    const token = localStorage.getItem('stealth_token');
+                    if (token) {
+                        this.isAuthenticated = true;
+                        this.fetchData();
+                    } else {
+                        this.isAuthenticated = false;
+                    }
+                },
+                async performLogin() {
+                    try {
+                        const res = await fetch('/api/v1/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: 'admin', password: this.loginPassword })
+                        }).then(r => { if (!r.ok) throw new Error('Auth failed'); return r.json() });
+
+                        localStorage.setItem('stealth_token', res.token);
+                        this.isAuthenticated = true;
+                        this.loginError = '';
+                        this.fetchData();
+                    } catch (e) {
+                        this.loginError = 'Invalid Password';
+                    }
+                },
                 async fetchData() {
+                    if (!this.isAuthenticated) return;
                     const headers = { 'Authorization': localStorage.getItem('stealth_token') || '' };
                     try {
                         const [e, x, r, m] = await Promise.all([
@@ -601,16 +766,64 @@
                             fetch('/api/v1/rules', { headers }).then(res => res.json()),
                             fetch('/api/v1/mappings', { headers }).then(res => res.json())
                         ])
-                        if (e.error === 'unauthorized') return this.promptLogin();
+
+                        if (e.error === 'unauthorized') {
+                            this.isAuthenticated = false; // Token expired
+                            return;
+                        }
+
                         this.entries = e; this.exits = x; this.rules = r; this.mappings = m;
                     } catch (err) { console.error('Data fail', err) }
                 },
-                promptLogin() {
-                    const t = prompt('请输入管理口令 (STEALTH_ADMIN_TOKEN):');
-                    if (t) { localStorage.setItem('stealth_token', t); this.fetchData(); }
+                async fetchSettings() {
+                    const res = await this.apiGet('/api/v1/system/config');
+                    if (res.config) this.settings = res.config;
+                },
+                async saveSettings() {
+                    await this.apiPost('/api/v1/system/config', this.settings);
+                    alert('Configuration Saved');
                 },
                 showModal(type) { this.modal.type = type; },
                 hideModal() { this.modal.type = null },
+
+                // --- Rotate IP Logic ---
+                showRotateModal(node) {
+                    // Try to guess defaults or load from somewhere?
+                    // For now, we rely on Settings for Region, but InstanceID is specific.
+                    // If we stored InstanceID in EntryNode (future work), load it here.
+                    this.form.rotate = {
+                        node_id: node.id,
+                        region: this.settings['aws.default_region'] || 'ap-northeast-1',
+                        instance_id: localStorage.getItem(`node_${node.id}_instance_id`) || '', // Local cache helper
+                        zone_name: this.settings['cloudflare.default_zone'] || '2233006.xyz',
+                        record_name: node.domain ? node.domain.split('.')[0] : ''
+                    };
+                    this.showModal('rotate');
+                },
+                async submitRotate() {
+                    if (!this.form.rotate.instance_id) return alert('Instance ID Required');
+                    this.rotateLoading = true;
+                    try {
+                        // Cache instance ID locally for convenience
+                        localStorage.setItem(`node_${this.form.rotate.node_id}_instance_id`, this.form.rotate.instance_id);
+
+                        const res = await this.apiPost(`/api/v1/node/${this.form.rotate.node_id}/rotate-ip`, {
+                            region: this.form.rotate.region,
+                            instance_id: this.form.rotate.instance_id,
+                            zone_name: this.form.rotate.zone_name,
+                            record_name: this.form.rotate.record_name
+                        });
+                        alert('Success! New IP: ' + res.new_ip);
+                        this.hideModal();
+                        this.fetchData();
+                    } catch (e) {
+                        alert('Failed: ' + e);
+                    } finally {
+                        this.rotateLoading = false;
+                    }
+                },
+
+                // --- Existing Methods ---
                 async submitEntry() { await this.apiPost('/api/v1/entries', this.form.entry); this.hideModal(); this.fetchData(); },
                 async submitExit() {
                     const cfg = {
@@ -664,6 +877,10 @@
                             this.fetchData(); // 刷新获取最新节点状态
                         }
                     } finally { this.certLoading = false; }
+                },
+                async apiGet(url) {
+                    const res = await fetch(url, { headers: { 'Authorization': localStorage.getItem('stealth_token') || '' } });
+                    return res.json();
                 },
                 async apiPost(url, data) {
                     const res = await fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('stealth_token') || '' } });

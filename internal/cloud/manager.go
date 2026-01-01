@@ -13,13 +13,51 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/wangn9900/StealthForward/internal/database"
+	"github.com/wangn9900/StealthForward/internal/models"
 )
 
 // RotateIPForInstance 核心业务逻辑：换 EC2 IP 并更新 Cloudflare DNS
 // 返回新 IP，或者错误
 func RotateIPForInstance(ctx context.Context, region, instanceID, zoneName, recordName string) (string, error) {
+	// 0. 读取 AWS 配置 (DB -> Env)
+	var settings []models.SystemSetting
+	configMap := make(map[string]string)
+	if err := database.DB.Find(&settings).Error; err == nil {
+		for _, s := range settings {
+			configMap[s.Key] = s.Value
+		}
+	}
+
+	ak := configMap[models.ConfigKeyAwsAccessKeyID]
+	if ak == "" {
+		ak = os.Getenv("AWS_ACCESS_KEY_ID")
+	}
+	sk := configMap[models.ConfigKeyAwsSecretAccessKey]
+	if sk == "" {
+		sk = os.Getenv("AWS_SECRET_ACCESS_KEY")
+	}
+
 	// 1. 初始化 AWS
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	var cfg aws.Config
+	var err error
+
+	if ak != "" && sk != "" {
+		// 使用静态凭证
+		cfg, err = config.LoadDefaultConfig(ctx,
+			config.WithRegion(region),
+			config.WithCredentialsProvider(aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
+				return aws.Credentials{
+					AccessKeyID:     ak,
+					SecretAccessKey: sk,
+				}, nil
+			})),
+		)
+	} else {
+		// 回退到默认链
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("aws load config error: %v", err)
 	}
@@ -110,9 +148,18 @@ func RotateIPForInstance(ctx context.Context, region, instanceID, zoneName, reco
 }
 
 func updateCloudflareDNS(ctx context.Context, zoneName, recordName, newIP string) error {
-	apiToken := os.Getenv("CF_API_TOKEN")
+	// 读取 CF Token
+	var setting models.SystemSetting
+	var apiToken string
+	if err := database.DB.Where("key = ?", models.ConfigKeyCfApiToken).First(&setting).Error; err == nil {
+		apiToken = setting.Value
+	}
 	if apiToken == "" {
-		return fmt.Errorf("CF_API_TOKEN environment variable not set")
+		apiToken = os.Getenv("CF_API_TOKEN")
+	}
+
+	if apiToken == "" {
+		return fmt.Errorf("CF_API_TOKEN environment variable not set (or not in db)")
 	}
 
 	api, err := cloudflare.NewWithAPIToken(apiToken)

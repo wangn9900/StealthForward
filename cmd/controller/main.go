@@ -50,10 +50,17 @@ func main() {
 		log.Printf("警告: 未找到 Web 面板文件 (./web/index.html)，控制台将不可用。")
 	}
 
-	// API 分组
+	// 公开 API
+	r.POST("/api/v1/auth/login", api.LoginHandler)
+
+	// API 分组 (Protected)
 	v1 := r.Group("/api/v1")
 	v1.Use(authMiddleware)
 	{
+		// 系统设置
+		v1.GET("/system/config", api.GetSystemConfigHandler)
+		v1.POST("/system/config", api.UpdateSystemConfigHandler)
+
 		// 节点管理 (Entry)
 		v1.GET("/entries", api.ListEntryNodesHandler)
 		v1.POST("/entries", api.RegisterNodeHandler)

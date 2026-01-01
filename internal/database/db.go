@@ -21,7 +21,13 @@ func InitDB() {
 
 	// 自动迁移表结构
 	log.Println("Migrating database tables...")
-	err = DB.AutoMigrate(&models.EntryNode{}, &models.ExitNode{}, &models.ForwardingRule{}, &models.NodeMapping{})
+	err = DB.AutoMigrate(
+		&models.EntryNode{},
+		&models.ExitNode{},
+		&models.ForwardingRule{},
+		&models.NodeMapping{},
+		&models.SystemSetting{},
+	)
 	if err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
