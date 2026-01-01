@@ -106,10 +106,18 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
+	// Determine default protocol type
+	defaultType := entry.V2boardType
+	if defaultType == "" {
+		defaultType = "vless"
+	} else if defaultType == "v2ray" {
+		defaultType = "vmess"
+	}
+
 	// 创建默认端口的 inbound
 	defaultInboundTag := fmt.Sprintf("node_%d", entry.ID)
 	defaultInbound := map[string]interface{}{
-		"type":        "vless",
+		"type":        defaultType,
 		"tag":         defaultInboundTag,
 		"listen":      "::",
 		"listen_port": entry.Port,
@@ -131,9 +139,17 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// 为每个独立端口创建 inbound
 	for port, users := range portToUsers {
+		inboundType := "vless"
+		if m, ok := portToMapping[port]; ok && m.V2boardType != "" {
+			inboundType = m.V2boardType
+		}
+		if inboundType == "v2ray" {
+			inboundType = "vmess"
+		}
+
 		inboundTag := fmt.Sprintf("node_%d_port_%d", entry.ID, port)
 		inbound := map[string]interface{}{
-			"type":        "vless",
+			"type":        inboundType,
 			"tag":         inboundTag,
 			"listen":      "::",
 			"listen_port": port,
