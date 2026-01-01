@@ -84,22 +84,20 @@ func RotateIPForInstance(ctx context.Context, region, instanceID, zoneName, reco
 	log.Printf("[Cloud] Allocated new EIP: %s (%s)", newPublicIP, newAllocationID)
 
 	// 3. 查找实例当前绑定的 EIP (以便后续释放)
-	// 先获取实例信息
-	instDesc, err := ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-		InstanceIds: []string{instanceID},
+	// 使用 DescribeAddresses 查找绑定到该实例的 EIP
+	addrRes, err := ec2Client.DescribeAddresses(ctx, &ec2.DescribeAddressesInput{
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("instance-id"),
+				Values: []string{instanceID},
+			},
+		},
 	})
 	var oldAllocationID string
-	var oldAssociationID string
 
-	if err == nil && len(instDesc.Reservations) > 0 && len(instDesc.Reservations[0].Instances) > 0 {
-		inst := instDesc.Reservations[0].Instances[0]
-		// 遍历 NetworkInterfaces 找主要网卡的 Association
-		for _, ni := range inst.NetworkInterfaces {
-			if ni.Association != nil && ni.Association.AllocationId != nil {
-				oldAllocationID = *ni.Association.AllocationId
-				oldAssociationID = *ni.Association.AssociationId
-				break // 假设只有一个公网 IP
-			}
+	if err == nil && len(addrRes.Addresses) > 0 {
+		if addrRes.Addresses[0].AllocationId != nil {
+			oldAllocationID = *addrRes.Addresses[0].AllocationId
 		}
 	}
 
@@ -204,7 +202,7 @@ func updateCloudflareDNS(ctx context.Context, zoneName, recordName, newIP string
 		Name:    fullRecordName,
 		Proxied: stats[0].Proxied, // 保持原有的 Proxy 状态 (通常为 false)
 		TTL:     stats[0].TTL,
-		Comment: "Auto rotated by StealthController at " + time.Now().Format(time.RFC3339),
+		Comment: aws.String("Auto rotated by StealthController at " + time.Now().Format(time.RFC3339)),
 	})
 
 	return err
