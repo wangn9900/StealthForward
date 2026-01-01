@@ -3,6 +3,7 @@ package generator
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -137,8 +138,15 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 	config.Inbounds = append(config.Inbounds, defaultInbound)
 
-	// 为每个独立端口创建 inbound
-	for port, users := range portToUsers {
+	// 为每个独立端口创建 inbound (先对端口排序，确保 JSON 顺序稳定)
+	var ports []int
+	for p := range portToUsers {
+		ports = append(ports, p)
+	}
+	sort.Ints(ports)
+
+	for _, port := range ports {
+		users := portToUsers[port]
 		inboundType := "vless"
 		if m, ok := portToMapping[port]; ok && m.V2boardType != "" {
 			inboundType = m.V2boardType
@@ -211,8 +219,15 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
 	}
 
-	// 为每个独立端口的 inbound 创建路由规则
-	for port, m := range portToMapping {
+	// 为每个独立端口的 inbound 创建路由规则 (同样需要排序)
+	var mappingPorts []int
+	for p := range portToMapping {
+		mappingPorts = append(mappingPorts, p)
+	}
+	sort.Ints(mappingPorts)
+
+	for _, port := range mappingPorts {
+		m := portToMapping[port]
 		inboundTag := fmt.Sprintf("node_%d_port_%d", entry.ID, port)
 		var exitName string
 		for _, e := range exits {
