@@ -22,29 +22,29 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Clone Required V2bX Library
+      - name: Clone Required Sing-box Lib
         run: |
-          mkdir -p ../V2bX
-          git clone --depth 1 --branch dev-next https://github.com/wangn9900/sing-box_mod.git ../V2bX/sing-box_mod
+          # Clone to ../sing-box_mod to match go.mod replace directive
+          git clone --depth 1 --branch dev-next https://github.com/wangn9900/sing-box_mod.git ../sing-box_mod
 
       - name: Build StealthForward Binaries
         run: |
-          # 补全魔改库引入的新依赖校验码
           go mod tidy
           
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} cmd/agent/main.go
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
+          # Use -mod=vendor to ensure our patched VLESS Vision logic is used
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} cmd/agent/main.go
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
 
       - name: Build Standalone Sing-box Mod (with VLESS Fallback)
         run: |
-          cd ../V2bX/sing-box_mod
+          cd ../sing-box_mod
           
-          # 确保依赖正确
           go mod tidy
           
-          # 编译魔改版 sing-box 核心
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../../StealthForward/sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
+          # This builds the raw sing-box from the cloned repo (unpatched)
+          # Note: If you want the Stealth Agent to be patched, the agent binary above is enough.
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../StealthForward/sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
