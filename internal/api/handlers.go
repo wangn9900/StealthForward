@@ -366,6 +366,8 @@ func ImportConfigHandler(c *gin.Context) {
 	// 触发一次全量同步
 	sync.GlobalSyncNow()
 
+	c.JSON(http.StatusOK, gin.H{"message": "配置恢复成功，已触发全量同步"})
+}
 
 // RotateIPHandler 主动更换 AWS 节点 IP
 func RotateIPHandler(c *gin.Context) {
