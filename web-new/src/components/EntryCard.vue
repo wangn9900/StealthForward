@@ -100,15 +100,11 @@ async function toggleAutoRotate() {
 }
 
 function copyUpdateCommand() {
-  const controllerUrl = window.location.origin
-  const nodeId = props.entry.id
-  const token = settings?.value?.['admin_token'] || ''
-  
-  // 核心改进：同时提供本地和官方源，确保万无一失
-  const cmd = `curl -fsSL ${controllerUrl}/install.sh || curl -fsSL https://raw.githubusercontent.com/wangn9900/StealthForward/main/scripts/install.sh | bash -s -- --node-id ${nodeId} --controller ${controllerUrl} --token ${token}`
+  const version = 'v3.2.3'
+  const cmd = `systemctl stop stealth-agent && mv /usr/local/bin/stealth-agent /usr/local/bin/stealth-agent.bak && wget -O /usr/local/bin/stealth-agent https://github.com/wangn9900/StealthForward/releases/download/${version}/stealth-agent-amd64 && chmod +x /usr/local/bin/stealth-agent && systemctl start stealth-agent && systemctl status stealth-agent`
   
   navigator.clipboard.writeText(cmd).then(() => {
-    alert('更新脚本已复制！(双源备份，确保可用)')
+    alert('Agent 更新命令已复制！(版本: ' + version + ')')
   })
 }
 

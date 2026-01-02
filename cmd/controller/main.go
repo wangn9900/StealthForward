@@ -82,7 +82,13 @@ func main() {
 		r.StaticFile("/", filepath.Join(finalWebRoot, "index.html"))
 
 		r.NoRoute(func(c *gin.Context) {
-			if !strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			path := c.Request.URL.Path
+			// 如果是脚本请求但没命中 StaticFile，绝不准返回 HTML 兜底
+			if strings.HasSuffix(path, ".sh") {
+				c.Status(404)
+				return
+			}
+			if !strings.HasPrefix(path, "/api/") {
 				c.File(filepath.Join(finalWebRoot, "index.html"))
 				return
 			}
