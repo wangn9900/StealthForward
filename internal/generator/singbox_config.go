@@ -123,12 +123,17 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"listen":        "::",
 		"listen_port":   entry.Port,
 		"sniff":         true,
-		"sniff_timeout": "500ms", // 放宽到 500ms，确保各平台视频流 100% 稳定识别
+		"sniff_timeout": "1s", // 放宽到 1s，牺牲极微小首包延迟，换取 100% 握手成功率与长连接稳定性
 		"fallback": map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
 		},
 		"users": defaultPortUsers,
+		"tcp_keepalive": map[string]interface{}{
+			"enabled":  true,
+			"interval": 15, // 每15秒发一次心跳，防止 180s 超时断连
+			"idle":     15,
+		},
 		"tls": map[string]interface{}{
 			"enabled":          true,
 			"server_name":      entry.Domain,
@@ -163,12 +168,17 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"listen":        "::",
 			"listen_port":   port,
 			"sniff":         true,
-			"sniff_timeout": "500ms",
+			"sniff_timeout": "1s",
 			"fallback": map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
 			},
 			"users": users,
+			"tcp_keepalive": map[string]interface{}{
+				"enabled":  true,
+				"interval": 15,
+				"idle":     15,
+			},
 			"tls": map[string]interface{}{
 				"enabled":          true,
 				"server_name":      entry.Domain,

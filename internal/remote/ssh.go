@@ -58,6 +58,12 @@ func RunProvisioning(cfg ProvisionConfig) error {
 		# BBR
 		echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 		echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+		
+		# TCP Keepalive (防止 SSH 3分钟断连)
+		echo "net.ipv4.tcp_keepalive_time=60" >> /etc/sysctl.conf
+		echo "net.ipv4.tcp_keepalive_intvl=15" >> /etc/sysctl.conf
+		echo "net.ipv4.tcp_keepalive_probes=5" >> /etc/sysctl.conf
+		
 		sysctl -p >> /var/log/stealth-init.log 2>&1
 		
 		# RLimit
