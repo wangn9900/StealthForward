@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wangn9900/StealthForward/internal/api"
@@ -49,25 +50,55 @@ func main() {
 		}
 		c.Next()
 	}
+
+	// 存活检查
+	r.GET("/api/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
 	// ----------------
 
-	// 静态文件目录 (用于面板)
-	// 尝试多个可能路径
-	webRoot := "./web"
-	if _, err := os.Stat(filepath.Join(webRoot, "index.html")); err != nil {
-		// 备选：如果当前目录下没有，尝试上级或特定路径
-		webRoot = "/usr/local/share/stealthforward/web"
+	// 静态文件目录 (极致鲁棒探测)
+	cwd, _ := os.Getwd()
+	exePath, _ := os.Executable()
+	exeDir := filepath.Dir(exePath)
+
+	searchPaths := []string{
+		filepath.Join(exeDir, "web"), // 1. 二进制同级 (最推荐)
+		filepath.Join(cwd, "web"),    // 2. 当前运行目录
+		"./web",                      // 3. 相对路径
+		"/usr/local/share/stealthforward/web",
 	}
 
-	if _, err := os.Stat(filepath.Join(webRoot, "index.html")); err == nil {
-		r.Static("/static", filepath.Join(webRoot, "static"))
-		r.Static("/assets", filepath.Join(webRoot, "assets"))
+	finalWebRoot := ""
+	for _, p := range searchPaths {
+		idxPath := filepath.Join(p, "index.html")
+		if _, err := os.Stat(idxPath); err == nil {
+			finalWebRoot, _ = filepath.Abs(p)
+			break
+		}
+	}
+
+	if finalWebRoot != "" {
+		log.Printf("成功定位 Web 目录: %s", finalWebRoot)
+		r.Static("/static", filepath.Join(finalWebRoot, "static"))
+		r.Static("/assets", filepath.Join(finalWebRoot, "assets"))
 		r.StaticFile("/install.sh", "./scripts/install.sh")
 		r.StaticFile("/static/install.sh", "./scripts/install.sh")
-		r.StaticFile("/dashboard", filepath.Join(webRoot, "index.html"))
-		r.StaticFile("/", filepath.Join(webRoot, "index.html"))
+		r.StaticFile("/dashboard", filepath.Join(finalWebRoot, "index.html"))
+		r.NoRoute(func(c *gin.Context) {
+			// 实现单页应用 (SPA) 路由支持：如果路径不匹配 API 且不是静态文件，直接给 index.html
+			path := c.Request.URL.Path
+			if !strings.HasPrefix(path, "/api/") {
+				c.File(filepath.Join(finalWebRoot, "index.html"))
+				return
+			}
+			c.Status(404)
+		})
 	} else {
-		log.Printf("严重警告: 无法定位 Web 目录。静态路由未加载。")
+		log.Printf("严重警告: 遍历了以下路径均未找到 web/index.html:")
+		for _, p := range searchPaths {
+			log.Printf("  - %s", p)
+		}
 	}
 
 	// 公开 API
