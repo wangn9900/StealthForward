@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,6 +21,7 @@ import (
 type CreateInstanceRequest struct {
 	Region       string `json:"region"`
 	InstanceType string `json:"instance_type"` // e.g. t3.micro
+	ImageID      string `json:"image_id"`      // Optional: Specific AMI ID
 	RootPassword string `json:"root_password"`
 }
 
@@ -36,21 +39,40 @@ func ProvisionInstance(ctx context.Context, req CreateInstanceRequest) (*CreateI
 	}
 	client := ec2.NewFromConfig(cfg)
 
-	// 2. Find Debian 12 AMI
-	amiID, err := findDebianAMI(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find AMI: %v", err)
+	// 2. Determine AMI
+	amiID := req.ImageID
+	if amiID == "" {
+		// Fallback to auto-find Debian 12 if not specified
+		amiID, err = findDebianAMI(ctx, client)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find default AMI: %v", err)
+		}
+		log.Printf("[Cloud] Auto-selected AMI: %s", amiID)
+	} else {
+		log.Printf("[Cloud] Using specified AMI: %s", amiID)
 	}
-	log.Printf("[Cloud] Found Debian 12 AMI: %s", amiID)
 
 	// 3. Prepare Key Pair
-	keyName := "stealth_auto_key"
-	// 尝试创建 KeyPair，如果存在则忽略错误继续使用
-	_, err = client.CreateKeyPair(ctx, &ec2.CreateKeyPairInput{KeyName: aws.String(keyName)})
+	// We create a unique key per region per project to avoid conflicts, or just one global key.
+	// User requested to SAVE the key locally as a fallback.
+	keyName := fmt.Sprintf("StealthKey_%s", req.Region)
+	keyOut, err := client.CreateKeyPair(ctx, &ec2.CreateKeyPairInput{KeyName: aws.String(keyName)})
 	if err != nil {
-		// Ignore if key already exists
-		// In a real app we might check the error code "InvalidKeyPair.Duplicate"
-		log.Printf("[Cloud] Using existing key pair: %s", keyName)
+		// If key already exists, we assume we have it locally or user maintains it.
+		// If it's a conflict, just log and use existing.
+		if !strings.Contains(err.Error(), "InvalidKeyPair.Duplicate") {
+			log.Printf("[Cloud] KeyPair create error (might exist): %v", err)
+		} else {
+			log.Printf("[Cloud] Using existing key pair: %s", keyName)
+		}
+	} else if keyOut.KeyMaterial != nil {
+		// Save the new key material locally
+		keyPath := fmt.Sprintf("store/keys/%s.pem", keyName)
+		if saveErr := os.WriteFile(keyPath, []byte(*keyOut.KeyMaterial), 0600); saveErr != nil {
+			log.Printf("[Cloud] Failed to save key material to %s: %v", keyPath, saveErr)
+		} else {
+			log.Printf("[Cloud] Key saved to: %s", keyPath)
+		}
 	}
 
 	// 4. Prepare Security Group
@@ -120,6 +142,20 @@ func ProvisionInstance(ctx context.Context, req CreateInstanceRequest) (*CreateI
 	}, nil
 }
 
+// TerminateInstance 销毁实例
+func TerminateInstance(ctx context.Context, region, instanceID string) error {
+	cfg, err := loadAWSConfig(ctx, region)
+	if err != nil {
+		return err
+	}
+	client := ec2.NewFromConfig(cfg)
+
+	_, err = client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+		InstanceIds: []string{instanceID},
+	})
+	return err
+}
+
 // Helper: Load AWS Config
 func loadAWSConfig(ctx context.Context, region string) (aws.Config, error) {
 	// DB -> Env
@@ -179,6 +215,116 @@ func findDebianAMI(ctx context.Context, client *ec2.Client) (string, error) {
 	})
 
 	return *out.Images[0].ImageId, nil
+}
+
+// ListRegions 获取当前账户可用的区域列表
+func ListRegions(ctx context.Context) ([]string, error) {
+	// Use us-east-1 as base to list regions
+	cfg, err := loadAWSConfig(ctx, "us-east-1")
+	if err != nil {
+		return nil, err
+	}
+	client := ec2.NewFromConfig(cfg)
+
+	out, err := client.DescribeRegions(ctx, &ec2.DescribeRegionsInput{
+		AllRegions: aws.Bool(false), // Only list enabled regions
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var regions []string
+	for _, r := range out.Regions {
+		if r.RegionName != nil {
+			regions = append(regions, *r.RegionName)
+		}
+	}
+	sort.Strings(regions)
+	return regions, nil
+}
+
+type AMIInfo struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// ListFeaturedImages 获取指定区域的推荐镜像
+func ListFeaturedImages(ctx context.Context, region string) ([]AMIInfo, error) {
+	cfg, err := loadAWSConfig(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+	client := ec2.NewFromConfig(cfg)
+
+	// Search for Debian 12 and Ubuntu 22.04/24.04
+	filters := []types.Filter{
+		{Name: aws.String("architecture"), Values: []string{"x86_64"}},
+		{Name: aws.String("virtualization-type"), Values: []string{"hvm"}},
+		{Name: aws.String("state"), Values: []string{"available"}},
+		{Name: aws.String("name"), Values: []string{
+			"debian-12-amd64-*",
+			"ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*",
+			"ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*",
+		}},
+	}
+
+	out, err := client.DescribeImages(ctx, &ec2.DescribeImagesInput{
+		Filters:           filters,
+		Owners:            []string{"amazon", "136693071363", "099720109477"}, // Amazon, Debian, Canonical
+		IncludeDeprecated: aws.Bool(false),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Deduplicate and Sort
+	// We want the LATEST of each distro.
+	// Map: DistroPrefix -> Latest Image
+	latestMap := make(map[string]types.Image)
+
+	for _, img := range out.Images {
+		name := *img.Name
+		var key string
+		if strings.HasPrefix(name, "debian-12") {
+			key = "Debian 12"
+		} else if strings.Contains(name, "ubuntu-jammy-22.04") {
+			key = "Ubuntu 22.04 LTS"
+		} else if strings.Contains(name, "ubuntu-noble-24.04") {
+			key = "Ubuntu 24.04 LTS"
+		} else {
+			continue
+		}
+
+		if current, ok := latestMap[key]; !ok {
+			latestMap[key] = img
+		} else {
+			// Compare CreationDate
+			if *img.CreationDate > *current.CreationDate {
+				latestMap[key] = img
+			}
+		}
+	}
+
+	var result []AMIInfo
+	for k, img := range latestMap {
+		desc := ""
+		if img.Description != nil {
+			desc = *img.Description
+		}
+		result = append(result, AMIInfo{
+			ID:          *img.ImageId,
+			Name:        k,    // Use Friendly Name
+			Description: desc, // Raw desc
+		})
+	}
+
+	// Sort result by Name
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
+
+	return result, nil
 }
 
 // Helper: Ensure Security Group

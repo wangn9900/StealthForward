@@ -86,8 +86,21 @@ func main() {
 		// Agent 一键换 IP 接口 (AWS Only)
 		v1.POST("/node/:id/rotate-ip", api.RotateIPHandler)
 
-		// --- Cloud Instance Provisioning ---
+		// --- Cloud Instance Provisioning & Keys ---
 		v1.POST("/cloud/instances", api.ProvisionInstanceHandler)
+		v1.POST("/cloud/instances/terminate", api.TerminateInstanceHandler)
+		v1.GET("/cloud/keys", api.ListKeysHandler)
+		v1.GET("/cloud/keys/:name", api.DownloadKeyHandler)
+		v1.GET("/cloud/regions", api.ListRegionsHandler)
+		v1.GET("/cloud/images", api.ListImagesHandler)
+
+		// --- Lightsail ---
+		v1.GET("/cloud/lightsail/regions", api.ListLightsailRegionsHandler)
+		v1.GET("/cloud/lightsail/bundles", api.ListLightsailBundlesHandler)
+		v1.GET("/cloud/lightsail/blueprints", api.ListLightsailBlueprintsHandler)
+		v1.POST("/cloud/lightsail/instances", api.ProvisionLightsailHandler)
+		v1.POST("/cloud/lightsail/terminate", api.TerminateLightsailHandler)
+		v1.POST("/cloud/lightsail/rotate-ip", api.RotateLightsailIPHandler)
 
 		// --- Traffic Stats ---
 		v1.GET("/traffic", api.GetTrafficStatsHandler)
