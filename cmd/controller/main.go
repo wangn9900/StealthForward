@@ -48,6 +48,9 @@ func main() {
 	if _, err := os.Stat("./web/index.html"); err == nil {
 		r.Static("/static", "./web/static")
 		r.Static("/assets", "./web/assets") // Vite 构建输出
+		// 暴露安装脚本
+		r.StaticFile("/install.sh", "./scripts/install.sh")
+		r.StaticFile("/static/install.sh", "./scripts/install.sh")
 		r.StaticFile("/dashboard", "./web/index.html")
 		r.StaticFile("/", "./web/index.html")
 	} else {

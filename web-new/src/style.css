@@ -2,36 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light mode (default) */
+/* Light mode (Paper Premium) */
 :root {
-  --bg-primary: #f4f6f9;
-  /* 柔和雅致蓝灰 */
-  --bg-secondary: #e9eff5;
+  --bg-primary: #fcfaf2;
+  /* 暖书页色 */
+  --bg-secondary: #f4efdf;
+  /* 稍深的纸张折痕色 */
   --bg-card: #ffffff;
-  --text-primary: #334155;
-  /* 深蓝灰，比正黑柔和 */
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --border-color: #e2e8f0;
-  --accent: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.1);
+  --text-primary: #2d2d2a;
+  /* 炭黑色，比纯黑更护眼 */
+  --text-secondary: #6b6b63;
+  --text-muted: #a3a393;
+  --border-color: #e8e3d3;
+  --accent: #d4a373;
+  /* 优雅的皮革棕/复古金 */
+  --accent-glow: rgba(212, 163, 115, 0.1);
 }
 
-/* Dark mode */
+/* Dark mode (Modern Midnight) */
 .dark {
-  --bg-primary: #020617;
-  --bg-secondary: #0f172a;
-  --bg-card: #1e293b;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --accent: #818cf8;
-  --accent-glow: rgba(129, 140, 248, 0.2);
+  --bg-primary: #0f0f0e;
+  --bg-secondary: #1a1a18;
+  --bg-card: #21211e;
+  --text-primary: #ecebe4;
+  --text-secondary: #a3a393;
+  --text-muted: #575752;
+  --border-color: rgba(255, 255, 255, 0.05);
+  --accent: #d4a373;
+  --accent-glow: rgba(212, 163, 115, 0.15);
 }
 
 body {
-  font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
@@ -40,7 +42,7 @@ body {
 }
 
 .dark body {
-  background: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 100%);
+  background: radial-gradient(circle at 50% 0%, #1a1a18 0%, #0f0f0e 100%);
 }
 
 /* Glass effect cards */
