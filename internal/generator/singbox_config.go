@@ -29,7 +29,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"servers": []interface{}{
 				map[string]interface{}{
 					"address": "1.1.1.1",
-					"tag":     "cf",
+					"tag":     "dns-local",
 					"detour":  "direct",
 				},
 			},
@@ -118,11 +118,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	// 创建默认端口的 inbound
 	defaultInboundTag := fmt.Sprintf("node_%d", entry.ID)
 	defaultInbound := map[string]interface{}{
-		"type":        defaultType,
-		"tag":         defaultInboundTag,
-		"listen":      "::",
-		"listen_port": entry.Port,
-		"sniff":       true,
+		"type":          defaultType,
+		"tag":           defaultInboundTag,
+		"listen":        "::",
+		"listen_port":   entry.Port,
+		"sniff":         true,
+		"sniff_timeout": "300ms", // 核心加速点：缩短等待时间，实现首屏秒开
 		"fallback": map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -138,7 +139,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 	config.Inbounds = append(config.Inbounds, defaultInbound)
 
-	// 为每个独立端口创建 inbound (先对端口排序，确保 JSON 顺序稳定)
+	// 为每个独立端口创建 inbound
 	var ports []int
 	for p := range portToUsers {
 		ports = append(ports, p)
@@ -157,11 +158,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 		inboundTag := fmt.Sprintf("node_%d_port_%d", entry.ID, port)
 		inbound := map[string]interface{}{
-			"type":        inboundType,
-			"tag":         inboundTag,
-			"listen":      "::",
-			"listen_port": port,
-			"sniff":       true,
+			"type":          inboundType,
+			"tag":           inboundTag,
+			"listen":        "::",
+			"listen_port":   port,
+			"sniff":         true,
+			"sniff_timeout": "300ms",
 			"fallback": map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
@@ -213,13 +215,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	config.Outbounds = append(config.Outbounds, map[string]interface{}{"tag": "block", "type": "block"})
 
-	// Routing - 按端口分流（新架构）
+	// Routing - 按端口分流
 	routingRules := []interface{}{
 		map[string]interface{}{"ip_cidr": []string{"127.0.0.1/32"}, "outbound": "direct"},
 		map[string]interface{}{"protocol": "dns", "outbound": "direct"},
 	}
 
-	// 为每个独立端口的 inbound 创建路由规则 (同样需要排序)
 	var mappingPorts []int
 	for p := range portToMapping {
 		mappingPorts = append(mappingPorts, p)
@@ -244,7 +245,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 默认落地
 	defaultExitTag := "block"
 	if entry.TargetExitID != 0 {
 		for _, e := range exits {
