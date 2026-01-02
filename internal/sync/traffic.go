@@ -75,7 +75,7 @@ func CollectTraffic(report models.NodeTrafficReport) {
 	// 记录系统探针数据
 	if report.Stats != nil {
 		report.Stats.ReportAt = time.Now().Unix()
-		
+
 		targetID := report.NodeID
 		found := false
 
@@ -103,7 +103,7 @@ func CollectTraffic(report models.NodeTrafficReport) {
 
 		if found {
 			nodeStatsMap.Store(targetID, report.Stats)
-			log.Printf("[Traffic] 探针成功映射: AgentID #%d -> 节点 #%d (CPU: %.1f%%)", report.NodeID, targetID, report.Stats.CPU)
+			// 探针正常映射完全静默，不再打印
 		} else {
 			// 极端情况：完全不认识此 ID，但我们依然存下来，Key 使用上报的原始 ID
 			nodeStatsMap.Store(targetID, report.Stats)
@@ -221,10 +221,15 @@ func pushTrafficAndOnlineToV2Board() {
 
 			err := reportToV2BoardAPIWithID(entry, nodeID, nodeType, payload)
 			if err != nil {
-				log.Printf("[Traffic] V2Board 同步失败 (Entry #%d, Node #%d): %v", entry.ID, nodeID, err)
+				log.Printf("[Sync-Error] V2Board 同步失败 (Entry #%d, Node #%d): %v", entry.ID, nodeID, err)
 			} else {
-				log.Printf("[Traffic] V2Board 同步成功 (Entry #%d, Node #%d): %d 用户, ↑ %s, ↓ %s",
-					entry.ID, nodeID, len(payload), formatBytes(totalUp), formatBytes(totalDown))
+				// 详尽保留流量日志，方便监控
+				status := "OK"
+				if totalUp+totalDown == 0 {
+					status = "EMPTY" // 高亮显示无流量上报，方便发现断流
+				}
+				log.Printf("[Sync] [%s] Entry #%d -> V2B Node #%d: %d 用户, ↑ %s, ↓ %s",
+					status, entry.ID, nodeID, len(payload), formatBytes(totalUp), formatBytes(totalDown))
 			}
 		}
 	}
