@@ -45,7 +45,8 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	// TODO: 更好地获取 admin token
 
 	// 获取版本号（假设最新）
-	version := "v3.4.1"
+	// 获取版本号（假设最新）
+	version := "v3.4.2"
 
 	// 构造一键安装 & 对接脚本
 	// 注意：这里使用 sudo bash -c 确保权限，并在内部处理 log
