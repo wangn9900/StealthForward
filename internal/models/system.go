@@ -32,3 +32,12 @@ type SSHKey struct {
 	KeyContent string    `json:"key_content"` // 私钥 Base64 或明文
 	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// 定义常用 Key 常量
+const (
+	ConfigKeyAwsAccessKeyID     = "aws.access_key_id"
+	ConfigKeyAwsSecretAccessKey = "aws.secret_access_key"
+	ConfigKeyAwsDefaultRegion   = "aws.default_region" // 默认区域
+	ConfigKeyCfApiToken         = "cloudflare.api_token"
+	ConfigKeyCfDefaultZone      = "cloudflare.default_zone" // 默认域名 (2233006.xyz)
+)
