@@ -75,12 +75,28 @@ type UserTraffic struct {
 	Download  int64  `json:"download"`
 }
 
+// SystemStats 代表服务器状态探针数据
+type SystemStats struct {
+	CPU      float64 `json:"cpu"`       // CPU 使用率 (%)
+	Mem      float64 `json:"mem"`       // 内存使用率 (%)
+	Swap     float64 `json:"swap"`      // Swap 使用率 (%)
+	Disk     float64 `json:"disk"`      // 硬盘使用率 (%)
+	NetIn    int64   `json:"net_in"`    // 近期下行速率 (bytes/s)
+	NetOut   int64   `json:"net_out"`   // 近期上行速率 (bytes/s)
+	Load1    float64 `json:"load1"`     // 负载 1min
+	Load5    float64 `json:"load5"`     // 负载 5min
+	Load15   float64 `json:"load15"`    // 负载 15min
+	Uptime   int64   `json:"uptime"`    // 在线时间 (秒)
+	ReportAt int64   `json:"report_at"` // 上报时间戳
+}
+
 // NodeTrafficReport 节点上报的流量汇总
 type NodeTrafficReport struct {
 	NodeID        uint          `json:"node_id"`
 	Traffic       []UserTraffic `json:"traffic"`
 	TotalUpload   int64         `json:"total_upload"`
 	TotalDownload int64         `json:"total_download"`
+	Stats         *SystemStats  `json:"stats,omitempty"` // 探针数据
 }
 
 type TrafficStat struct {

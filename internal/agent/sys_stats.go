@@ -1,0 +1,80 @@
+package agent
+
+import (
+	"time"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v3/load"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/v3/net"
+	"github.com/wangn9900/StealthForward/internal/models"
+)
+
+var (
+	lastNetIn  int64
+	lastNetOut int64
+	lastCheck  time.Time
+)
+
+func GetSystemStats() *models.SystemStats {
+	stats := &models.SystemStats{}
+
+	// CPU
+	percent, _ := cpu.Percent(time.Second, false)
+	if len(percent) > 0 {
+		stats.CPU = percent[0]
+	}
+
+	// Memory
+	vm, _ := mem.VirtualMemory()
+	if vm != nil {
+		stats.Mem = vm.UsedPercent
+		stats.Swap = vm.SwapTotal
+		if vm.SwapTotal > 0 {
+			stats.Swap = (float64(vm.SwapUsed) / float64(vm.SwapTotal)) * 100
+		} else {
+			stats.Swap = 0
+		}
+	}
+
+	// Disk
+	d, _ := disk.Usage("/")
+	if d != nil {
+		stats.Disk = d.UsedPercent
+	}
+
+	// Load
+	l, _ := load.Avg()
+	if l != nil {
+		stats.Load1 = l.Load1
+		stats.Load5 = l.Load5
+		stats.Load15 = l.Load15
+	}
+
+	// Uptime
+	u, _ := host.Uptime()
+	stats.Uptime = int64(u)
+
+	// Network Speed
+	io, _ := net.IOCounters(false)
+	if len(io) > 0 {
+		now := time.Now()
+		currIn := int64(io[0].BytesRecv)
+		currOut := int64(io[0].BytesSent)
+
+		if !lastCheck.IsZero() {
+			duration := now.Sub(lastCheck).Seconds()
+			if duration > 0 {
+				stats.NetIn = int64(float64(currIn-lastNetIn) / duration)
+				stats.NetOut = int64(float64(currOut-lastNetOut) / duration)
+			}
+		}
+		lastNetIn = currIn
+		lastNetOut = currOut
+		lastCheck = now
+	}
+
+	return stats
+}

@@ -24,6 +24,8 @@ var (
 	totalTrafficMap sync.Map
 	// activeUsers stores UserEmail (Tag) -> LastSeenTime
 	activeUsers sync.Map
+	// nodeStatsMap stores NodeID -> *models.SystemStats
+	nodeStatsMap sync.Map
 )
 
 // CollectTraffic 接收来自 Agent 的流量快照
@@ -69,6 +71,12 @@ func CollectTraffic(report models.NodeTrafficReport) {
 		}
 	}
 	// log.Printf("[Traffic] 收到 Agent 流量汇报: Node %d, 条目数 %d", report.NodeID, len(report.Traffic))
+
+	// 记录系统探针数据
+	if report.Stats != nil {
+		report.Stats.ReportAt = time.Now().Unix()
+		nodeStatsMap.Store(report.NodeID, report.Stats)
+	}
 }
 
 // StartTrafficReporting 启动心跳和上报任务
@@ -234,6 +242,7 @@ type EntryTrafficStats struct {
 	EntryStats map[uint]models.TrafficStat   `json:"entry_stats"` // entry_id -> traffic
 	ExitStats  map[uint]models.TrafficStat   `json:"exit_stats"`  // exit_id -> traffic
 	UserStats  map[string]models.TrafficStat `json:"user_stats"`  // user_email -> traffic
+	NodeStats  map[uint]*models.SystemStats  `json:"node_stats"`  // node_id -> system stats
 }
 
 // GetTrafficStatsByEntry 返回按入口节点聚合的流量统计
@@ -242,7 +251,14 @@ func GetTrafficStatsByEntry() EntryTrafficStats {
 		EntryStats: make(map[uint]models.TrafficStat),
 		ExitStats:  make(map[uint]models.TrafficStat),
 		UserStats:  make(map[string]models.TrafficStat),
+		NodeStats:  make(map[uint]*models.SystemStats),
 	}
+
+	// 获取所有探针数据
+	nodeStatsMap.Range(func(key, value interface{}) bool {
+		result.NodeStats[key.(uint)] = value.(*models.SystemStats)
+		return true
+	})
 
 	// 获取所有用户流量
 	userStats := GetTrafficStats()

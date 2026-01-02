@@ -258,6 +258,7 @@ func (a *Agent) reportTrafficLoop() {
 			Traffic:       userTraffic,
 			TotalUpload:   nodeUp,
 			TotalDownload: nodeDown,
+			Stats:         GetSystemStats(), // 获取并附加系统状态
 		}
 
 		jsonData, _ := json.Marshal(report)
