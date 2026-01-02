@@ -1,5 +1,5 @@
 <script setup>
-import { inject, computed } from 'vue'
+import { inject, computed, ref } from 'vue'
 import { useApi } from '../composables/useApi'
 
 const props = defineProps({
@@ -10,7 +10,9 @@ const emit = defineEmits(['edit', 'refresh'])
 
 const exits = inject('exits')
 const trafficStats = inject('trafficStats')
-const { apiDelete } = useApi()
+const { apiDelete, apiPost } = useApi()
+
+const rotating = ref(false)
 
 const targetExitName = computed(() => {
   const ex = exits.value.find(e => e.id === props.entry.target_exit_id)
@@ -35,6 +37,33 @@ async function handleDelete() {
   }
 }
 
+async function rotateIP() {
+  if (!confirm('确定要更换此入口节点的 IP?')) return
+  rotating.value = true
+  try {
+    await apiPost(`/api/v1/entries/${props.entry.id}/rotate-ip`, {})
+    alert('IP 更换指令已下发，请等待生效')
+    emit('refresh')
+  } catch (e) {
+    alert('IP 更换失败: ' + e.message)
+  } finally {
+    rotating.value = false
+  }
+}
+
+async function toggleAutoRotate() {
+  try {
+    const newVal = !props.entry.auto_rotate_ip
+    await apiPost(`/api/v1/entries/${props.entry.id}`, {
+      ...props.entry,
+      auto_rotate_ip: newVal
+    })
+    emit('refresh')
+  } catch (e) {
+    alert('操作失败: ' + e.message)
+  }
+}
+
 function formatBytes(bytes) {
   if (!bytes) return '0 B'
   const k = 1024
@@ -46,13 +75,6 @@ function formatBytes(bytes) {
 
 <template>
   <div class="glass p-6 rounded-3xl relative overflow-hidden group hover:shadow-lg transition-shadow">
-    <!-- Background decoration -->
-    <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition pointer-events-none">
-      <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
-      </svg>
-    </div>
-    
     <div class="flex justify-between items-start">
       <div class="flex-1">
         <!-- Title & ID -->
@@ -90,6 +112,33 @@ function formatBytes(bytes) {
             <span class="font-mono">{{ formatBytes(entryTraffic) }}</span>
           </div>
         </div>
+
+        <!-- IP Controls -->
+        <div class="flex gap-3 mt-4 items-center">
+          <!-- Auto Rotate Toggle -->
+          <label class="flex items-center gap-2 cursor-pointer text-xs">
+            <div class="relative">
+              <input
+                type="checkbox"
+                :checked="entry.auto_rotate_ip"
+                @change="toggleAutoRotate"
+                class="sr-only peer"
+              />
+              <div class="w-9 h-5 bg-gray-600 rounded-full peer peer-checked:bg-primary-500 transition"></div>
+              <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-4 transition"></div>
+            </div>
+            <span class="text-[var(--text-muted)]">自动换IP</span>
+          </label>
+          
+          <!-- Manual Rotate Button -->
+          <button
+            @click="rotateIP"
+            :disabled="rotating"
+            class="text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition disabled:opacity-50"
+          >
+            {{ rotating ? '⏳ 更换中...' : '🔄 手动换IP' }}
+          </button>
+        </div>
       </div>
       
       <!-- Actions -->
@@ -97,6 +146,7 @@ function formatBytes(bytes) {
         <button
           @click="$emit('edit', entry)"
           class="p-3 glass rounded-2xl text-primary-400 hover:scale-110 active:scale-95 transition cursor-pointer"
+          title="编辑"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
@@ -105,6 +155,7 @@ function formatBytes(bytes) {
         <button
           @click="handleDelete"
           class="p-3 glass rounded-2xl text-rose-500 hover:scale-110 active:scale-95 transition cursor-pointer"
+          title="删除"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
