@@ -23,7 +23,7 @@ type SingBoxConfig struct {
 func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule, exits []models.ExitNode) (string, error) {
 	config := SingBoxConfig{
 		Log: map[string]interface{}{
-			"level": "debug",
+			"level": "error",
 		},
 		DNS: map[string]interface{}{
 			"servers": []interface{}{
@@ -204,6 +204,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "address")
 			delete(exitOutbound, "port")
 			delete(exitOutbound, "cipher")
+			exitOutbound["tcp_fast_open"] = false
 		}
 
 		exitOutbound["tag"] = "out-" + exit.Name
