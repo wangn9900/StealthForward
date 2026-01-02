@@ -142,6 +142,7 @@ func main() {
 		v1.GET("/cloud/instances", api.ListCloudInstancesHandler)
 		v1.GET("/cloud/auto-detect", api.AutoDetectInstanceHandler)
 		v1.POST("/cloud/rotate-ip", api.RotateIPHandler) // 通用入口
+		v1.POST("/entries/:id/reprovision", api.ReprovisionNodeHandler)
 
 		// --- Cloud Account Pool ---
 		v1.GET("/cloud/accounts", api.ListCloudAccountsHandler)
@@ -152,6 +153,7 @@ func main() {
 		// --- SSH Keys ---
 		v1.GET("/system/ssh-keys", api.ListSSHKeysHandler)
 		v1.POST("/system/ssh-keys", api.CreateSSHKeyHandler)
+		v1.PUT("/system/ssh-keys/:id", api.UpdateSSHKeyHandler)
 		v1.DELETE("/system/ssh-keys/:id", api.DeleteSSHKeyHandler)
 
 		// --- Lightsail ---

@@ -56,9 +56,32 @@ export function useApi() {
         return true
     }
 
+    async function apiPut(url, data) {
+        const res = await fetch(url, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': getToken()
+            }
+        })
+
+        if (res.status === 401) {
+            throw new Error('401 Unauthorized')
+        }
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error(err.error || res.statusText)
+        }
+
+        return res.json()
+    }
+
     return {
         apiGet,
         apiPost,
+        apiPut,
         apiDelete
     }
 }

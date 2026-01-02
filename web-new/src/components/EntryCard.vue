@@ -99,8 +99,23 @@ async function toggleAutoRotate() {
   }
 }
 
+const provisioning = ref(false)
+
+async function reprovisionNode() {
+  if (!confirm('确定触发自动化初始化? 这将尝试 SSH 连入中转机并开启 BBR、优化内核、安装 Agent。请确保已在设置中配置 SSH 密钥。')) return
+  provisioning.value = true
+  try {
+    const res = await apiPost(`/api/v1/entries/${props.entry.id}/reprovision`)
+    alert(res.message)
+  } catch (e) {
+    alert('启动失败: ' + e.message)
+  } finally {
+    provisioning.value = false
+  }
+}
+
 function copyUpdateCommand() {
-  const version = 'v3.3.6'
+  const version = 'v3.3.7'
   const cmd = `systemctl stop stealth-agent && mv /usr/local/bin/stealth-agent /usr/local/bin/stealth-agent.bak && wget -O /usr/local/bin/stealth-agent https://github.com/wangn9900/StealthForward/releases/download/${version}/stealth-agent-amd64 && chmod +x /usr/local/bin/stealth-agent && systemctl start stealth-agent && systemctl status stealth-agent`
   
   navigator.clipboard.writeText(cmd).then(() => {
@@ -164,8 +179,11 @@ function formatUptime(seconds) {
         <div class="mini-switch" @click="toggleAutoRotate" :class="{ 'on': entry.auto_rotate_ip }" title="自动换IP">
           <div class="t"></div>
         </div>
-        <button @click="rotateIP" :disabled="rotating" class="btn-rotate">
+        <button @click="rotateIP" :disabled="rotating" class="btn-rotate" title="换IP">
            <svg class="w-3.5 h-3.5" :class="{'animate-spin': rotating}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+        </button>
+        <button @click="reprovisionNode" :disabled="provisioning" class="btn-tool" style="color: #6366f1" title="自动化部署 (BBR+对接)">
+          <svg class="w-3.5 h-3.5" :class="{'animate-bounce': provisioning}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
         </button>
         <button @click="copyUpdateCommand" class="btn-tool" title="更新脚本"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></button>
         <button @click="$emit('edit', entry)" class="btn-tool"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>

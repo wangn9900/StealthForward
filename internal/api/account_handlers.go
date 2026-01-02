@@ -67,6 +67,22 @@ func CreateSSHKeyHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, key)
 }
 
+// UpdateSSHKeyHandler 更新 SSH 密钥
+func UpdateSSHKeyHandler(c *gin.Context) {
+	id := c.Param("id")
+	var key models.SSHKey
+	if err := database.DB.First(&key, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Key not found"})
+		return
+	}
+	if err := c.ShouldBindJSON(&key); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	database.DB.Save(&key)
+	c.JSON(http.StatusOK, key)
+}
+
 // DeleteSSHKeyHandler 删除 SSH 密钥
 func DeleteSSHKeyHandler(c *gin.Context) {
 	id := c.Param("id")

@@ -3,7 +3,7 @@ import { inject, ref, onMounted, watch } from 'vue'
 import { useApi } from '../composables/useApi'
 
 const settings = inject('settings')
-const { apiPost, apiGet, apiDelete } = useApi()
+const { apiPost, apiGet, apiPut, apiDelete } = useApi()
 
 const saving = ref(false)
 const loaded = ref(false)
@@ -71,6 +71,20 @@ async function removeCloudAccount(id) {
   } catch (e) { alert(e.message) }
 }
 
+async function saveAccount(acc) {
+  try {
+    await apiPut(`/api/v1/cloud/accounts/${acc.id}`, acc)
+    alert('账号信息已更新')
+  } catch (e) { alert('更新失败: ' + e.message) }
+}
+
+async function saveSSHKey(sk) {
+  try {
+    await apiPut(`/api/v1/system/ssh-keys/${sk.id}`, sk)
+    alert('SSH 密钥已更新')
+  } catch (e) { alert('更新失败: ' + e.message) }
+}
+
 async function saveSettings() {
   saving.value = true
   try {
@@ -136,7 +150,7 @@ function formatSize(bytes) {
             </label>
           </div>
           <div class="flex justify-end gap-2">
-            <button @click="() => apiPost(`/api/v1/cloud/accounts/${acc.id}`, acc)" class="text-xs bg-primary-500/10 text-primary-500 px-3 py-1.5 rounded-lg hover:bg-primary-500 hover:text-white transition">更新保存</button>
+            <button @click="saveAccount(acc)" class="text-xs bg-primary-500/10 text-primary-500 px-3 py-1.5 rounded-lg hover:bg-primary-500 hover:text-white transition">更新保存</button>
           </div>
         </div>
         <div v-if="cloudAccounts.length === 0" class="text-center py-8 text-[var(--text-muted)] italic text-sm">
@@ -214,7 +228,7 @@ function formatSize(bytes) {
            </div>
            <textarea v-model="sk.key_content" rows="3" class="w-full text-[10px] font-mono bg-black/20 border-none rounded-xl" placeholder="-----BEGIN RSA PRIVATE KEY-----"></textarea>
            <div class="mt-2 flex justify-end">
-             <button @click="() => apiPost(`/api/v1/system/ssh-keys/${sk.id}`, sk)" class="text-[10px] bg-indigo-500/10 text-indigo-500 px-3 py-1 rounded-lg hover:bg-indigo-500 hover:text-white transition">保存私钥内容</button>
+             <button @click="saveSSHKey(sk)" class="text-[10px] bg-indigo-500/10 text-indigo-500 px-3 py-1 rounded-lg hover:bg-indigo-500 hover:text-white transition">保存私钥内容</button>
            </div>
         </div>
       </div>
