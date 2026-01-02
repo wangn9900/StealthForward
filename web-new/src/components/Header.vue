@@ -17,7 +17,7 @@ const tabs = [
   <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
     <!-- Logo & Title -->
     <div>
-      <h1 class="text-4xl font-extrabold tracking-tighter gradient-text">StealthForward v2.0</h1>
+      <h1 class="text-4xl font-extrabold tracking-tighter gradient-text">StealthForward v3.2.8</h1>
       <p class="text-[var(--text-muted)] text-sm mt-1">First-Principles 架构 | 隐形中转分流中心</p>
     </div>
 
