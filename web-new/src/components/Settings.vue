@@ -1,16 +1,29 @@
 <script setup>
 import { inject, ref, onMounted } from 'vue'
+import { inject, ref, onMounted, watch } from 'vue'
 import { useApi } from '../composables/useApi'
 
 const settings = inject('settings')
 const { apiPost, apiGet } = useApi()
 
 const saving = ref(false)
+const loaded = ref(false)
 const keys = ref([])
 
+// 只要 settings 有数据了，就标记为已加载
 onMounted(async () => {
+  if (Object.keys(settings.value).length > 0) {
+    loaded.value = true
+  }
   await fetchKeys()
 })
+
+// 监听 settings 的变化，确保异步加载后能显示内容
+watch(settings, (newVal) => {
+  if (newVal && Object.keys(newVal).length > 0) {
+    loaded.value = true
+  }
+}, { deep: true })
 
 async function fetchKeys() {
   try {
@@ -52,8 +65,8 @@ function formatSize(bytes) {
 <template>
   <div class="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
     <!-- Infrastructure Config -->
-    <div class="glass p-8 rounded-3xl" v-if="settings">
-      <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 text-[var(--text-primary)]">
+    <div class="glass p-8 rounded-3xl" v-if="loaded">
+      <h2 class="text-2xl font-bold mb-6 flex items-center gap-2" style="color: var(--text-primary)">
         <svg class="w-6 h-6 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -134,8 +147,8 @@ function formatSize(bytes) {
     </div>
 
     <!-- SSH Keys List -->
-    <div class="glass p-8 rounded-3xl mt-6">
-      <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-[var(--text-primary)]">
+    <div class="glass p-8 rounded-3xl mt-6" v-if="loaded">
+      <h2 class="text-xl font-bold mb-6 flex items-center gap-2" style="color: var(--text-primary)">
         <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
         </svg>
@@ -171,6 +184,14 @@ function formatSize(bytes) {
       <p class="mt-6 text-xs text-[var(--text-muted)] leading-relaxed">
         * 这些密钥文件保存在主机的 <code class="bg-black/20 p-0.5 rounded px-1">store/keys/</code> 目录下。为了安全，下载后请妥善保管。
       </p>
+    </div>
+
+    <!-- Loading State -->
+    <div v-else class="glass p-12 rounded-3xl flex flex-col items-center justify-center text-[var(--text-muted)] italic">
+      <svg class="w-10 h-10 mb-4 animate-spin opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      正在连接主控获取系统配置...
     </div>
   </div>
 </template>
