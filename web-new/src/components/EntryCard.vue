@@ -9,11 +9,20 @@ const props = defineProps({
 const emit = defineEmits(['edit', 'refresh'])
 
 const exits = inject('exits')
+const trafficStats = inject('trafficStats')
 const { apiDelete } = useApi()
 
 const targetExitName = computed(() => {
   const ex = exits.value.find(e => e.id === props.entry.target_exit_id)
   return ex ? ex.name : '不绑定'
+})
+
+// Calculate total traffic for this entry
+const entryTraffic = computed(() => {
+  if (!trafficStats.value || !trafficStats.value.entry_stats) return 0
+  const stats = trafficStats.value.entry_stats[props.entry.id]
+  if (!stats) return 0
+  return (stats.upload || 0) + (stats.download || 0)
 })
 
 async function handleDelete() {
@@ -78,7 +87,7 @@ function formatBytes(bytes) {
           </div>
           <div class="p-2 px-3 bg-primary-500/10 rounded-xl border border-primary-500/20 text-xs min-w-[80px]">
             <div class="text-primary-400 mb-0.5 uppercase tracking-tighter font-bold">已用流量</div>
-            <span class="font-mono">{{ formatBytes(0) }}</span>
+            <span class="font-mono">{{ formatBytes(entryTraffic) }}</span>
           </div>
         </div>
       </div>
