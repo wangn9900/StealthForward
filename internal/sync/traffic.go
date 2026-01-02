@@ -77,24 +77,38 @@ func CollectTraffic(report models.NodeTrafficReport) {
 		report.Stats.ReportAt = time.Now().Unix()
 		
 		targetID := report.NodeID
-		
-		// 纠偏逻辑：如果 Agent 上报的是 V2Board 的 NodeID (比如 20) 而不是系统内部 ID (比如 1)
-		// 我们尝试通过映射表找回原本的入口 ID
+		found := false
+
+		// 调试日志：看看原始上报的是什么
+		// log.Printf("[Traffic-Debug] 原始上报 NodeID: %d", report.NodeID)
+
+		// 1. 尝试直接匹配入口 ID
 		var entry models.EntryNode
-		if err := database.DB.First(&entry, targetID).Error; err != nil {
-			// 如果直接查 ID 查不到，尝试查 V2BoardNodeID
-			var mapping models.NodeMapping
-			if err := database.DB.Where("v2board_node_id = ?", targetID).First(&mapping).Error; err == nil {
-				targetID = mapping.EntryNodeID
-				// log.Printf("[Traffic] 探针 ID 纠偏: V2Board #%d -> 系统 #%d", report.NodeID, targetID)
-			} else if err := database.DB.Where("v2board_node_id = ?", targetID).First(&entry).Error; err == nil {
+		if err := database.DB.First(&entry, targetID).Error; err == nil {
+			found = true
+		} else {
+			// 2. 尝试匹配入口节点的 v2board_node_id
+			if err := database.DB.Where("v2board_node_id = ?", targetID).First(&entry).Error; err == nil {
 				targetID = entry.ID
-				// log.Printf("[Traffic] 探针 ID 纠偏: 入口 V2Board #%d -> 系统 #%d", report.NodeID, targetID)
+				found = true
+			} else {
+				// 3. 尝试从多端口映射表中找
+				var mapping models.NodeMapping
+				if err := database.DB.Where("v2board_node_id = ?", targetID).First(&mapping).Error; err == nil {
+					targetID = mapping.EntryNodeID
+					found = true
+				}
 			}
 		}
 
-		nodeStatsMap.Store(targetID, report.Stats)
-		log.Printf("[Traffic] 收到节点 #%d 探针数据 (最终映射 ID: #%d)", report.NodeID, targetID)
+		if found {
+			nodeStatsMap.Store(targetID, report.Stats)
+			log.Printf("[Traffic] 探针成功映射: AgentID #%d -> 节点 #%d (CPU: %.1f%%)", report.NodeID, targetID, report.Stats.CPU)
+		} else {
+			// 极端情况：完全不认识此 ID，但我们依然存下来，Key 使用上报的原始 ID
+			nodeStatsMap.Store(targetID, report.Stats)
+			log.Printf("[Traffic-Warning] 收到未知节点的探针数据: ID #%d (请检查 Agent 启动参数)", targetID)
+		}
 	}
 }
 
