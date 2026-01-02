@@ -18,8 +18,10 @@ import (
 )
 
 var (
-	// userTrafficMap stores UID -> [Upload, Download]
+	// userTrafficMap stores UID -> [Upload, Download] (Deltas for V2Board sync)
 	userTrafficMap sync.Map
+	// totalTrafficMap stores Tag/UserEmail -> [TotalUpload, TotalDownload] (Lifetime stats for UI)
+	totalTrafficMap sync.Map
 	// activeUsers stores UserEmail (Tag) -> LastSeenTime
 	activeUsers sync.Map
 )
@@ -52,11 +54,17 @@ func CollectTraffic(report models.NodeTrafficReport) {
 
 		// 累加流量 (增量)
 		if t.Upload > 0 || t.Download > 0 {
-			// 使用 UserEmail (即 Tag, 如 n20-xxxxx) 作为 Key，确保不同节点的流量分开记录
+			// 1. 记录增量 (用于 V2Board 同步, 同步后清零)
 			val, _ := userTrafficMap.LoadOrStore(t.UserEmail, &[2]int64{0, 0})
 			traffic := val.(*[2]int64)
 			atomic.AddInt64(&traffic[0], t.Upload)
 			atomic.AddInt64(&traffic[1], t.Download)
+
+			// 2. 记录总量 (用于 UI 展示, 不清零)
+			totVal, _ := totalTrafficMap.LoadOrStore(t.UserEmail, &[2]int64{0, 0})
+			totalTraffic := totVal.(*[2]int64)
+			atomic.AddInt64(&totalTraffic[0], t.Upload)
+			atomic.AddInt64(&totalTraffic[1], t.Download)
 			// log.Printf("[Debug] 收到用户 %s (UID %d) 流量: Up %d, Down %d", t.UserEmail, rule.V2boardUID, t.Upload, t.Download)
 		}
 	}
@@ -204,4 +212,19 @@ func reportToV2BoardAPIWithID(entry models.EntryNode, nodeID int, nodeType strin
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
+}
+
+// GetTrafficStats 返回所有标签的流量总计 map[UserEmail]TrafficStats
+func GetTrafficStats() map[string]models.TrafficStat {
+	stats := make(map[string]models.TrafficStat)
+	totalTrafficMap.Range(func(key, value interface{}) bool {
+		userEmail := key.(string)
+		counters := value.(*[2]int64)
+		stats[userEmail] = models.TrafficStat{
+			Upload:   atomic.LoadInt64(&counters[0]),
+			Download: atomic.LoadInt64(&counters[1]),
+		}
+		return true
+	})
+	return stats
 }

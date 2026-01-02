@@ -75,3 +75,8 @@ type NodeTrafficReport struct {
 	TotalUpload   int64         `json:"total_upload"`
 	TotalDownload int64         `json:"total_download"`
 }
+
+type TrafficStat struct {
+	Upload   int64 `json:"upload"`
+	Download int64 `json:"download"`
+}

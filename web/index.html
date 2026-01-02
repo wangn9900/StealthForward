@@ -200,7 +200,17 @@
                         <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
                         入站入口 (Entry)
                     </h2>
-                    <button @click="addEntry" class="text-sm text-indigo-400 hover:underline">+ 新增</button>
+                    <div class="flex gap-3">
+                        <button @click="showProvisionModal"
+                            class="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 hover:scale-105 transition flex items-center gap-1">
+                            <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            新建云端节点
+                        </button>
+                        <button @click="addEntry" class="text-sm text-indigo-400 hover:underline">+ 手动新增</button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 gap-4">
                     <div v-for="node in entries" :key="node.id"
@@ -249,6 +259,13 @@
                                     <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]">
                                         <div class="text-slate-500 mb-0.5 uppercase tracking-tighter">API 同步</div> {{
                                         node.v2board_url ? '已开启' : '未开启' }}
+                                    </div>
+                                    <div
+                                        class="p-2 px-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-[10px] min-w-[80px]">
+                                        <div class="text-indigo-400 mb-0.5 uppercase tracking-tighter font-bold">已用流量
+                                        </div>
+                                        <span class="text-white font-mono">{{ formatBytes(getEntryTraffic(node.id))
+                                            }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -414,6 +431,10 @@
                                         <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                                         运行中
                                     </span>
+                                    <div class="mt-1 text-[10px] text-slate-500 font-mono">
+                                        流量: <span class="text-slate-300">{{
+                                            formatBytes(getMappingTraffic(m.entry_node_id, m.v2board_node_id)) }}</span>
+                                    </div>
                                 </td>
                                 <td class="py-4 px-6 text-right">
                                     <div
@@ -731,6 +752,56 @@
                 </div>
             </div>
         </div>
+
+        <!-- Cloud Provision Modal -->
+        <div v-if="modal.type === 'provision'"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
+                <div class="mb-6">
+                    <h3
+                        class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 mb-2">
+                        新建云端节点 (AWS)</h3>
+                    <p class="text-xs text-slate-500">将自动在 AWS 购买 EC2 实例、分配 EIP、设置 Root 权限并全放行防火墙。</p>
+                </div>
+                <div class="space-y-4 text-sm">
+                    <label class="flex flex-col gap-1.5 text-slate-500">机房区域 (Region)
+                        <select v-model="form.provision.region">
+                            <option value="ap-northeast-1">ToKyo (东京)</option>
+                            <option value="ap-east-1">Hong Kong (香港)</option>
+                            <option value="ap-southeast-1">Singapore (新加坡)</option>
+                            <option value="us-west-1">California (加利福尼亚)</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">实例配置 (Instance Type)
+                        <select v-model="form.provision.instance_type">
+                            <option value="t3.nano">t3.nano (0.5G RAM) - 测试用</option>
+                            <option value="t3.micro">t3.micro (1G RAM) - 入门</option>
+                            <option value="t3.small">t3.small (2G RAM) - 推荐</option>
+                            <option value="t3.medium">t3.medium (4G RAM) - 高性能</option>
+                            <option value="c5.large">c5.large (Compute) - 旗舰</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1.5 text-slate-500">操作系统
+                        <input disabled value="Debian 12 (Bookworm) [Auto Latest AMI]"
+                            class="opacity-50 cursor-not-allowed">
+                    </label>
+                    <div class="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                        <label class="flex flex-col gap-1.5 text-slate-500 font-bold text-amber-500">Root 密码 (SSH)
+                            <input v-model="form.provision.root_password" type="text" placeholder="设置一个强密码..."
+                                class="font-mono text-center">
+                        </label>
+                        <p class="text-[10px] text-amber-500/70 mt-1 text-center">* 实例创建后将自动开启 Root 密码登录</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 mt-8">
+                    <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
+                    <button @click="submitProvision" :disabled="provisionLoading"
+                        class="flex-1 p-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-2xl font-bold disabled:opacity-50">
+                        {{ provisionLoading ? '正在购买中 (约2分)...' : '立即开通 ($)' }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
@@ -748,16 +819,19 @@
                     exits: [],
                     rules: [],
                     mappings: [],
+                    trafficStats: {},
                     settings: {},
                     certLoading: false,
                     rotateLoading: false,
+                    provisionLoading: false,
                     modal: { type: null },
                     form: {
                         entry: { id: null, name: '', port: 443, domain: '', certificate: '', key: '', fallback: '127.0.0.1:80', target_exit_id: 0, v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
                         exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, password: '', method: '2022-blake3-aes-128-gcm' },
                         rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null },
                         mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray', port: null },
-                        rotate: { node_id: null, region: '', instance_id: '', zone_name: '', record_name: '' }
+                        rotate: { node_id: null, region: '', instance_id: '', zone_name: '', record_name: '' },
+                        provision: { region: 'ap-northeast-1', instance_type: 't3.micro', root_password: '' }
                     }
                 }
             },
@@ -809,7 +883,8 @@
                             fetch('/api/v1/entries', { headers }),
                             fetch('/api/v1/exits', { headers }),
                             fetch('/api/v1/rules', { headers }),
-                            fetch('/api/v1/mappings', { headers })
+                            fetch('/api/v1/mappings', { headers }),
+                            fetch('/api/v1/traffic', { headers })
                         ]);
 
                         // Check for 401 on any request
@@ -821,8 +896,8 @@
                             }
                         }
 
-                        const [e, x, r, m] = await Promise.all(responses.map(res => res.json()));
-                        this.entries = e; this.exits = x; this.rules = r; this.mappings = m;
+                        const [e, x, r, m, t] = await Promise.all(responses.map(res => res.json()));
+                        this.entries = e; this.exits = x; this.rules = r; this.mappings = m; this.trafficStats = t || {};
                     } catch (err) { console.error('Data fail', err) }
                 },
                 async fetchSettings() {
@@ -989,6 +1064,87 @@
                         port: null
                     };
                     this.showModal('mapping');
+                },
+                showProvisionModal() {
+                    this.form.provision = { region: 'ap-northeast-1', instance_type: 't3.micro', root_password: '' };
+                    this.showModal('provision');
+                },
+                async submitProvision() {
+                    if (!this.form.provision.root_password) return alert('请设置 Root 密码');
+                    this.provisionLoading = true;
+                    try {
+                        const res = await this.apiPost('/api/v1/cloud/instances', this.form.provision);
+                        alert(`实例创建成功!\nID: ${res.instance_id}\nIP: ${res.public_ip}\n请手动添加为新的入站节点。`);
+                        this.hideModal();
+                        // Optional: Auto add entry if we wanted, but manual is safer for now
+                    } catch (e) {
+                        alert('Create Failed: ' + e.message);
+                    } finally {
+                        this.provisionLoading = false;
+                    }
+                },
+                getEntryTraffic(entryId) {
+                    // Sum traffic for all rules belonging to this entry
+                    let total = 0;
+                    // Find rules for this entry
+                    const entryRules = this.rules.filter(r => r.entry_node_id === entryId);
+                    entryRules.forEach(r => {
+                        const s = this.trafficStats[r.user_email];
+                        if (s) total += (s.upload + s.download);
+                    });
+
+                    // Also sum dynamic mappings traffic? 
+                    // Mappings map V2Board Node ID -> Exit. 
+                    // Traffic is reported by UserEmail (Tag). 
+                    // If tag format is like 'n20-xxxxx', it belongs to V2Board Node 20.
+                    // We need to map Entry -> Mappings -> V2Board Node IDs -> Tags(UserEmails).
+                    // This is complex because we don't have the list of ALL user emails for a mapping easily here without scanning all stats.
+
+                    // Allow scanning all trafficStats to see which one belongs to this entry?
+                    // The tag `n20` refers to V2B Node ID 20.
+                    // We know which V2B Node IDs are associated with this entry via Mappings or Entry's own ID.
+
+                    const targetV2bNodeIds = new Set();
+                    if (this.entries.find(e => e.id === entryId).v2board_node_id) {
+                        targetV2bNodeIds.add(this.entries.find(e => e.id === entryId).v2board_node_id);
+                    }
+                    this.mappings.filter(m => m.entry_node_id === entryId).forEach(m => targetV2bNodeIds.add(m.v2board_node_id));
+
+                    // Iterate all stats
+                    for (const [tag, stat] of Object.entries(this.trafficStats)) {
+                        // Tag format: n{NodeID}-{UUID} or just UUID
+                        if (tag.startsWith('n')) {
+                            const parts = tag.split('-');
+                            const nodeId = parseInt(parts[0].substring(1));
+                            if (targetV2bNodeIds.has(nodeId)) {
+                                total += (stat.upload + stat.download);
+                            }
+                        }
+                    }
+
+                    return total;
+                },
+                getMappingTraffic(entryId, v2bNodeId) {
+                    let total = 0;
+                    for (const [tag, stat] of Object.entries(this.trafficStats)) {
+                        // Exact match for node ID in tag
+                        if (tag.startsWith('n' + v2bNodeId + '-')) {
+                            // We also need to ensure it's from THIS entry?
+                            // Tags are globally unique per V2Board Node.
+                            // If multiple entries share same V2B Node ID, traffic is shared.
+                            // Assuming unique V2B Node IDs per entry usually.
+                            total += (stat.upload + stat.download);
+                        }
+                    }
+                    return total;
+                },
+                formatBytes(bytes, decimals = 2) {
+                    if (!+bytes) return '0 B';
+                    const k = 1024;
+                    const dm = decimals < 0 ? 0 : decimals;
+                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
                 }
             }
         }).mount('#app')
