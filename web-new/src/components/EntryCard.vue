@@ -10,6 +10,7 @@ const emit = defineEmits(['edit', 'refresh'])
 
 const exits = inject('exits')
 const trafficStats = inject('trafficStats')
+const settings = inject('settings')
 const { apiDelete, apiPost } = useApi()
 
 const rotating = ref(false)
@@ -38,10 +39,19 @@ async function handleDelete() {
 }
 
 async function rotateIP() {
+  if (!props.entry.cloud_provider || props.entry.cloud_provider === 'none') {
+    alert('此入口未绑定云平台，无法自动换IP。请在编辑中绑定 AWS EC2 或 Lightsail 实例。')
+    return
+  }
   if (!confirm('确定要更换此入口节点的 IP?')) return
   rotating.value = true
   try {
-    await apiPost(`/api/v1/entries/${props.entry.id}/rotate-ip`, {})
+    await apiPost(`/api/v1/node/${props.entry.id}/rotate-ip`, {
+      region: props.entry.cloud_region,
+      instance_id: props.entry.cloud_instance_id,
+      zone_name: settings?.value?.['cloudflare.default_zone'] || '',
+      record_name: props.entry.cloud_record_name
+    })
     alert('IP 更换指令已下发，请等待生效')
     emit('refresh')
   } catch (e) {

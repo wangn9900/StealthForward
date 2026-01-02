@@ -7,8 +7,8 @@ import (
 	"github.com/wangn9900/StealthForward/internal/sync"
 )
 
-// GetTrafficStatsHandler 返回当前所有节点的流量统计
+// GetTrafficStatsHandler 返回按入口节点聚合的流量统计
 func GetTrafficStatsHandler(c *gin.Context) {
-	stats := sync.GetTrafficStats()
+	stats := sync.GetTrafficStatsByEntry()
 	c.JSON(http.StatusOK, stats)
 }

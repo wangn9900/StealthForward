@@ -228,3 +228,62 @@ func GetTrafficStats() map[string]models.TrafficStat {
 	})
 	return stats
 }
+
+// EntryTrafficStats 入口节点流量统计响应结构
+type EntryTrafficStats struct {
+	EntryStats map[uint]models.TrafficStat   `json:"entry_stats"` // entry_id -> traffic
+	ExitStats  map[uint]models.TrafficStat   `json:"exit_stats"`  // exit_id -> traffic
+	UserStats  map[string]models.TrafficStat `json:"user_stats"`  // user_email -> traffic
+}
+
+// GetTrafficStatsByEntry 返回按入口节点聚合的流量统计
+func GetTrafficStatsByEntry() EntryTrafficStats {
+	result := EntryTrafficStats{
+		EntryStats: make(map[uint]models.TrafficStat),
+		ExitStats:  make(map[uint]models.TrafficStat),
+		UserStats:  make(map[string]models.TrafficStat),
+	}
+
+	// 获取所有用户流量
+	userStats := GetTrafficStats()
+	result.UserStats = userStats
+
+	// 遍历所有转发规则，聚合入口和出口流量
+	var rules []models.ForwardingRule
+	database.DB.Find(&rules)
+
+	entryTotals := make(map[uint][2]int64)
+	exitTotals := make(map[uint][2]int64)
+
+	for _, rule := range rules {
+		// 找到该用户的流量
+		if stat, ok := userStats[rule.UserEmail]; ok {
+			// 累加到入口
+			entryTotals[rule.EntryNodeID] = [2]int64{
+				entryTotals[rule.EntryNodeID][0] + stat.Upload,
+				entryTotals[rule.EntryNodeID][1] + stat.Download,
+			}
+			// 累加到出口
+			exitTotals[rule.ExitNodeID] = [2]int64{
+				exitTotals[rule.ExitNodeID][0] + stat.Upload,
+				exitTotals[rule.ExitNodeID][1] + stat.Download,
+			}
+		}
+	}
+
+	// 转换为 TrafficStat 格式
+	for entryID, totals := range entryTotals {
+		result.EntryStats[entryID] = models.TrafficStat{
+			Upload:   totals[0],
+			Download: totals[1],
+		}
+	}
+	for exitID, totals := range exitTotals {
+		result.ExitStats[exitID] = models.TrafficStat{
+			Upload:   totals[0],
+			Download: totals[1],
+		}
+	}
+
+	return result
+}

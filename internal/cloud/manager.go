@@ -134,7 +134,7 @@ func RotateIPForInstance(ctx context.Context, region, instanceID, zoneName, reco
 
 	// 6. 更新 Cloudflare DNS
 	if zoneName != "" && recordName != "" {
-		err = updateCloudflareDNS(ctx, zoneName, recordName, newPublicIP)
+		err = UpdateCloudflareDNS(ctx, zoneName, recordName, newPublicIP)
 		if err != nil {
 			log.Printf("[Cloud] Error updating DNS (but IP rotated): %v", err)
 			return newPublicIP, fmt.Errorf("ip rotated to %s but dns update failed: %v", newPublicIP, err)
@@ -145,7 +145,8 @@ func RotateIPForInstance(ctx context.Context, region, instanceID, zoneName, reco
 	return newPublicIP, nil
 }
 
-func updateCloudflareDNS(ctx context.Context, zoneName, recordName, newIP string) error {
+// UpdateCloudflareDNS 更新 A 记录
+func UpdateCloudflareDNS(ctx context.Context, zoneName, recordName, newIP string) error {
 	// 读取 CF Token
 	var setting models.SystemSetting
 	var apiToken string

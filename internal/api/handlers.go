@@ -370,7 +370,7 @@ func ImportConfigHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "配置恢复成功，已触发全量同步"})
 }
 
-// RotateIPHandler 主动更换 AWS 节点 IP
+// RotateIPHandler 主动更换 AWS 节点 IP (支持 EC2 和 Lightsail)
 func RotateIPHandler(c *gin.Context) {
 	nodeIDStr := c.Param("id")
 	// 校验节点是否存在
@@ -381,30 +381,61 @@ func RotateIPHandler(c *gin.Context) {
 	}
 
 	var req struct {
-		Region     string `json:"region" binding:"required"`
-		InstanceID string `json:"instance_id" binding:"required"`
-		ZoneName   string `json:"zone_name" binding:"required"`
-		RecordName string `json:"record_name" binding:"required"`
+		Region     string `json:"region"`
+		InstanceID string `json:"instance_id"`
+		ZoneName   string `json:"zone_name"`
+		RecordName string `json:"record_name"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// 可选绑定 JSON
+	c.ShouldBindJSON(&req)
+
+	// 优先使用数据库中绑定的信息
+	if req.Region == "" {
+		req.Region = entry.CloudRegion
+	}
+	if req.InstanceID == "" {
+		req.InstanceID = entry.CloudInstanceID
+	}
+	if req.RecordName == "" {
+		req.RecordName = entry.CloudRecordName
+	}
+
+	// 检查 ZoneName
+	if req.ZoneName == "" {
+		var setting models.SystemSetting
+		if err := database.DB.Where("key = ?", "cloudflare.default_zone").First(&setting).Error; err == nil {
+			req.ZoneName = setting.Value
+		}
+	}
+
+	// 最终校验
+	if req.Region == "" || req.InstanceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "未绑定云平台区域或实例 ID，请在编辑中绑定"})
 		return
 	}
 
-	// 异步执行，避免 API 超时 (AWS 换 IP 可能比较慢)
-	// 但为了反馈结果，这里简化为同步执行（或者您可以改为返回 TaskID）
-	newIP, err := cloud.RotateIPForInstance(c.Request.Context(), req.Region, req.InstanceID, req.ZoneName, req.RecordName)
+	var newIP string
+	var err error
+
+	// 执行换 IP 逻辑 (路由)
+	if entry.CloudProvider == "aws_lightsail" {
+		newIP, err = cloud.RotateLightsailIPWithDNS(c.Request.Context(), req.Region, req.InstanceID, req.ZoneName, req.RecordName)
+	} else {
+		// 默认为 AWS EC2
+		newIP, err = cloud.RotateIPForInstance(c.Request.Context(), req.Region, req.InstanceID, req.ZoneName, req.RecordName)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Rotate failed: " + err.Error()})
 		return
 	}
 
-	// 成功后，更新数据库中的 IP 字段 (尽管我们主要用域名，但更新一下 IP 数据更好)
+	// 成功后，更新数据库中的 IP 字段
 	entry.IP = newIP
 	database.DB.Save(&entry)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "IP rotated successfully",
+		"message": "IP 更换成功",
 		"new_ip":  newIP,
 	})
 }

@@ -25,6 +25,13 @@ type EntryNode struct {
 	V2boardNodeID int    `json:"v2board_node_id"` // 默认节点 ID
 	V2boardType   string `json:"v2board_type"`    // v2ray, shadowsocks, trojan
 
+	// 云平台绑定 (用于一键换 IP)
+	CloudProvider   string `json:"cloud_provider"`    // "aws_ec2", "aws_lightsail", "none"
+	CloudRegion     string `json:"cloud_region"`      // "ap-northeast-1"
+	CloudInstanceID string `json:"cloud_instance_id"` // EC2: "i-0123..." / Lightsail: "stealth-xxx"
+	CloudRecordName string `json:"cloud_record_name"` // Cloudflare 子域名 (如 "transitnode")
+	AutoRotateIP    bool   `json:"auto_rotate_ip"`    // 是否启用自动换 IP
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

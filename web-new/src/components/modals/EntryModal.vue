@@ -23,7 +23,13 @@ const form = ref({
   v2board_url: '',
   v2board_key: '',
   v2board_node_id: null,
-  v2board_type: 'v2ray'
+  v2board_type: 'v2ray',
+  // 云平台绑定
+  cloud_provider: 'none',
+  cloud_region: '',
+  cloud_instance_id: '',
+  cloud_record_name: '',
+  auto_rotate_ip: false
 })
 
 const saving = ref(false)
@@ -48,11 +54,11 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="$emit('close')">
-    <div class="glass w-full max-w-xl p-8 rounded-3xl animate-slide-up">
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" @click.self="$emit('close')">
+    <div class="glass w-full max-w-xl p-8 rounded-3xl animate-slide-up my-8">
       <h3 class="text-2xl font-bold mb-6">{{ entry ? '编辑' : '新增' }}入站节点</h3>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
         <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
           显示名称
           <input v-model="form.name" placeholder="美国 01 / 日本入口" />
@@ -83,6 +89,7 @@ async function handleSubmit() {
           <input v-model="form.fallback" placeholder="127.0.0.1:80" />
         </label>
         
+        <!-- V2Board Section -->
         <div class="md:col-span-2 text-primary-400 font-bold mt-2">V2Board API 同步 (可选)</div>
         
         <input class="md:col-span-2" v-model="form.v2board_url" placeholder="API 地址: https://v2.mysite.com" />
@@ -99,6 +106,39 @@ async function handleSubmit() {
           </select>
         </div>
         
+        <!-- Cloud Binding Section -->
+        <div class="md:col-span-2 text-amber-400 font-bold mt-4 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+          </svg>
+          云平台绑定 (换IP功能)
+        </div>
+        
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          云平台
+          <select v-model="form.cloud_provider">
+            <option value="none">无 (非云机器)</option>
+            <option value="aws_ec2">AWS EC2</option>
+            <option value="aws_lightsail">AWS Lightsail</option>
+          </select>
+        </label>
+        
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          区域 (Region)
+          <input v-model="form.cloud_region" placeholder="ap-northeast-1" :disabled="form.cloud_provider === 'none'" />
+        </label>
+        
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          实例 ID / 名称
+          <input v-model="form.cloud_instance_id" :placeholder="form.cloud_provider === 'aws_lightsail' ? 'stealth-xxx' : 'i-0abc123...'" :disabled="form.cloud_provider === 'none'" />
+        </label>
+        
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          DNS 记录名
+          <input v-model="form.cloud_record_name" placeholder="transitnode (不带域名后缀)" :disabled="form.cloud_provider === 'none'" />
+        </label>
+        
+        <!-- Target Exit -->
         <div class="md:col-span-2 text-primary-400 font-bold mt-2">目标落地机 (流量转发目的地)</div>
         
         <select class="md:col-span-2" v-model.number="form.target_exit_id">

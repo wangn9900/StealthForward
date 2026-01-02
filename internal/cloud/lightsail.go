@@ -429,3 +429,20 @@ func RotateLightsailIP(ctx context.Context, region, instanceName string) (string
 
 	return "", fmt.Errorf("ip allocated but failed to fetch address")
 }
+
+// RotateLightsailIPWithDNS 换 IP 并更新 DNS
+func RotateLightsailIPWithDNS(ctx context.Context, region, instanceName, zoneName, recordName string) (string, error) {
+	newIP, err := RotateLightsailIP(ctx, region, instanceName)
+	if err != nil {
+		return "", err
+	}
+
+	if zoneName != "" && recordName != "" {
+		if err := UpdateCloudflareDNS(ctx, zoneName, recordName, newIP); err != nil {
+			log.Printf("[Cloud-LS] DNS update failed for %s: %v", instanceName, err)
+			return newIP, fmt.Errorf("ip rotated to %s but dns update failed: %v", newIP, err)
+		}
+	}
+
+	return newIP, nil
+}
