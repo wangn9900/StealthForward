@@ -105,7 +105,19 @@ install_controller() {
   download_binary "stealth-admin" "stealth-admin"
 
   echo -e "${YELLOW}正在同步可视化面板资源...${NC}"
+  # 下载 index.html
   curl -L -f -o "$INSTALL_DIR/web/index.html" "https://raw.githubusercontent.com/$REPO/main/web/index.html"
+  
+  # 下载 Vite 构建的 assets 目录（JS + CSS）
+  mkdir -p $INSTALL_DIR/web/assets
+  # 获取 assets 文件列表并下载
+  ASSETS_URL="https://api.github.com/repos/$REPO/contents/web/assets?ref=main"
+  ASSETS_LIST=$(curl -s "$ASSETS_URL" | grep '"name"' | sed -E 's/.*"name": "([^"]+)".*/\1/')
+  for FILE in $ASSETS_LIST; do
+    echo -e "${CYAN}  下载 assets/$FILE ...${NC}"
+    curl -L -f -o "$INSTALL_DIR/web/assets/$FILE" "https://raw.githubusercontent.com/$REPO/main/web/assets/$FILE"
+  done
+  echo -e "${GREEN}面板资源同步完成！${NC}"
   
   # 使用 'EOF' (带引号) 防止变量被提前解析
   cat > /etc/systemd/system/stealth-controller.service <<'EOF'
