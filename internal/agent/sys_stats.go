@@ -31,12 +31,12 @@ func GetSystemStats() *models.SystemStats {
 	vm, _ := mem.VirtualMemory()
 	if vm != nil {
 		stats.Mem = vm.UsedPercent
-		stats.Swap = vm.SwapTotal
-		if vm.SwapTotal > 0 {
-			stats.Swap = (float64(vm.SwapUsed) / float64(vm.SwapTotal)) * 100
-		} else {
-			stats.Swap = 0
-		}
+	}
+
+	// Swap
+	sw, _ := mem.SwapMemory()
+	if sw != nil {
+		stats.Swap = sw.UsedPercent
 	}
 
 	// Disk
