@@ -69,8 +69,15 @@ func main() {
 		log.Printf("成功定位 Web 目录: %s", finalWebRoot)
 		r.Static("/static", filepath.Join(finalWebRoot, "static"))
 		r.Static("/assets", filepath.Join(finalWebRoot, "assets"))
-		r.StaticFile("/install.sh", "./scripts/install.sh")
-		r.StaticFile("/static/install.sh", "./scripts/install.sh")
+
+		// 安全加载安装脚本，防止因文件缺失导致进程崩溃 (502)
+		if _, err := os.Stat("./scripts/install.sh"); err == nil {
+			r.StaticFile("/install.sh", "./scripts/install.sh")
+			r.StaticFile("/static/install.sh", "./scripts/install.sh")
+		} else {
+			log.Printf("警告: 未找到 ./scripts/install.sh，相关下载链接将不可用")
+		}
+
 		r.StaticFile("/dashboard", filepath.Join(finalWebRoot, "index.html"))
 		r.StaticFile("/", filepath.Join(finalWebRoot, "index.html"))
 
