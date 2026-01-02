@@ -130,9 +130,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		},
 		"users": defaultPortUsers,
 		"tcp_keepalive": map[string]interface{}{
-			"enabled":  true,
-			"interval": 15, // 每15秒发一次心跳，防止 180s 超时断连
-			"idle":     15,
+			"enabled":      true,
+			"idle_timeout": "15s",
+			"interval":     "15s",
 		},
 		"tls": map[string]interface{}{
 			"enabled":          true,
@@ -175,9 +175,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			},
 			"users": users,
 			"tcp_keepalive": map[string]interface{}{
-				"enabled":  true,
-				"interval": 15,
-				"idle":     15,
+				"enabled":      true,
+				"idle_timeout": "15s",
+				"interval":     "15s",
 			},
 			"tls": map[string]interface{}{
 				"enabled":          true,
