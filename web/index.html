@@ -7,22 +7,10 @@
     <title>StealthForward | 隐形转发中控中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        slate: { 850: '#151e2e' }
-                    }
-                }
-            }
-        }
-    </script>
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+SC:wght@400;700&display=swap"
         rel="stylesheet">
     <style>
-        /* [v-cloak] { display: none !important; }  Remove strict hiding for debug */
         :root {
             --accent: #6366f1;
             --accent-glow: rgba(99, 102, 241, 0.4);
@@ -53,35 +41,7 @@
             -webkit-text-fill-color: transparent;
         }
 
-        @keyframes fade-in {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes slide-up {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .animate-in {
-            animation: fade-in 0.5s ease-out forwards;
-        }
-
-        .animate-slide-up {
-            animation: slide-up 0.5s ease-out forwards;
-        }
+        /* 删掉各种华而不实的动画 */
 
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
@@ -161,15 +121,6 @@
                     </svg>
                     刷新
                 </button>
-                <button @click="logout"
-                    class="p-3 px-5 glass rounded-2xl hover:bg-slate-800/50 transition flex items-center gap-2 text-red-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
-                        </path>
-                    </svg>
-                    退出
-                </button>
             </div>
         </div>
 
@@ -212,17 +163,7 @@
                         <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
                         入站入口 (Entry)
                     </h2>
-                    <div class="flex gap-3">
-                        <button @click="showProvisionModal"
-                            class="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 hover:scale-105 transition flex items-center gap-1">
-                            <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            新建云端节点
-                        </button>
-                        <button @click="addEntry" class="text-sm text-indigo-400 hover:underline">+ 手动新增</button>
-                    </div>
+                    <button @click="addEntry" class="text-sm text-indigo-400 hover:underline">+ 新增</button>
                 </div>
                 <div class="grid grid-cols-1 gap-4">
                     <div v-for="node in entries" :key="node.id"
@@ -271,13 +212,6 @@
                                     <div class="p-2 px-3 bg-slate-800/80 rounded-xl border border-white/5 text-[10px]">
                                         <div class="text-slate-500 mb-0.5 uppercase tracking-tighter">API 同步</div> {{
                                         node.v2board_url ? '已开启' : '未开启' }}
-                                    </div>
-                                    <div
-                                        class="p-2 px-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-[10px] min-w-[80px]">
-                                        <div class="text-indigo-400 mb-0.5 uppercase tracking-tighter font-bold">已用流量
-                                        </div>
-                                        <span class="text-white font-mono">{{ formatBytes(getEntryTraffic(node.id))
-                                            }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -443,10 +377,6 @@
                                         <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                                         运行中
                                     </span>
-                                    <div class="mt-1 text-[10px] text-slate-500 font-mono">
-                                        流量: <span class="text-slate-300">{{
-                                            formatBytes(getMappingTraffic(m.entry_node_id, m.v2board_node_id)) }}</span>
-                                    </div>
                                 </td>
                                 <td class="py-4 px-6 text-right">
                                     <div
@@ -478,90 +408,91 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- System Settings View -->
+                <div v-show="activeTab === 'settings'"
+                    class="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
+                    <div class="glass p-8 rounded-[3rem]">
+                        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                            <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            全局资源配置 (Infrastructure)
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <h3 class="text-lg font-bold text-slate-400 border-b border-white/5 pb-2">AWS
+                                    Credentials</h3>
+                                <label class="block text-sm text-slate-500">Access Key ID
+                                    <input v-model="settings['aws.access_key_id']" class="w-full mt-1"
+                                        placeholder="AKIA...">
+                                </label>
+                                <label class="block text-sm text-slate-500">Secret Access Key
+                                    <input v-model="settings['aws.secret_access_key']" type="password"
+                                        class="w-full mt-1" placeholder="wJalrX...">
+                                </label>
+                                <label class="block text-sm text-slate-500">Default Region
+                                    <select v-model="settings['aws.default_region']" class="w-full mt-1">
+                                        <option value="ap-northeast-1">Tokyo (ap-northeast-1)</option>
+                                        <option value="ap-east-1">Hong Kong (ap-east-1)</option>
+                                        <option value="ap-southeast-1">Singapore (ap-southeast-1)</option>
+                                        <option value="us-west-1">California (us-west-1)</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="space-y-4">
+                                <h3 class="text-lg font-bold text-slate-400 border-b border-white/5 pb-2">Cloudflare DNS
+                                </h3>
+                                <label class="block text-sm text-slate-500">API Token (Edit Zone DNS)
+                                    <input v-model="settings['cloudflare.api_token']" type="password"
+                                        class="w-full mt-1" placeholder="X-Auth-Key...">
+                                </label>
+                                <label class="block text-sm text-slate-500">Default Zone (e.g. 2233006.xyz)
+                                    <input v-model="settings['cloudflare.default_zone']" class="w-full mt-1"
+                                        placeholder="example.com">
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mt-8 flex justify-end">
+                            <button @click="saveSettings"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-500/20 active:scale-95">
+                                保存系统配置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login / Auth Modal (Full Screen) -->
+                <div v-if="!isAuthenticated"
+                    class="fixed inset-0 bg-[#020617] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-500">
+                    <div class="w-full max-w-md space-y-8">
+                        <div class="text-center">
+                            <h1 class="text-5xl font-extrabold tracking-tighter gradient-text mb-2">StealthForward</h1>
+                            <p class="text-slate-500">Restricted Access Control System</p>
+                        </div>
+                        <div class="glass p-8 rounded-[2rem] space-y-6">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Admin
+                                    Password</label>
+                                <input type="password" v-model="loginPassword" @keyup.enter="performLogin"
+                                    class="w-full mt-2 bg-slate-900/50 border-slate-700 focus:border-indigo-500 transition p-4 rounded-xl text-lg text-center tracking-widest"
+                                    placeholder="••••••••••••" autofocus>
+                            </div>
+                            <button @click="performLogin"
+                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-4 rounded-xl font-bold transition shadow-lg shadow-indigo-500/20 active:scale-95 mb-2">
+                                UNLOCK CONSOLE
+                            </button>
+                            <p v-if="loginError" class="text-center text-rose-500 text-sm animate-pulse">{{ loginError
+                                }}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <!-- System Settings View -->
-        <div v-show="activeTab === 'settings'" class="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
-            <div class="glass p-8 rounded-[3rem]">
-                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                    全局资源配置 (Infrastructure)
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <h3 class="text-lg font-bold text-slate-400 border-b border-white/5 pb-2">AWS
-                            Credentials</h3>
-                        <label class="block text-sm text-slate-500">Access Key ID
-                            <input v-model="settings['aws.access_key_id']" class="w-full mt-1" placeholder="AKIA...">
-                        </label>
-                        <label class="block text-sm text-slate-500">Secret Access Key
-                            <input v-model="settings['aws.secret_access_key']" type="password" class="w-full mt-1"
-                                placeholder="wJalrX...">
-                        </label>
-                        <label class="block text-sm text-slate-500">Default Region
-                            <select v-model="settings['aws.default_region']" class="w-full mt-1">
-                                <option value="ap-northeast-1">Tokyo (ap-northeast-1)</option>
-                                <option value="ap-east-1">Hong Kong (ap-east-1)</option>
-                                <option value="ap-southeast-1">Singapore (ap-southeast-1)</option>
-                                <option value="us-west-1">California (us-west-1)</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="space-y-4">
-                        <h3 class="text-lg font-bold text-slate-400 border-b border-white/5 pb-2">Cloudflare DNS
-                        </h3>
-                        <label class="block text-sm text-slate-500">API Token (Edit Zone DNS)
-                            <input v-model="settings['cloudflare.api_token']" type="password" class="w-full mt-1"
-                                placeholder="X-Auth-Key...">
-                        </label>
-                        <label class="block text-sm text-slate-500">Default Zone (e.g. 2233006.xyz)
-                            <input v-model="settings['cloudflare.default_zone']" class="w-full mt-1"
-                                placeholder="example.com">
-                        </label>
-                    </div>
-                </div>
-                <div class="mt-8 flex justify-end">
-                    <button @click="saveSettings"
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-500/20 active:scale-95">
-                        保存系统配置
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Login / Auth Modal (Full Screen) -->
-        <div v-if="!isAuthenticated"
-            class="fixed inset-0 bg-[#020617] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-500">
-            <div class="w-full max-w-md space-y-8">
-                <div class="text-center">
-                    <h1 class="text-5xl font-extrabold tracking-tighter gradient-text mb-2">StealthForward</h1>
-                    <p class="text-slate-500">Restricted Access Control System</p>
-                </div>
-                <div class="glass p-8 rounded-[2rem] space-y-6">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Admin
-                            Password</label>
-                        <input type="password" v-model="loginPassword" @keyup.enter="performLogin"
-                            class="w-full mt-2 bg-slate-900/50 border-slate-700 focus:border-indigo-500 transition p-4 rounded-xl text-lg text-center tracking-widest"
-                            placeholder="••••••••••••" autofocus>
-                    </div>
-                    <button @click="performLogin"
-                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-4 rounded-xl font-bold transition shadow-lg shadow-indigo-500/20 active:scale-95 mb-2">
-                        UNLOCK CONSOLE
-                    </button>
-                    <p v-if="loginError" class="text-center text-rose-500 text-sm animate-pulse">{{ loginError
-                        }}</p>
-                </div>
-            </div>
-        </div>
-
 
         <!-- Modal System -->
         <!-- Add/Edit Entry Modal -->
@@ -764,178 +695,7 @@
                 </div>
             </div>
         </div>
-
-        <!-- Cloud Provision Modal -->
-        <div v-if="modal.type === 'provision'"
-            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="glass w-full max-w-md p-8 rounded-[3rem] animate-in zoom-in-95 duration-200">
-                <div class="flex gap-4 mb-6 border-b border-white/5 pb-2">
-                    <button @click="provTab='create'"
-                        :class="['pb-2 font-bold transition', provTab==='create' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-slate-500']">新建节点</button>
-                    <button @click="provTab='destroy'"
-                        :class="['pb-2 font-bold transition', provTab==='destroy' ? 'text-rose-500 border-b-2 border-rose-500' : 'text-slate-500']">销毁/管理</button>
-                </div>
-
-                <!-- Tab: Create -->
-                <div v-if="provTab==='create'">
-                    <div class="mb-4 flex gap-4">
-                        <div class="flex-1 p-3 rounded-xl border-2 cursor-pointer transition-all text-center"
-                            :class="platform==='ec2'?'border-amber-500 bg-amber-500/10 text-amber-500 font-bold':'border-slate-700 text-slate-500'"
-                            @click="platform='ec2'; fetchRegions()">
-                            EC2 (专业版)
-                        </div>
-                        <div class="flex-1 p-3 rounded-xl border-2 cursor-pointer transition-all text-center"
-                            :class="platform==='lightsail'?'border-purple-500 bg-purple-500/10 text-purple-500 font-bold':'border-slate-700 text-slate-500'"
-                            @click="platform='lightsail'; fetchRegions()">
-                            Lightsail (光帆)
-                        </div>
-                    </div>
-
-                    <!-- EC2 Form -->
-                    <div v-if="platform==='ec2'"
-                        class="space-y-4 text-sm animate-in fade-in slide-in-from-right-4 duration-300">
-                        <label class="flex flex-col gap-1.5 text-slate-500">机房区域 (EC2 Regions)
-                            <select v-model="form.provision.region" @change="fetchImages" :disabled="regionsLoading">
-                                <option disabled value="">{{ regionsLoading ? '正在加载可用区域...' : '请选择区域' }}</option>
-                                <option v-for="r in availableRegions" :key="r" :value="r">{{ r }}</option>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1.5 text-slate-500">实例配置 (EC2 Instance)
-                            <select v-model="form.provision.instance_type">
-                                <option value="t3.nano">t3.nano (0.5G) - 测试</option>
-                                <option value="t3.micro">t3.micro (1G) - 入门</option>
-                                <option value="t3.small">t3.small (2G) - 推荐</option>
-                                <option value="t3.medium">t3.medium (4G) - 高性能</option>
-                                <option value="c5.large">c5.large - 计算型</option>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1.5 text-slate-500">操作系统 (AMI)
-                            <select v-model="form.provision.image_id"
-                                :disabled="imagesLoading || !form.provision.region">
-                                <option disabled value="">{{ imagesLoading ? '正在搜索可用镜像...' : (form.provision.region ?
-                                    '请选择系统' : '请先选择区域') }}</option>
-                                <option v-for="img in availableImages" :key="img.id" :value="img.id">{{ img.name }} ({{
-                                    img.id }})</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <!-- Lightsail Form -->
-                    <div v-if="platform==='lightsail'"
-                        class="space-y-4 text-sm animate-in fade-in slide-in-from-right-4 duration-300">
-                        <label class="flex flex-col gap-1.5 text-slate-500">机房区域 (Lightsail Regions)
-                            <select v-model="form.lightsail.region" @change="fetchImages" :disabled="regionsLoading">
-                                <option disabled value="">{{ regionsLoading ? 'Loading Regions...' : 'Please Select
-                                    Region' }}</option>
-                                <option v-for="r in availableRegions" :key="r" :value="r">{{ r }}</option>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1.5 text-slate-500">套餐选择 (Bundle / Plan)
-                            <select v-model="form.lightsail.bundle_id" :disabled="imagesLoading">
-                                <option disabled value="">{{ imagesLoading ? 'Loading Plans...' : 'Select Plan' }}
-                                </option>
-                                <option v-for="b in lsBundles" :key="b.id" :value="b.id">
-                                    ${{ b.price }}/mo - {{ b.ram_size }}GB RAM - {{ b.cpu_count }}vCPU -
-                                    {{b.transfer}}GB Traffic
-                                </option>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1.5 text-slate-500">操作系统 (Blueprint)
-                            <select v-model="form.lightsail.blueprint_id" :disabled="imagesLoading">
-                                <option disabled value="">{{ imagesLoading ? 'Loading OS...' : 'Select OS' }}</option>
-                                <option v-for="bp in lsBlueprints" :key="bp.id" :value="bp.id">{{ bp.name }}</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <div class="mt-4 p-3 rounded-xl border"
-                        :class="platform==='ec2'?'bg-amber-500/10 border-amber-500/20':'bg-purple-500/10 border-purple-500/20'">
-                        <label class="flex flex-col gap-1.5 text-slate-500 font-bold"
-                            :class="platform==='ec2'?'text-amber-500':'text-purple-500'">Root 密码 (SSH)
-                            <input v-model="platform==='ec2'?form.provision.root_password:form.lightsail.root_password"
-                                type="text" placeholder="Stealth123!@#" class="font-mono text-center">
-                        </label>
-                        <p class="text-[10px] opacity-70 mt-1 text-center">
-                            {{ platform==='ec2' ? '* 本地会保存一份备用 SSH 密钥 (store/keys/)' : '* Lightsail 会自动附加 Static IP (免费)
-                            并全放行端口' }}
-                        </p>
-                    </div>
-
-                    <div class="flex gap-4 mt-8">
-                        <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                        <button @click="submitProvision" :disabled="provisionLoading"
-                            :class="['flex-1 p-4 text-white rounded-2xl font-bold disabled:opacity-50', platform==='ec2'?'bg-gradient-to-r from-amber-500 to-orange-600':'bg-gradient-to-r from-purple-500 to-indigo-600']">
-                            {{ provisionLoading ? '购买中 (Processing)...' : '立即开通 (Deploy)' }}
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tab: Cleanup & Keys -->
-                <div v-if="provTab==='destroy'">
-                    <!-- Key Management Section -->
-                    <div class="mb-6">
-                        <h4 class="text-indigo-400 font-bold mb-2 flex justify-between items-center">
-                            备用密钥管理 (Safety Net)
-                            <button @click="fetchKeys"
-                                class="text-[10px] bg-slate-800 px-2 py-1 rounded hover:bg-slate-700">刷新列表</button>
-                        </h4>
-                        <div
-                            class="bg-slate-900/50 rounded-xl border border-white/5 overflow-hidden max-h-32 overflow-y-auto custom-scrollbar">
-                            <div v-if="keys.length === 0" class="p-4 text-center text-xs text-slate-600 italic">暂无本地密钥文件
-                            </div>
-                            <div v-for="k in keys" :key="k.name"
-                                class="flex justify-between items-center p-2 px-3 hover:bg-white/5 border-b border-white/5 last:border-0">
-                                <div>
-                                    <div class="text-xs font-mono text-slate-300">{{k.name}}</div>
-                                    <div class="text-[8px] text-slate-600">{{k.updated_at}} | {{k.size}} B</div>
-                                </div>
-                                <a :href="'/api/v1/cloud/keys/'+k.name" target="_blank"
-                                    class="text-emerald-500 hover:text-emerald-400 p-1.5 bg-emerald-500/10 rounded-lg">
-                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                    </svg>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-rose-500/10 p-4 rounded-2xl border border-rose-500/20 mb-4">
-                        <h4 class="text-rose-400 font-bold mb-1">危险操作区</h4>
-                        <p class="text-xs text-rose-300/80">请输入实例 ID 以彻底销毁云端机器。此操作不可逆。</p>
-                    </div>
-                    <div class="space-y-4 text-sm">
-                        <label class="flex flex-col gap-1.5 text-slate-500">目标区域
-                            <select v-model="form.provision.region">
-                                <option value="ap-northeast-1">ToKyo (东京)</option>
-                                <option value="ap-east-1">Hong Kong (香港)</option>
-                                <option value="ap-southeast-1">Singapore (新加坡)</option>
-                                <option value="us-west-1">California (加利福尼亚)</option>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1.5 text-slate-500">实例 ID (Instance ID)
-                            <input v-model="form.provision.destroy_id" placeholder="i-0abcd1234efgh5678"
-                                class="font-mono">
-                        </label>
-                    </div>
-                    <div class="flex gap-4 mt-6">
-                        <button @click="hideModal" class="flex-1 p-4 bg-slate-800 rounded-2xl">取消</button>
-                        <button v-if="platform==='lightsail'" @click="submitRotateIP"
-                            :disabled="provisionLoading || !form.provision.destroy_id"
-                            class="flex-1 p-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold disabled:opacity-50">
-                            {{ provisionLoading ? '处理中...' : '更换 IP (Rotate)' }}
-                        </button>
-                        <button @click="submitTerminate" :disabled="provisionLoading || !form.provision.destroy_id"
-                            class="flex-1 p-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-bold disabled:opacity-50">
-                            {{ provisionLoading ? '销毁中...' : '确认销毁' }}
-                        </button>
-                    </div>
-                </div>
-
-            </div>
-        </div>
     </div>
-
 
     <script>
         const { createApp } = Vue
@@ -943,7 +703,6 @@
             data() {
                 return {
                     activeTab: 'dashboard',
-                    provTab: 'create',
                     showDashboard: true,
                     isAuthenticated: false,
                     loginPassword: '',
@@ -952,28 +711,16 @@
                     exits: [],
                     rules: [],
                     mappings: [],
-                    keys: [],
-                    availableRegions: [],
-                    availableImages: [], // EC2
-                    lsBundles: [], // Lightsail Bundles
-                    lsBlueprints: [], // Lightsail OS
-                    regionsLoading: false,
-                    imagesLoading: false,
-                    platform: 'ec2', // 'ec2' or 'lightsail'
-                    trafficStats: {},
                     settings: {},
                     certLoading: false,
                     rotateLoading: false,
-                    provisionLoading: false,
                     modal: { type: null },
                     form: {
                         entry: { id: null, name: '', port: 443, domain: '', certificate: '', key: '', fallback: '127.0.0.1:80', target_exit_id: 0, v2board_url: '', v2board_key: '', v2board_node_id: null, v2board_type: 'v2ray' },
                         exit: { id: null, name: '', protocol: 'ss', server: '', server_port: null, password: '', method: '2022-blake3-aes-128-gcm' },
                         rule: { id: null, user_email: '', user_id: '', entry_node_id: null, exit_node_id: null },
                         mapping: { id: null, entry_node_id: null, v2board_node_id: null, target_exit_id: null, v2board_type: 'v2ray', port: null },
-                        rotate: { node_id: null, region: '', instance_id: '', zone_name: '', record_name: '' },
-                        provision: { region: 'ap-northeast-1', instance_type: 't3.micro', image_id: '', root_password: '', destroy_id: '' },
-                        lightsail: { region: '', bundle_id: '', blueprint_id: '', root_password: '' }
+                        rotate: { node_id: null, region: '', instance_id: '', zone_name: '', record_name: '' }
                     }
                 }
             },
@@ -981,9 +728,6 @@
             watch: {
                 activeTab(newVal) {
                     if (newVal === 'settings') this.fetchSettings();
-                },
-                provTab(newVal) {
-                    if (newVal === 'destroy') this.fetchKeys();
                 }
             },
             methods: {
@@ -1012,50 +756,28 @@
                         this.loginError = 'Invalid Password';
                     }
                 },
-                logout() {
-                    localStorage.removeItem('stealth_token');
-                    this.isAuthenticated = false;
-                    this.loginPassword = '';
-                    this.entries = [];
-                    this.exits = [];
-                    this.rules = [];
-                },
                 async fetchData() {
                     if (!this.isAuthenticated) return;
                     const headers = { 'Authorization': localStorage.getItem('stealth_token') || '' };
                     try {
-                        const responses = await Promise.all([
-                            fetch('/api/v1/entries', { headers }),
-                            fetch('/api/v1/exits', { headers }),
-                            fetch('/api/v1/rules', { headers }),
-                            fetch('/api/v1/mappings', { headers }),
-                            fetch('/api/v1/traffic', { headers })
-                        ]);
+                        const [e, x, r, m] = await Promise.all([
+                            fetch('/api/v1/entries', { headers }).then(res => res.json()),
+                            fetch('/api/v1/exits', { headers }).then(res => res.json()),
+                            fetch('/api/v1/rules', { headers }).then(res => res.json()),
+                            fetch('/api/v1/mappings', { headers }).then(res => res.json())
+                        ])
 
-                        // Check for 401 on any request
-                        for (const r of responses) {
-                            if (r.status === 401) {
-                                console.warn('Unauthorized, forcing logout');
-                                this.logout();
-                                return;
-                            }
+                        if (e.error === 'unauthorized') {
+                            this.isAuthenticated = false; // Token expired
+                            return;
                         }
 
-                        const [e, x, r, m, t] = await Promise.all(responses.map(res => res.json()));
-                        this.entries = e; this.exits = x; this.rules = r; this.mappings = m; this.trafficStats = t || {};
+                        this.entries = e; this.exits = x; this.rules = r; this.mappings = m;
                     } catch (err) { console.error('Data fail', err) }
                 },
                 async fetchSettings() {
                     const res = await this.apiGet('/api/v1/system/config');
                     if (res.config) this.settings = res.config;
-                },
-                async fetchKeys() {
-                    try {
-                        const res = await this.apiGet('/api/v1/cloud/keys');
-                        this.keys = res || [];
-                    } catch (e) {
-                        console.error(e);
-                    }
                 },
                 async saveSettings() {
                     await this.apiPost('/api/v1/system/config', this.settings);
@@ -1158,18 +880,10 @@
                 },
                 async apiGet(url) {
                     const res = await fetch(url, { headers: { 'Authorization': localStorage.getItem('stealth_token') || '' } });
-                    if (!res.ok) {
-                        const err = await res.json().catch(() => ({}));
-                        throw new Error(err.error || res.statusText);
-                    }
                     return res.json();
                 },
                 async apiPost(url, data) {
                     const res = await fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('stealth_token') || '' } });
-                    if (!res.ok) {
-                        const err = await res.json().catch(() => ({}));
-                        throw new Error(err.error || res.statusText);
-                    }
                     return res.json();
                 },
                 async deleteItem(type, id) {
@@ -1217,195 +931,6 @@
                         port: null
                     };
                     this.showModal('mapping');
-                },
-                showProvisionModal() {
-                    // Reset
-                    this.platform = 'ec2';
-                    this.form.provision = { region: '', instance_type: 't3.micro', image_id: '', root_password: '', destroy_id: '' };
-                    this.form.lightsail = { region: '', bundle_id: '', blueprint_id: '', root_password: '' };
-                    this.showModal('provision');
-                    this.fetchRegions();
-                },
-                async fetchRegions() {
-                    this.regionsLoading = true;
-                    try { // Platform check
-                        const url = this.platform === 'ec2' ? '/api/v1/cloud/regions' : '/api/v1/cloud/lightsail/regions';
-                        const res = await this.apiGet(url);
-                        this.availableRegions = res || [];
-                        // Default
-                        const def = this.availableRegions.includes('ap-northeast-1') ? 'ap-northeast-1' : (this.availableRegions.includes('us-east-1') ? 'us-east-1' : '');
-
-                        if (def) {
-                            if (this.platform === 'ec2') this.form.provision.region = def;
-                            else this.form.lightsail.region = def;
-                            this.fetchImages(); // Images/Bundles
-                        }
-                    } catch (e) { console.error(e); } finally { this.regionsLoading = false; }
-                },
-                async fetchImages() {
-                    const region = this.platform === 'ec2' ? this.form.provision.region : this.form.lightsail.region;
-                    if (!region) return;
-                    this.imagesLoading = true;
-
-                    if (this.platform === 'ec2') {
-                        this.availableImages = [];
-                        this.form.provision.image_id = '';
-                        try {
-                            const res = await this.apiGet(`/api/v1/cloud/images?region=${region}`);
-                            this.availableImages = res || [];
-                            const debian = this.availableImages.find(i => i.name.includes('Debian 12'));
-                            if (debian) this.form.provision.image_id = debian.id;
-                            else if (this.availableImages.length > 0) this.form.provision.image_id = this.availableImages[0].id;
-                        } catch (e) { console.error(e); }
-                    } else {
-                        // Lightsail - Fetch Bundles & Blueprints
-                        this.lsBundles = [];
-                        this.lsBlueprints = [];
-                        try {
-                            const [bun, blu] = await Promise.all([
-                                this.apiGet(`/api/v1/cloud/lightsail/bundles?region=${region}`),
-                                this.apiGet(`/api/v1/cloud/lightsail/blueprints?region=${region}`)
-                            ]);
-                            this.lsBundles = bun || [];
-                            this.lsBlueprints = blu || [];
-                            // Defaults
-                            if (this.lsBundles.length) this.form.lightsail.bundle_id = this.lsBundles[0].id;
-                            const deb = this.lsBlueprints.find(b => b.name.toLowerCase().includes('debian 12'));
-                            if (deb) this.form.lightsail.blueprint_id = deb.id;
-                            else if (this.lsBlueprints.length) this.form.lightsail.blueprint_id = this.lsBlueprints[0].id;
-                        } catch (e) { console.error(e); }
-                    }
-                    this.imagesLoading = false;
-                },
-                async submitProvision() {
-                    if (this.platform === 'ec2') {
-                        if (!this.form.provision.region) return alert('请选择区域');
-                        if (!this.form.provision.image_id) return alert('请选择操作系统');
-                        if (!this.form.provision.root_password) return alert('请设置 Root 密码');
-                    } else {
-                        if (!this.form.lightsail.region) return alert('请选择区域');
-                        if (!this.form.lightsail.bundle_id) return alert('请选择套餐');
-                        if (!this.form.lightsail.blueprint_id) return alert('请选择系统');
-                        if (!this.form.lightsail.root_password) return alert('请设置 Root 密码');
-                    }
-
-                    this.provisionLoading = true;
-                    try {
-                        let res;
-                        if (this.platform === 'ec2') {
-                            res = await this.apiPost('/api/v1/cloud/instances', this.form.provision);
-                            alert(`EC2 实例创建成功!\nID: ${res.instance_id}\nIP: ${res.public_ip}\n\n备用私钥已保存 (store/keys/)。`);
-                        } else {
-                            res = await this.apiPost('/api/v1/cloud/lightsail/instances', this.form.lightsail);
-                            alert(`Lightsail 实例创建成功!\nName: ${res.instance_name}\nIP: ${res.public_ip}\nStatic IP 已自动附加。防火墙全端口已放行。`);
-                        }
-                        this.hideModal();
-                    } catch (e) {
-                        alert('Create Failed: ' + e.message);
-                    } finally {
-                        this.provisionLoading = false;
-                    }
-                },
-                async submitTerminate() {
-                    const id = this.form.provision.destroy_id; // Using same input for now
-                    if (!id) return;
-                    if (!confirm(`⚠️ 危险警告 ⚠️\n\n即将永久销毁: ${id}\n此操作不可逆！确定要继续吗？`)) return;
-
-                    this.provisionLoading = true;
-                    try {
-                        const region = this.platform === 'ec2' ? this.form.provision.region : this.form.lightsail.region;
-                        if (this.platform === 'ec2') {
-                            await this.apiPost('/api/v1/cloud/instances/terminate', { region, instance_id: id });
-                        } else {
-                            await this.apiPost('/api/v1/cloud/lightsail/terminate', { region, instance_name: id });
-                        }
-                        alert('销毁指令已发送。');
-                        this.hideModal();
-                    } catch (e) {
-                        alert('Terminate Failed: ' + e.message);
-                    } finally {
-                        this.provisionLoading = false;
-                    }
-                },
-                async submitRotateIP() {
-                    const id = this.form.provision.destroy_id;
-                    if (!id) return;
-                    if (!confirm(`即将为 ${id} 更换静态 IP。\n旧 IP 将被释放，短暂断网后绑定新 IP。\n确定继续吗？`)) return;
-
-                    this.provisionLoading = true;
-                    try {
-                        const region = this.form.lightsail.region;
-                        const res = await this.apiPost('/api/v1/cloud/lightsail/rotate-ip', { region, instance_name: id });
-                        alert(`更换成功!\n新 IP: ${res.new_ip}\n请手动更新入站节点配置。`);
-                        this.hideModal();
-                    } catch (e) {
-                        alert('Rotate Failed: ' + e.message);
-                    } finally {
-                        this.provisionLoading = false;
-                    }
-                },
-                getEntryTraffic(entryId) {
-                    // Sum traffic for all rules belonging to this entry
-                    let total = 0;
-                    // Find rules for this entry
-                    const entryRules = this.rules.filter(r => r.entry_node_id === entryId);
-                    entryRules.forEach(r => {
-                        const s = this.trafficStats[r.user_email];
-                        if (s) total += (s.upload + s.download);
-                    });
-
-                    // Also sum dynamic mappings traffic? 
-                    // Mappings map V2Board Node ID -> Exit. 
-                    // Traffic is reported by UserEmail (Tag). 
-                    // If tag format is like 'n20-xxxxx', it belongs to V2Board Node 20.
-                    // We need to map Entry -> Mappings -> V2Board Node IDs -> Tags(UserEmails).
-                    // This is complex because we don't have the list of ALL user emails for a mapping easily here without scanning all stats.
-
-                    // Allow scanning all trafficStats to see which one belongs to this entry?
-                    // The tag `n20` refers to V2B Node ID 20.
-                    // We know which V2B Node IDs are associated with this entry via Mappings or Entry's own ID.
-
-                    const targetV2bNodeIds = new Set();
-                    if (this.entries.find(e => e.id === entryId).v2board_node_id) {
-                        targetV2bNodeIds.add(this.entries.find(e => e.id === entryId).v2board_node_id);
-                    }
-                    this.mappings.filter(m => m.entry_node_id === entryId).forEach(m => targetV2bNodeIds.add(m.v2board_node_id));
-
-                    // Iterate all stats
-                    for (const [tag, stat] of Object.entries(this.trafficStats)) {
-                        // Tag format: n{NodeID}-{UUID} or just UUID
-                        if (tag.startsWith('n')) {
-                            const parts = tag.split('-');
-                            const nodeId = parseInt(parts[0].substring(1));
-                            if (targetV2bNodeIds.has(nodeId)) {
-                                total += (stat.upload + stat.download);
-                            }
-                        }
-                    }
-
-                    return total;
-                },
-                getMappingTraffic(entryId, v2bNodeId) {
-                    let total = 0;
-                    for (const [tag, stat] of Object.entries(this.trafficStats)) {
-                        // Exact match for node ID in tag
-                        if (tag.startsWith('n' + v2bNodeId + '-')) {
-                            // We also need to ensure it's from THIS entry?
-                            // Tags are globally unique per V2Board Node.
-                            // If multiple entries share same V2B Node ID, traffic is shared.
-                            // Assuming unique V2B Node IDs per entry usually.
-                            total += (stat.upload + stat.download);
-                        }
-                    }
-                    return total;
-                },
-                formatBytes(bytes, decimals = 2) {
-                    if (!+bytes) return '0 B';
-                    const k = 1024;
-                    const dm = decimals < 0 ? 0 : decimals;
-                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
                 }
             }
         }).mount('#app')
