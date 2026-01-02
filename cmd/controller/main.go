@@ -18,13 +18,6 @@ func main() {
 	listenAddr := flag.String("addr", ":8080", "Listen address (e.g. :8080 or 127.0.0.1:8080)")
 	flag.Parse()
 
-	// 智能切换到 binary 所在目录，防止 systemd 启动报错
-	if exePath, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exePath)
-		os.Chdir(exeDir)
-		log.Printf("Working directory set to: %s", exeDir)
-	}
-
 	// 1. 初始化数据库
 	database.InitDB()
 
@@ -55,24 +48,18 @@ func main() {
 	r.GET("/api/ping", func(c *gin.Context) {
 		c.String(200, "pong")
 	})
-	// ----------------
 
 	// 静态文件目录 (极致鲁棒探测)
 	cwd, _ := os.Getwd()
-	exePath, _ := os.Executable()
-	exeDir := filepath.Dir(exePath)
-
 	searchPaths := []string{
-		filepath.Join(exeDir, "web"), // 1. 二进制同级 (最推荐)
-		filepath.Join(cwd, "web"),    // 2. 当前运行目录
-		"./web",                      // 3. 相对路径
+		"./web",
+		filepath.Join(cwd, "web"),
 		"/usr/local/share/stealthforward/web",
 	}
 
 	finalWebRoot := ""
 	for _, p := range searchPaths {
-		idxPath := filepath.Join(p, "index.html")
-		if _, err := os.Stat(idxPath); err == nil {
+		if _, err := os.Stat(filepath.Join(p, "index.html")); err == nil {
 			finalWebRoot, _ = filepath.Abs(p)
 			break
 		}
@@ -85,20 +72,17 @@ func main() {
 		r.StaticFile("/install.sh", "./scripts/install.sh")
 		r.StaticFile("/static/install.sh", "./scripts/install.sh")
 		r.StaticFile("/dashboard", filepath.Join(finalWebRoot, "index.html"))
+		r.StaticFile("/", filepath.Join(finalWebRoot, "index.html"))
+
 		r.NoRoute(func(c *gin.Context) {
-			// 实现单页应用 (SPA) 路由支持：如果路径不匹配 API 且不是静态文件，直接给 index.html
-			path := c.Request.URL.Path
-			if !strings.HasPrefix(path, "/api/") {
+			if !strings.HasPrefix(c.Request.URL.Path, "/api/") {
 				c.File(filepath.Join(finalWebRoot, "index.html"))
 				return
 			}
 			c.Status(404)
 		})
 	} else {
-		log.Printf("严重警告: 遍历了以下路径均未找到 web/index.html:")
-		for _, p := range searchPaths {
-			log.Printf("  - %s", p)
-		}
+		log.Printf("严重警告: 无法定位 web/index.html，请确保 web 文件夹在运行目录下。")
 	}
 
 	// 公开 API
