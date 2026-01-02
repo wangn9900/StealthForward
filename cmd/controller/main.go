@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wangn9900/StealthForward/internal/api"
@@ -15,6 +16,13 @@ func main() {
 	// 0. 解析参数
 	listenAddr := flag.String("addr", ":8080", "Listen address (e.g. :8080 or 127.0.0.1:8080)")
 	flag.Parse()
+
+	// 智能切换到 binary 所在目录，防止 systemd 启动报错
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		os.Chdir(exeDir)
+		log.Printf("Working directory set to: %s", exeDir)
+	}
 
 	// 1. 初始化数据库
 	database.InitDB()
@@ -44,17 +52,22 @@ func main() {
 	// ----------------
 
 	// 静态文件目录 (用于面板)
-	// 增加文件存在性检查，防止 Panic
-	if _, err := os.Stat("./web/index.html"); err == nil {
-		r.Static("/static", "./web/static")
-		r.Static("/assets", "./web/assets") // Vite 构建输出
-		// 暴露安装脚本
+	// 尝试多个可能路径
+	webRoot := "./web"
+	if _, err := os.Stat(filepath.Join(webRoot, "index.html")); err != nil {
+		// 备选：如果当前目录下没有，尝试上级或特定路径
+		webRoot = "/usr/local/share/stealthforward/web"
+	}
+
+	if _, err := os.Stat(filepath.Join(webRoot, "index.html")); err == nil {
+		r.Static("/static", filepath.Join(webRoot, "static"))
+		r.Static("/assets", filepath.Join(webRoot, "assets"))
 		r.StaticFile("/install.sh", "./scripts/install.sh")
 		r.StaticFile("/static/install.sh", "./scripts/install.sh")
-		r.StaticFile("/dashboard", "./web/index.html")
-		r.StaticFile("/", "./web/index.html")
+		r.StaticFile("/dashboard", filepath.Join(webRoot, "index.html"))
+		r.StaticFile("/", filepath.Join(webRoot, "index.html"))
 	} else {
-		log.Printf("警告: 未找到 Web 面板文件 (./web/index.html)，控制台将不可用。")
+		log.Printf("严重警告: 无法定位 Web 目录。静态路由未加载。")
 	}
 
 	// 公开 API
