@@ -44,6 +44,7 @@ func main() {
 	// 增加文件存在性检查，防止 Panic
 	if _, err := os.Stat("./web/index.html"); err == nil {
 		r.Static("/static", "./web/static")
+		r.Static("/assets", "./web/assets") // Vite 构建输出
 		r.StaticFile("/dashboard", "./web/index.html")
 		r.StaticFile("/", "./web/index.html")
 	} else {
