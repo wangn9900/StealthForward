@@ -75,8 +75,26 @@ func CollectTraffic(report models.NodeTrafficReport) {
 	// 记录系统探针数据
 	if report.Stats != nil {
 		report.Stats.ReportAt = time.Now().Unix()
-		nodeStatsMap.Store(report.NodeID, report.Stats)
-		log.Printf("[Traffic] 收到节点 #%d 探针数据: CPU %.1f%%, Mem %.1f%%", report.NodeID, report.Stats.CPU, report.Stats.Mem)
+		
+		targetID := report.NodeID
+		
+		// 纠偏逻辑：如果 Agent 上报的是 V2Board 的 NodeID (比如 20) 而不是系统内部 ID (比如 1)
+		// 我们尝试通过映射表找回原本的入口 ID
+		var entry models.EntryNode
+		if err := database.DB.First(&entry, targetID).Error; err != nil {
+			// 如果直接查 ID 查不到，尝试查 V2BoardNodeID
+			var mapping models.NodeMapping
+			if err := database.DB.Where("v2board_node_id = ?", targetID).First(&mapping).Error; err == nil {
+				targetID = mapping.EntryNodeID
+				// log.Printf("[Traffic] 探针 ID 纠偏: V2Board #%d -> 系统 #%d", report.NodeID, targetID)
+			} else if err := database.DB.Where("v2board_node_id = ?", targetID).First(&entry).Error; err == nil {
+				targetID = entry.ID
+				// log.Printf("[Traffic] 探针 ID 纠偏: 入口 V2Board #%d -> 系统 #%d", report.NodeID, targetID)
+			}
+		}
+
+		nodeStatsMap.Store(targetID, report.Stats)
+		log.Printf("[Traffic] 收到节点 #%d 探针数据 (最终映射 ID: #%d)", report.NodeID, targetID)
 	}
 }
 
