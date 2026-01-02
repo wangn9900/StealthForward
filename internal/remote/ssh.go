@@ -21,9 +21,9 @@ type ProvisionConfig struct {
 
 // RunProvisioning 执行全自动初始化流程 (BBR + RLimit + Agent)
 func RunProvisioning(cfg ProvisionConfig) error {
-	log.Printf("[Provision] Starting automation for %s:%d...", cfg.Host, cfg.Port)
+	log.Printf("[Provision] Starting automation for %s:%d (User: %s)...", cfg.Host, cfg.Port, cfg.User)
 
-	// 1. 等待 SSH 端口就绪 (轮询最多 5 分钟)
+	// 1. 等待 SSH 端口就绪
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	if err := waitSSHReady(addr, 5*time.Minute); err != nil {
 		return fmt.Errorf("SSH port timeout: %w", err)
@@ -41,7 +41,7 @@ func RunProvisioning(cfg ProvisionConfig) error {
 			ssh.PublicKeys(signer),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         10 * time.Second,
+		Timeout:         15 * time.Second,
 	}
 
 	client, err := ssh.Dial("tcp", addr, sshConfig)
@@ -50,37 +50,36 @@ func RunProvisioning(cfg ProvisionConfig) error {
 	}
 	defer client.Close()
 
-	// 3. 执行初始化脚本矩阵
-	// 第一步：开启 BBR 加速 & 优化内核参数
-	bbrScript := `
-		echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf
-		echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf
-		sudo sysctl -p
-		echo "[Remote] BBR Enabled."
+	// 3. 执行初始化脚本矩阵 (使用 sudo 确保权限)
+	log.Printf("[Provision] Executing BBR & System optimization...")
+	setupScript := `
+		sudo bash -c '
+		echo "[$(date)] Starting configuration..." >> /var/log/stealth-init.log
+		# BBR
+		echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+		echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+		sysctl -p >> /var/log/stealth-init.log 2>&1
+		
+		# RLimit
+		echo "* soft nofile 65535" >> /etc/security/limits.conf
+		echo "* hard nofile 65535" >> /etc/security/limits.conf
+		echo "root soft nofile 65535" >> /etc/security/limits.conf
+		echo "root hard nofile 65535" >> /etc/security/limits.conf
+		echo "[$(date)] System optimized." >> /var/log/stealth-init.log
+		'
 	`
-	if err := runCommand(client, bbrScript); err != nil {
-		log.Printf("[Provision] BBR setup warning: %v", err)
+	if err := runCommand(client, setupScript); err != nil {
+		return fmt.Errorf("system optimization failed: %w", err)
 	}
 
-	// 第二步：系统优化 (RLimit)
-	limitScript := `
-		echo "* soft nofile 65535" | sudo tee -a /etc/security/limits.conf
-		echo "* hard nofile 65535" | sudo tee -a /etc/security/limits.conf
-		echo "root soft nofile 65535" | sudo tee -a /etc/security/limits.conf
-		echo "root hard nofile 65535" | sudo tee -a /etc/security/limits.conf
-		echo "[Remote] RLimit set to 65535."
-	`
-	if err := runCommand(client, limitScript); err != nil {
-		log.Printf("[Provision] RLimit setup warning: %v", err)
-	}
-
-	// 第三步：静默安装 Agent
-	log.Printf("[Provision] Executing Agent setup command...")
-	if err := runCommand(client, cfg.AgentCmd); err != nil {
+	// 4. 执行 Agent 安装 (带有 sudo 权限)
+	log.Printf("[Provision] Executing Agent setup...")
+	agentScript := fmt.Sprintf("sudo bash -c '%s'", cfg.AgentCmd)
+	if err := runCommand(client, agentScript); err != nil {
 		return fmt.Errorf("agent setup failed: %w", err)
 	}
 
-	log.Printf("[Provision] All tasks completed for %s!", cfg.Host)
+	log.Printf("[Provision] Success for %s!", cfg.Host)
 	return nil
 }
 

@@ -48,11 +48,11 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	version := "v3.3.6"
 
 	// 构造一键安装 & 对接脚本
-	// 注意：这里直接下载二进制并运行，不再依赖 install.sh 以提高成功率
+	// 注意：这里使用 sudo bash -c 确保权限，并在内部处理 log
 	installCmd := fmt.Sprintf(
 		"curl -L https://github.com/wangn9900/StealthForward/releases/download/%s/stealth-agent-amd64 -o /usr/local/bin/stealth-agent && "+
 			"chmod +x /usr/local/bin/stealth-agent && "+
-			"/usr/local/bin/stealth-agent -id %d -controller %s -token %s >> /var/log/stealth-init.log 2>&1 &",
+			"/usr/local/bin/stealth-agent -id %d -controller %s -token %s >> /var/log/stealth-init.log 2>&1",
 		version, entry.ID, controllerURL, adminToken,
 	)
 
