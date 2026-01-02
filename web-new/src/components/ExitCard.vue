@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useApi } from '../composables/useApi'
 
 const props = defineProps({
@@ -8,6 +8,7 @@ const props = defineProps({
 
 const emit = defineEmits(['edit', 'refresh'])
 
+const trafficStats = inject('trafficStats')
 const { apiDelete } = useApi()
 
 const config = computed(() => {
@@ -18,6 +19,13 @@ const config = computed(() => {
   }
 })
 
+// 计算该落地节点的总流量
+const exitTraffic = computed(() => {
+  if (!trafficStats.value || !trafficStats.value.exit_stats) return 0
+  const stat = trafficStats.value.exit_stats[props.exit.id]
+  return stat ? (stat.upload || 0) + (stat.download || 0) : 0
+})
+
 async function handleDelete() {
   if (!confirm('确定删除此落地节点?')) return
   try {
@@ -26,6 +34,14 @@ async function handleDelete() {
   } catch (e) {
     alert('删除失败: ' + e.message)
   }
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 </script>
 
@@ -40,7 +56,7 @@ async function handleDelete() {
           </span>
         </div>
         <div class="text-xs text-[var(--text-muted)] mt-1 font-mono truncate max-w-[150px]">
-          {{ config.server }}:{{ config.server_port }}
+          {{ config.server || config.address }}:{{ config.server_port || config.port }}
         </div>
       </div>
       
@@ -49,6 +65,7 @@ async function handleDelete() {
         <button
           @click="$emit('edit', exit)"
           class="p-1.5 glass rounded-lg text-emerald-400 hover:scale-110 cursor-pointer"
+          title="编辑"
         >
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
@@ -57,11 +74,19 @@ async function handleDelete() {
         <button
           @click="handleDelete"
           class="p-1.5 glass rounded-lg text-rose-500 hover:scale-110 cursor-pointer"
+          title="删除"
         >
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
           </svg>
         </button>
+      </div>
+    </div>
+    
+    <div class="mt-4 flex items-center justify-between">
+      <div class="text-[10px] text-[var(--text-muted)] uppercase tracking-tight">已用流量</div>
+      <div class="text-xs font-mono font-bold text-emerald-400">
+        {{ formatBytes(exitTraffic) }}
       </div>
     </div>
   </div>

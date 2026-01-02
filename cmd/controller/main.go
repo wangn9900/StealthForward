@@ -85,15 +85,16 @@ func main() {
 		v1.POST("/node/:id/traffic", api.ReportTrafficHandler)
 
 		// Agent 一键换 IP 接口 (AWS Only)
-		v1.POST("/node/:id/rotate-ip", api.RotateIPHandler)
-
 		// --- Cloud Instance Provisioning & Keys ---
 		v1.POST("/cloud/instances", api.ProvisionInstanceHandler)
 		v1.POST("/cloud/instances/terminate", api.TerminateInstanceHandler)
 		v1.GET("/cloud/keys", api.ListKeysHandler)
-		v1.GET("/cloud/keys/:name", api.DownloadKeyHandler)
+		v1.GET("/cloud/keys/:name", api.DownloadKeyHandler) // 云平台辅助
 		v1.GET("/cloud/regions", api.ListRegionsHandler)
 		v1.GET("/cloud/images", api.ListImagesHandler)
+		v1.GET("/cloud/instances", api.ListCloudInstancesHandler)
+		v1.GET("/cloud/auto-detect", api.AutoDetectInstanceHandler)
+		v1.POST("/cloud/rotate-ip", api.RotateIPHandler) // 通用入口
 
 		// --- Lightsail ---
 		v1.GET("/cloud/lightsail/regions", api.ListLightsailRegionsHandler)

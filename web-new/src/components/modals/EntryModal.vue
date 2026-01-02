@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, onMounted } from 'vue'
+import { ref, inject, onMounted, watch } from 'vue'
 import { useApi } from '../../composables/useApi'
 
 const props = defineProps({
@@ -9,12 +9,13 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 
 const exits = inject('exits')
-const { apiPost } = useApi()
+const { apiPost, apiGet } = useApi()
 
 const form = ref({
   id: null,
   name: '',
   domain: '',
+  ip: '',
   port: 443,
   certificate: '',
   key: '',
@@ -33,12 +34,60 @@ const form = ref({
 })
 
 const saving = ref(false)
+const detecting = ref(false)
+const loadingInstances = ref(false)
+const cloudInstances = ref([])
 
-onMounted(() => {
+onMounted(async () => {
   if (props.entry) {
     form.value = { ...props.entry }
+    if (form.value.cloud_provider !== 'none' && form.value.cloud_region) {
+      fetchInstances()
+    }
   }
 })
+
+// 监听云服务商和区域变化，自动拉取实例列表
+watch([() => form.value.cloud_provider, () => form.value.cloud_region], () => {
+  if (form.value.cloud_provider !== 'none' && form.value.cloud_region) {
+    fetchInstances()
+  } else {
+    cloudInstances.value = []
+  }
+})
+
+async function fetchInstances() {
+  if (!form.value.cloud_region) return
+  loadingInstances.value = true
+  try {
+    const res = await apiGet(`/api/v1/cloud/instances?provider=${form.value.cloud_provider}&region=${form.value.cloud_region}`)
+    cloudInstances.value = res || []
+  } catch (e) {
+    console.error('拉取实例列表失败', e)
+  } finally {
+    loadingInstances.value = false
+  }
+}
+
+async function autoDetect() {
+  if (!form.value.ip) {
+    alert('请先填入节点当前公网 IP')
+    return
+  }
+  detecting.value = true
+  try {
+    const res = await apiGet(`/api/v1/cloud/auto-detect?ip=${form.value.ip}`)
+    form.value.cloud_provider = res.provider
+    form.value.cloud_region = res.region
+    form.value.cloud_instance_id = res.instance_id
+    if (res.record_name) form.value.cloud_record_name = res.record_name
+    alert('识别成功！已自动填充云平台绑定信息。')
+  } catch (e) {
+    alert('识别失败: ' + e.message + '。请检查 IP 是否属于该账户名下的 AWS/Lightsail 且已开启。')
+  } finally {
+    detecting.value = false
+  }
+}
 
 async function handleSubmit() {
   saving.value = true
@@ -56,12 +105,27 @@ async function handleSubmit() {
 <template>
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" @click.self="$emit('close')">
     <div class="glass w-full max-w-xl p-8 rounded-3xl animate-slide-up my-8">
-      <h3 class="text-2xl font-bold mb-6">{{ entry ? '编辑' : '新增' }}入站节点</h3>
+      <h3 class="text-2xl font-bold mb-6 text-white">{{ entry ? '编辑' : '新增' }}入站节点</h3>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
         <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
           显示名称
           <input v-model="form.name" placeholder="美国 01 / 日本入口" />
+        </label>
+
+        <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
+          节点当前公网 IP
+          <div class="flex gap-2">
+            <input v-model="form.ip" placeholder="1.2.3.4" class="flex-1" />
+            <button 
+              @click="autoDetect" 
+              :disabled="detecting || !form.ip"
+              class="px-4 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-500 hover:text-white transition disabled:opacity-30 whitespace-nowrap text-xs font-bold"
+            >
+              {{ detecting ? '探测中...' : '🔍 自动识别云绑定' }}
+            </button>
+          </div>
+          <span class="text-[10px] text-amber-500/60 leading-tight">输入 IP 后点击识别，可自动找回所属 AWS 区域和实例 ID</span>
         </label>
         
         <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
@@ -107,11 +171,11 @@ async function handleSubmit() {
         </div>
         
         <!-- Cloud Binding Section -->
-        <div class="md:col-span-2 text-amber-400 font-bold mt-4 flex items-center gap-2">
+        <div class="md:col-span-2 text-amber-400 font-bold mt-4 flex items-center gap-2 border-t border-white/5 pt-4">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
           </svg>
-          云平台绑定 (换IP功能)
+          云平台绑定 (一键换IP)
         </div>
         
         <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
@@ -128,18 +192,28 @@ async function handleSubmit() {
           <input v-model="form.cloud_region" placeholder="ap-northeast-1" :disabled="form.cloud_provider === 'none'" />
         </label>
         
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          实例 ID / 名称
-          <input v-model="form.cloud_instance_id" :placeholder="form.cloud_provider === 'aws_lightsail' ? 'stealth-xxx' : 'i-0abc123...'" :disabled="form.cloud_provider === 'none'" />
+        <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
+          选择云实例 (Instance)
+          <select 
+            v-model="form.cloud_instance_id" 
+            :disabled="form.cloud_provider === 'none' || loadingInstances"
+            class="w-full"
+          >
+            <option value="">{{ loadingInstances ? '加载列表中...' : '请选择实例 (从当前账号/区域拉取)' }}</option>
+            <option v-for="inst in cloudInstances" :key="inst.id" :value="inst.id">
+              {{ inst.name || 'Unnamed' }} ({{ inst.id }}) - {{ inst.public_ip }}
+            </option>
+          </select>
+          <div v-if="cloudInstances.length === 0 && form.cloud_region" class="text-[10px] text-rose-400/80">未在该区域发现可用实例，请检查区域代码或账号权限。</div>
         </label>
         
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          DNS 记录名
+        <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
+          CF DNS 记录名
           <input v-model="form.cloud_record_name" placeholder="transitnode (不带域名后缀)" :disabled="form.cloud_provider === 'none'" />
         </label>
         
         <!-- Target Exit -->
-        <div class="md:col-span-2 text-primary-400 font-bold mt-2">目标落地机 (流量转发目的地)</div>
+        <div class="md:col-span-2 text-primary-400 font-bold mt-4 border-t border-white/5 pt-4">目标落地机 (转发目的地)</div>
         
         <select class="md:col-span-2" v-model.number="form.target_exit_id">
           <option :value="0">不绑定 (所有用户将无法连接)</option>
@@ -148,15 +222,28 @@ async function handleSubmit() {
       </div>
       
       <div class="flex gap-4 mt-8">
-        <button @click="$emit('close')" class="flex-1 p-4 bg-[var(--bg-secondary)] rounded-2xl">取消</button>
+        <button @click="$emit('close')" class="flex-1 p-4 bg-[var(--bg-secondary)] rounded-2xl hover:bg-white/5 transition">取消</button>
         <button
           @click="handleSubmit"
           :disabled="saving"
-          class="flex-1 p-4 bg-primary-600 rounded-2xl font-bold disabled:opacity-50"
+          class="flex-1 p-4 bg-primary-600 rounded-2xl font-bold disabled:opacity-50 hover:bg-primary-500 transition shadow-lg shadow-primary-500/20"
         >
-          {{ saving ? '保存中...' : '保存节点' }}
+          {{ saving ? '保存中...' : '提交节点' }}
         </button>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+</style>

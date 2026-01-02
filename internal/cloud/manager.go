@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -207,4 +208,99 @@ func UpdateCloudflareDNS(ctx context.Context, zoneName, recordName, newIP string
 	})
 
 	return err
+}
+
+// CloudInstance 代表通用的云实例信息，用于前端选择
+type CloudInstance struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	PublicIP string `json:"public_ip"`
+}
+
+// AutoDetectCloudInstance 根据公网 IP 自动检测云平台、区域和实例 ID
+func AutoDetectCloudInstance(ctx context.Context, ip string) (string, string, string, error) {
+	// 1. 获取所有区域 (EC2)
+	regions, err := ListRegions(ctx)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to list regions: %v", err)
+	}
+
+	type detectResult struct {
+		provider   string
+		region     string
+		instanceID string
+	}
+
+	resChan := make(chan detectResult, 1)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var wg sync.WaitGroup
+
+	// 并发搜索所有 EC2 区域
+	for _, r := range regions {
+		wg.Add(1)
+		go func(reg string) {
+			defer wg.Done()
+			insts, err := ListEC2Instances(ctx, reg)
+			if err != nil {
+				return
+			}
+			for _, inst := range insts {
+				if inst.PublicIP == ip {
+					select {
+					case resChan <- detectResult{"aws_ec2", reg, inst.ID}:
+						cancel()
+					default:
+					}
+					return
+				}
+			}
+		}(r)
+	}
+
+	// 并发搜索所有 Lightsail 区域 (Lightsail 区域列表可能与 EC2 不同)
+	lsRegions, _ := ListLightsailRegions(ctx)
+	for _, r := range lsRegions {
+		wg.Add(1)
+		go func(reg string) {
+			defer wg.Done()
+			insts, err := ListLightsailInstances(ctx, reg)
+			if err != nil {
+				return
+			}
+			for _, inst := range insts {
+				if inst.PublicIP == ip {
+					select {
+					case resChan <- detectResult{"aws_lightsail", reg, inst.ID}:
+						cancel()
+					default:
+					}
+					return
+				}
+			}
+		}(r)
+	}
+
+	// 等待所有扫描完成或找到结果
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case res := <-resChan:
+		return res.provider, res.region, res.instanceID, nil
+	case <-done:
+		return "", "", "", fmt.Errorf("在所有账户区域中未找到 IP 为 %s 的云实例", ip)
+	case <-ctx.Done():
+		// 如果是通过 cancel() 触发的，可能已经有结果在 channel 里
+		select {
+		case res := <-resChan:
+			return res.provider, res.region, res.instanceID, nil
+		default:
+			return "", "", "", ctx.Err()
+		}
+	}
 }

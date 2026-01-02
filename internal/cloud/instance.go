@@ -385,6 +385,50 @@ func ensureSecurityGroup(ctx context.Context, client *ec2.Client) (string, error
 	return sgID, nil
 }
 
+// ListEC2Instances 列出指定区域的所有有效 EC2 实例
+func ListEC2Instances(ctx context.Context, region string) ([]CloudInstance, error) {
+	cfg, err := loadAWSConfig(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+	client := ec2.NewFromConfig(cfg)
+
+	out, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	var instances []CloudInstance
+	for _, res := range out.Reservations {
+		for _, inst := range res.Instances {
+			// 过滤掉已销毁的
+			if inst.State != nil && inst.State.Name == types.InstanceStateNameTerminated {
+				continue
+			}
+
+			name := ""
+			for _, tag := range inst.Tags {
+				if tag.Key != nil && *tag.Key == "Name" {
+					name = *tag.Value
+					break
+				}
+			}
+
+			publicIP := ""
+			if inst.PublicIpAddress != nil {
+				publicIP = *inst.PublicIpAddress
+			}
+
+			instances = append(instances, CloudInstance{
+				ID:       *inst.InstanceId,
+				Name:     name,
+				PublicIP: publicIP,
+			})
+		}
+	}
+	return instances, nil
+}
+
 func generateUserData(password string) string {
 	if password == "" {
 		password = "StealthPassword123!"

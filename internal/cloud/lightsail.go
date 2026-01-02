@@ -446,3 +446,26 @@ func RotateLightsailIPWithDNS(ctx context.Context, region, instanceName, zoneNam
 
 	return newIP, nil
 }
+
+// ListLightsailInstances 列出指定区域的所有 Lightsail 实例
+func ListLightsailInstances(ctx context.Context, region string) ([]CloudInstance, error) {
+	client, err := GetLightsailClient(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := client.GetInstances(ctx, &lightsail.GetInstancesInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	var instances []CloudInstance
+	for _, inst := range out.Instances {
+		instances = append(instances, CloudInstance{
+			ID:       aws.ToString(inst.Name),
+			Name:     aws.ToString(inst.Name),
+			PublicIP: aws.ToString(inst.PublicIpAddress),
+		})
+	}
+	return instances, nil
+}

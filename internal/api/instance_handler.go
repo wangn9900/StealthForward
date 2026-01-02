@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/wangn9900/StealthForward/internal/cloud"
+	"github.com/wangn9900/StealthForward/internal/database"
+	"github.com/wangn9900/StealthForward/internal/models"
 )
 
 // ProvisionInstanceHandler 处理创建 AWS 实例请求
@@ -229,4 +231,60 @@ func RotateLightsailIPHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "new_ip": newIP})
+}
+
+// ListCloudInstancesHandler 列出选定区域和供应商的所有实例
+func ListCloudInstancesHandler(c *gin.Context) {
+	provider := c.Query("provider")
+	region := c.Query("region")
+
+	if region == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "需要选择区域"})
+		return
+	}
+
+	var instances []cloud.CloudInstance
+	var err error
+
+	if provider == "aws_lightsail" {
+		instances, err = cloud.ListLightsailInstances(c.Request.Context(), region)
+	} else {
+		instances, err = cloud.ListEC2Instances(c.Request.Context(), region)
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, instances)
+}
+
+// AutoDetectInstanceHandler 根据 IP 自动检测绑定的云平台
+func AutoDetectInstanceHandler(c *gin.Context) {
+	ip := c.Query("ip")
+	if ip == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "需要提供 IP 地址"})
+		return
+	}
+
+	provider, region, instanceID, err := cloud.AutoDetectCloudInstance(c.Request.Context(), ip)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "识别失败: " + err.Error()})
+		return
+	}
+
+	// 查找是否已经有绑定的域名？
+	var recordName string
+	var entry models.EntryNode
+	if err := database.DB.Where("ip = ?", ip).First(&entry).Error; err == nil {
+		recordName = entry.CloudRecordName
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"provider":    provider,
+		"region":      region,
+		"instance_id": instanceID,
+		"record_name": recordName,
+	})
 }

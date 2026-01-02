@@ -8,6 +8,7 @@ const emit = defineEmits(['refresh'])
 const entries = inject('entries')
 const exits = inject('exits')
 const mappings = inject('mappings')
+const trafficStats = inject('trafficStats')
 const { apiDelete } = useApi()
 
 const showModal = ref(false)
@@ -43,6 +44,30 @@ function handleSaved() {
   showModal.value = false
   emit('refresh')
 }
+
+// 计算该 Mapping 下的总流量
+function getMappingTraffic(m) {
+  if (!trafficStats.value || !trafficStats.value.user_stats) return 0
+  
+  let total = 0
+  const prefix = `n${m.v2board_node_id}-`
+  
+  for (const [tag, stat] of Object.entries(trafficStats.value.user_stats)) {
+    // 匹配特定节点的标签 (例如 n20-xxxxx)
+    if (tag.startsWith(prefix)) {
+      total += (stat.upload || 0) + (stat.download || 0)
+    }
+  }
+  return total
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
 </script>
 
 <template>
@@ -71,6 +96,7 @@ function handleSaved() {
               <th class="py-4 px-6">V2B 节点 ID</th>
               <th class="py-4 px-6">目标分流 (Exit)</th>
               <th class="py-4 px-6">监听端口</th>
+              <th class="py-4 px-6">已用流量</th>
               <th class="py-4 px-6">状态</th>
               <th class="py-4 px-6 text-right">操作</th>
             </tr>
@@ -102,7 +128,12 @@ function handleSaved() {
                 <span v-if="m.port > 0" class="font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
                   {{ m.port }}
                 </span>
-                <span v-else class="text-[var(--text-muted)] text-xs italic">跟随入口默认</span>
+                <span v-else class="text-[var(--text-muted)] text-xs italic">跟随入口</span>
+              </td>
+              <td class="py-4 px-6">
+                <span class="font-mono text-primary-400 font-bold">
+                  {{ formatBytes(getMappingTraffic(m)) }}
+                </span>
               </td>
               <td class="py-4 px-6">
                 <span class="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
@@ -115,6 +146,7 @@ function handleSaved() {
                   <button
                     @click="openEditMapping(m)"
                     class="p-2 bg-primary-500/10 text-primary-400 rounded-lg hover:bg-primary-500 hover:text-white transition"
+                    title="编辑"
                   >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -123,6 +155,7 @@ function handleSaved() {
                   <button
                     @click="handleDelete(m.id)"
                     class="p-2 bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition"
+                    title="删除"
                   >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -132,7 +165,7 @@ function handleSaved() {
               </td>
             </tr>
             <tr v-if="mappings.length === 0">
-              <td colspan="6" class="py-12 text-center text-[var(--text-muted)] italic">
+              <td colspan="7" class="py-12 text-center text-[var(--text-muted)] italic">
                 暂无分流策略，所有流量将默认转发至入口绑定的落地机。
               </td>
             </tr>
