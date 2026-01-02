@@ -143,6 +143,17 @@ func main() {
 		v1.GET("/cloud/auto-detect", api.AutoDetectInstanceHandler)
 		v1.POST("/cloud/rotate-ip", api.RotateIPHandler) // 通用入口
 
+		// --- Cloud Account Pool ---
+		v1.GET("/cloud/accounts", api.ListCloudAccountsHandler)
+		v1.POST("/cloud/accounts", api.CreateCloudAccountHandler)
+		v1.PUT("/cloud/accounts/:id", api.UpdateCloudAccountHandler)
+		v1.DELETE("/cloud/accounts/:id", api.DeleteCloudAccountHandler)
+
+		// --- SSH Keys ---
+		v1.GET("/system/ssh-keys", api.ListSSHKeysHandler)
+		v1.POST("/system/ssh-keys", api.CreateSSHKeyHandler)
+		v1.DELETE("/system/ssh-keys/:id", api.DeleteSSHKeyHandler)
+
 		// --- Lightsail ---
 		v1.GET("/cloud/lightsail/regions", api.ListLightsailRegionsHandler)
 		v1.GET("/cloud/lightsail/bundles", api.ListLightsailBundlesHandler)
