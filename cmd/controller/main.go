@@ -31,6 +31,9 @@ func main() {
 	authMiddleware := func(c *gin.Context) {
 		if adminToken != "" {
 			token := c.GetHeader("Authorization")
+			if token == "" {
+				token = c.Query("token")
+			}
 			if token != adminToken {
 				c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
 				return
