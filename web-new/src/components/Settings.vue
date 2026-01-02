@@ -1,5 +1,4 @@
 <script setup>
-import { inject, ref, onMounted } from 'vue'
 import { inject, ref, onMounted, watch } from 'vue'
 import { useApi } from '../composables/useApi'
 
@@ -10,19 +9,21 @@ const saving = ref(false)
 const loaded = ref(false)
 const keys = ref([])
 
-// 只要 settings 有数据了，就标记为已加载
-onMounted(async () => {
-  if (Object.keys(settings.value).length > 0) {
+// 综合检查配置是否已经填充
+function checkLoaded() {
+  if (settings && settings.value && Object.keys(settings.value).length > 0) {
     loaded.value = true
   }
+}
+
+onMounted(async () => {
+  checkLoaded()
   await fetchKeys()
 })
 
-// 监听 settings 的变化，确保异步加载后能显示内容
-watch(settings, (newVal) => {
-  if (newVal && Object.keys(newVal).length > 0) {
-    loaded.value = true
-  }
+// 深度监听，一旦数据回来立即开门
+watch(settings, () => {
+  checkLoaded()
 }, { deep: true })
 
 async function fetchKeys() {
@@ -78,7 +79,7 @@ function formatSize(bytes) {
         <!-- AWS Section -->
         <div class="space-y-4">
           <h3 class="text-lg font-bold text-[var(--text-secondary)] border-b border-[var(--border-color)] pb-2 flex items-center gap-2">
-            <span class="w-1.5 h-4 bg-orange-500 rounded-full"></span>
+            <span class="w-1.5 h-4 bg-[#f97316] rounded-full"></span>
             AWS Credentials
           </h3>
           <label class="block text-sm text-[var(--text-muted)]">
@@ -112,7 +113,7 @@ function formatSize(bytes) {
         <!-- Cloudflare Section -->
         <div class="space-y-4">
           <h3 class="text-lg font-bold text-[var(--text-secondary)] border-b border-[var(--border-color)] pb-2 flex items-center gap-2">
-             <span class="w-1.5 h-4 bg-blue-500 rounded-full"></span>
+             <span class="w-1.5 h-4 bg-[#3b82f6] rounded-full"></span>
             Cloudflare DNS
           </h3>
           <label class="block text-sm text-[var(--text-muted)]">
