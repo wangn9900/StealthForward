@@ -5,12 +5,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StealthForward | 隐形转发中控中心</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Use Domestic CDNs for Stability in China -->
+    <script src="https://cdn.staticfile.net/tailwindcss/3.3.5/tailwind.js"></script>
+    <script src="https://cdn.staticfile.net/vue/3.3.9/vue.global.prod.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151e2e' }
+                    }
+                }
+            }
+        }
+    </script>
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+SC:wght@400;700&display=swap"
         rel="stylesheet">
     <style>
+        [v-cloak] {
+            display: none !important;
+        }
+
         :root {
             --accent: #6366f1;
             --accent-glow: rgba(99, 102, 241, 0.4);
