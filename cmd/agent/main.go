@@ -5,12 +5,30 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"syscall"
 	"time"
 
 	"github.com/wangn9900/StealthForward/internal/agent"
 )
 
+func setRLimit() {
+	var rLimit syscall.Rlimit
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	if err != nil {
+		log.Printf("Error getting rlimit: %v", err)
+	}
+	rLimit.Max = 65535
+	rLimit.Cur = 65535
+	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	if err != nil {
+		log.Printf("Error setting rlimit: %v", err)
+	} else {
+		log.Printf("System RLimit (NOFILE) set to 65535")
+	}
+}
+
 func main() {
+	setRLimit()
 	// 1. 定义命令行参数
 	controllerAddr := flag.String("controller", "http://your-controller-ip:8080", "Controller API address")
 	nodeID := flag.Int("node", 1, "Entry Node ID")

@@ -197,18 +197,25 @@ func (a *Agent) UpdateInternalCore(configStr string) error {
 	}
 	b.Router().AppendTracker(hs)
 
-	if a.box != nil {
-		a.box.Close()
-	}
-
+	// 平滑切换逻辑：先启动新内核，成功后再关旧内核
 	err = b.Start()
 	if err != nil {
-		return fmt.Errorf("start sing-box error: %s", err)
+		return fmt.Errorf("start new sing-box error: %s", err)
+	}
+
+	if a.box != nil {
+		oldBox := a.box
+		go func() {
+			// 给旧连接 1 秒钟的缓冲时间尝试处理完当前包
+			time.Sleep(1 * time.Second)
+			oldBox.Close()
+			log.Println("Old sing-box core closed after graceful transition.")
+		}()
 	}
 
 	a.box = b
 	a.hs = hs
-	log.Println("Internal Sing-box core updated and started with traffic tracking.")
+	log.Println("Internal Sing-box core updated (Graceful). New core running.")
 	return nil
 }
 
