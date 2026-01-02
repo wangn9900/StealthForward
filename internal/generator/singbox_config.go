@@ -129,11 +129,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"server_port": fallbackPort,
 		},
 		"users": defaultPortUsers,
-		"tcp_keepalive": map[string]interface{}{
-			"enabled":      true,
-			"idle_timeout": "15s",
-			"interval":     "15s",
-		},
 		"tls": map[string]interface{}{
 			"enabled":          true,
 			"server_name":      entry.Domain,
@@ -174,11 +169,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				"server_port": fallbackPort,
 			},
 			"users": users,
-			"tcp_keepalive": map[string]interface{}{
-				"enabled":      true,
-				"idle_timeout": "15s",
-				"interval":     "15s",
-			},
 			"tls": map[string]interface{}{
 				"enabled":          true,
 				"server_name":      entry.Domain,
