@@ -57,8 +57,8 @@ func ListLightsailRegions(ctx context.Context) ([]string, error) {
 
 	var regions []string
 	for _, r := range out.Regions {
-		if r.Name != nil {
-			regions = append(regions, string(*r.Name))
+		if r.Name != "" {
+			regions = append(regions, string(r.Name))
 		}
 	}
 	sort.Strings(regions)
@@ -102,7 +102,7 @@ func ListLightsailBundles(ctx context.Context, region string) ([]LightsailBundle
 			RamSize:  *b.RamSizeInGb,
 			CpuCount: *b.CpuCount,
 			DiskSize: *b.DiskSizeInGb,
-			Transfer: *b.TransferPerMonthInGb, // actually GB
+			Transfer: float32(aws.ToInt32(b.TransferPerMonthInGb)), // actually GB
 			Name:     *b.Name,
 		})
 	}
@@ -188,7 +188,7 @@ func ProvisionLightsailInstance(ctx context.Context, req CreateLightsailRequest)
 	regionsOut, _ := client.GetRegions(ctx, &lightsail.GetRegionsInput{IncludeAvailabilityZones: aws.Bool(true)})
 	var azName string
 	for _, r := range regionsOut.Regions {
-		if string(*r.Name) == req.Region {
+		if string(r.Name) == req.Region {
 			if len(r.AvailabilityZones) > 0 {
 				azName = *r.AvailabilityZones[0].ZoneName
 			}
@@ -286,8 +286,8 @@ func ProvisionLightsailInstance(ctx context.Context, req CreateLightsailRequest)
 	_, err = client.PutInstancePublicPorts(ctx, &lightsail.PutInstancePublicPortsInput{
 		InstanceName: aws.String(name),
 		PortInfos: []types.PortInfo{
-			{FromPort: aws.Int32(0), ToPort: aws.Int32(65535), Protocol: types.NetworkProtocolTcp},
-			{FromPort: aws.Int32(0), ToPort: aws.Int32(65535), Protocol: types.NetworkProtocolUdp},
+			{FromPort: int32(0), ToPort: int32(65535), Protocol: types.NetworkProtocolTcp},
+			{FromPort: int32(0), ToPort: int32(65535), Protocol: types.NetworkProtocolUdp},
 			// Ping (ICMP) is implicit usually or types.NetworkProtocolIcmp?
 			// V2 SDK types.NetworkProtocolIcmp exists?
 			// types.NetworkProtocolAll? No. Just TCP/UDP covers 99%.
@@ -404,7 +404,7 @@ func RotateLightsailIP(ctx context.Context, region, instanceName string) (string
 	newStaticIpName := fmt.Sprintf("%s-StaticIP-%d", instanceName, time.Now().Unix()%1000)
 
 	log.Printf("[Cloud-LS] Allocating new IP: %s", newStaticIpName)
-	allocRes, err := client.AllocateStaticIp(ctx, &lightsail.AllocateStaticIpInput{StaticIpName: aws.String(newStaticIpName)})
+	_, err = client.AllocateStaticIp(ctx, &lightsail.AllocateStaticIpInput{StaticIpName: aws.String(newStaticIpName)})
 	if err != nil {
 		return "", fmt.Errorf("failed to allocate new ip: %v", err)
 	}
@@ -421,8 +421,11 @@ func RotateLightsailIP(ctx context.Context, region, instanceName string) (string
 	}
 
 	// Return IP
-	if allocRes.StaticIp != nil {
-		return *allocRes.StaticIp.IpAddress, nil
+	// AllocateStaticIp does not return the IP struct, so we must fetch it.
+	newIpRes, err := client.GetStaticIp(ctx, &lightsail.GetStaticIpInput{StaticIpName: aws.String(newStaticIpName)})
+	if err == nil && newIpRes.StaticIp != nil && newIpRes.StaticIp.IpAddress != nil {
+		return *newIpRes.StaticIp.IpAddress, nil
 	}
-	return "", nil
+
+	return "", fmt.Errorf("ip allocated but failed to fetch address")
 }
