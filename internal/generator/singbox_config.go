@@ -123,7 +123,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"listen":        "::",
 		"listen_port":   entry.Port,
 		"sniff":         true,
-		"sniff_timeout": "100ms", // 核心加速点：缩短等待时间，实现首屏秒开
+		"sniff_timeout": "300ms", // 核心加速点：放宽到 300ms 确保视频不卡顿
 		"fallback": map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -163,7 +163,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"listen":        "::",
 			"listen_port":   port,
 			"sniff":         true,
-			"sniff_timeout": "100ms",
+			"sniff_timeout": "300ms",
 			"fallback": map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
