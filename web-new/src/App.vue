@@ -31,17 +31,31 @@ provide('settings', settings)
 provide('apiGet', apiGet)
 provide('apiPost', apiPost)
 
+// Refresh interval
+const refreshTimer = ref(null)
+
 // Check auth on mount
 onMounted(() => {
   const token = localStorage.getItem('stealth_token')
   if (token) {
     isAuthenticated.value = true
     fetchData()
+    startPolling()
   }
 })
 
+function startPolling() {
+  if (refreshTimer.value) clearInterval(refreshTimer.value)
+  // 5秒自动刷新一次数据，让探针变实时
+  refreshTimer.value = setInterval(() => {
+    if (isAuthenticated.value && activeTab.value === 'dashboard') {
+      fetchData(true) // true 表示静默刷新，不显示加载状态（如果有的话）
+    }
+  }, 5000)
+}
+
 // Fetch all data
-async function fetchData() {
+async function fetchData(silent = false) {
   if (!isAuthenticated.value) return
   
   try {
@@ -68,9 +82,11 @@ async function fetchData() {
 function handleLogin() {
   isAuthenticated.value = true
   fetchData()
+  startPolling()
 }
 
 function logout() {
+  if (refreshTimer.value) clearInterval(refreshTimer.value)
   localStorage.removeItem('stealth_token')
   isAuthenticated.value = false
   entries.value = []
