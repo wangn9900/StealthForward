@@ -204,14 +204,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "address")
 			delete(exitOutbound, "port")
 			delete(exitOutbound, "cipher")
-
-			// 开启多路复用 (Smux)，极致提升首屏加载速度
-			exitOutbound["multiplex"] = map[string]interface{}{
-				"enabled":         true,
-				"protocol":        "smux",
-				"max_connections": 8,
-				"min_streams":     4,
-			}
 		}
 
 		exitOutbound["tag"] = "out-" + exit.Name
