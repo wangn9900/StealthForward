@@ -249,9 +249,10 @@ func (a *Agent) reportTrafficLoop() {
 		a.externalTraffic[uint(a.cfg.NodeID)] = [2]int64{0, 0}
 		a.trafficMu.Unlock()
 
-		if len(userTraffic) == 0 && nodeUp == 0 && nodeDown == 0 {
-			continue
-		}
+		// 即使没有用户流量，也允许上报（为了上报系统探针数据）
+		// if len(userTraffic) == 0 && nodeUp == 0 && nodeDown == 0 {
+		// 	continue
+		// }
 
 		report := models.NodeTrafficReport{
 			NodeID:        uint(a.cfg.NodeID),

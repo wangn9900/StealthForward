@@ -76,6 +76,7 @@ func CollectTraffic(report models.NodeTrafficReport) {
 	if report.Stats != nil {
 		report.Stats.ReportAt = time.Now().Unix()
 		nodeStatsMap.Store(report.NodeID, report.Stats)
+		log.Printf("[Traffic] 收到节点 #%d 探针数据: CPU %.1f%%, Mem %.1f%%", report.NodeID, report.Stats.CPU, report.Stats.Mem)
 	}
 }
 
