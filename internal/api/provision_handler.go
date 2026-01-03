@@ -44,12 +44,13 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	// 鉴权 Token
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
 
-	// 构造一键安装 & 对接脚本 (调用 install.sh 2 保证跟手动安装一致，包含 Nginx 和伪装页)
-	// 使用环境变量实现非交互式安装
+	version := "v3.5.1"
+	_ = version
+
 	installCmd := fmt.Sprintf(
-		"export CTRL_ADDR='%s' && export NODE_ID='%d' && export CTRL_TOKEN='%s' && "+
+		"export CTRL_ADDR='%s' && export NODE_ID='%d' && export CTRL_TOKEN='%s' && export CTRL_DOMAIN='%s' && "+
 			"curl -fsSL https://raw.githubusercontent.com/wangn9900/StealthForward/main/scripts/install.sh | bash -s -- 2 >> /var/log/stealth-init.log 2>&1",
-		controllerURL, entry.ID, adminToken,
+		controllerURL, entry.ID, adminToken, entry.Domain,
 	)
 
 	// 如果用户有特殊的 install.sh 逻辑，也可以考虑用它

@@ -381,15 +381,36 @@ func (a *Agent) IssueCertLocally(domain string) {
 		webroot = btPath
 	}
 
-	// 申请证书：强制指定使用 letsencrypt，避免 ZeroSSL 的 retryafter 86400 坑
+	// 1. 确保账户已注册 (LetsEncrypt 强制要求)
+	exec.Command(acmePath, "--register-account", "-m", "admin@"+domain, "--server", "letsencrypt").Run()
+
+	// 2. 尝试第一种方式：Webroot 模式 (配合 Nginx)
+	log.Printf("Trying ACME issuance via Webroot (%s)...", webroot)
 	cmd := exec.Command(acmePath, "--issue", "--server", "letsencrypt", "-d", domain, "-w", webroot, "--force")
 	output, err := cmd.CombinedOutput()
+
 	if err != nil {
-		log.Printf("Local cert issuance failed: %v, Output: %s", err, string(output))
-		// 如果 letsencrypt 也失败，尝试设置全局默认 CA 再试一次（可选）
-		exec.Command(acmePath, "--set-default-ca", "--server", "letsencrypt").Run()
-		return
+		log.Printf("Webroot mode failed: %v. Trying Standalone mode (temporary stopping Nginx)...", err)
+
+		// 3. 尝试第二种方式：Standalone 模式 (暴力但最稳)
+		// 暂时停止 Nginx 以释放 80 端口
+		exec.Command("systemctl", "stop", "nginx").Run()
+
+		// 补齐 socat 依赖 (Standalone 必齐)
+		exec.Command("sh", "-c", "apt-get install -y socat || yum install -y socat").Run()
+
+		standaloneCmd := exec.Command(acmePath, "--issue", "--server", "letsencrypt", "-d", domain, "--standalone", "--force")
+		output, err = standaloneCmd.CombinedOutput()
+
+		// 无论成功与否，恢复 Nginx
+		exec.Command("systemctl", "start", "nginx").Run()
+
+		if err != nil {
+			log.Printf("Critical: Both Webroot and Standalone ACME issuance failed for %s. Output: %s", domain, string(output))
+			return
+		}
 	}
+	log.Printf("Successfully issued certificate for %s", domain)
 
 	// 安装证书到本地指定目录
 	certDir := "/etc/stealthforward/certs/" + domain

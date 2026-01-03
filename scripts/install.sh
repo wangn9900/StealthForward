@@ -31,6 +31,67 @@ show_logo() {
   echo ""
 }
 
+issue_certificate() {
+  local domain=$1
+  if [ -z "$domain" ]; then
+    echo -e "${YELLOW}证书申请阶段: 若要使用 SSL 必须填入该节点对应的域名。${NC}"
+    read -p "请输入当前节点的证书域名 (e.g. transit.example.com): " domain
+  fi
+  
+  if [ -z "$domain" ]; then
+    echo -e "${RED}警告: 域名为空，将跳过证书申请，sing-box 可能会因为找不到证书文件启动失败。${NC}"
+    return 1
+  fi
+
+  echo -e "${CYAN}正在通过 acme.sh 申请证书 for $domain ...${NC}"
+  
+  # 1. 安装依赖
+  echo -e "${YELLOW}检查并安装 acme.sh 依赖 (socat, curl)...${NC}"
+  if command -v apt-get &> /dev/null; then
+    apt-get update && apt-get install -y socat curl
+  elif command -v yum &> /dev/null; then
+    yum install -y socat curl
+  fi
+
+  # 2. 安装 acme.sh
+  if [ ! -f "$HOME/.acme.sh/acme.sh" ]; then
+    echo -e "${YELLOW}正在安装 acme.sh...${NC}"
+    curl https://get.acme.sh | sh
+  fi
+  
+  local ACME="$HOME/.acme.sh/acme.sh"
+  
+  # 3. 注册账户 (LetsEncrypt)
+  $ACME --register-account -m admin@$domain --server letsencrypt >> /var/log/stealth-init.log 2>&1
+  
+  # 4. 申请证书 (使用 Nginx Webroot 验证，因为伪装页已部署)
+  echo -e "${CYAN}正在执行验证并申请证书 (Let's Encrypt)...${NC}"
+  $ACME --issue --server letsencrypt -d $domain -w /var/www/html --force >> /var/log/stealth-init.log 2>&1
+  
+  if [ $? -eq 0 ]; then
+    mkdir -p /etc/stealthforward/certs/$domain
+    $ACME --install-cert -d $domain \
+      --fullchain-file /etc/stealthforward/certs/$domain/cert.crt \
+      --key-file /etc/stealthforward/certs/$domain/cert.key >> /var/log/stealth-init.log 2>&1
+    echo -e "${GREEN}证书成功颁发并安装到 /etc/stealthforward/certs/$domain/ ${NC}"
+    return 0
+  else
+    echo -e "${RED}证书申请失败！可能原因: 80 端口不通、域名解析未生效、或 acme.sh 限制。${NC}"
+    echo -e "${YELLOW}尝试暴力 Standalone 模式 (需要暂时停止 Nginx)...${NC}"
+    systemctl stop nginx
+    $ACME --issue --server letsencrypt -d $domain --standalone --force >> /var/log/stealth-init.log 2>&1
+    local res=$?
+    systemctl start nginx
+    if [ $res -eq 0 ]; then
+       mkdir -p /etc/stealthforward/certs/$domain
+       $ACME --install-cert -d $domain --fullchain-file /etc/stealthforward/certs/$domain/cert.crt --key-file /etc/stealthforward/certs/$domain/cert.key >> /var/log/stealth-init.log 2>&1
+       echo -e "${GREEN}Standalone 模式证书申请成功！${NC}"
+       return 0
+    fi
+    return 1
+  fi
+}
+
 # 核心变量
 REPO="wangn9900/StealthForward"
 INSTALL_DIR="/etc/stealthforward"
@@ -192,6 +253,9 @@ install_agent() {
   if [ -z "$CTRL_TOKEN" ]; then
     read -p "请输入管理口令 (STEALTH_ADMIN_TOKEN) [留空则无需鉴权]: " CTRL_TOKEN
   fi
+
+  # 4. 证书申请流程 (核心改进)
+  issue_certificate "$CTRL_DOMAIN"
 
   cat > /etc/systemd/system/stealth-agent.service <<EOF
 [Unit]
