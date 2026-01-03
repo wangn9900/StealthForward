@@ -74,6 +74,8 @@ func RunProvisioning(cfg ProvisionConfig) error {
 		
 		# Acme.sh for SSL (确保 Agent 能申请证书)
 		if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+			echo "[$(date)] Installing acme.sh dependencies..." >> /var/log/stealth-init.log
+			apt-get update && apt-get install -y socat >> /var/log/stealth-init.log 2>&1 || yum install -y socat >> /var/log/stealth-init.log 2>&1
 			echo "[$(date)] Installing acme.sh..." >> /var/log/stealth-init.log
 			curl https://get.acme.sh | sh >> /var/log/stealth-init.log 2>&1
 		fi
