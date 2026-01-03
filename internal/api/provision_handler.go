@@ -44,7 +44,7 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	// 鉴权 Token
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
 
-	version := "v3.5.3"
+	version := "v3.5.4"
 	_ = version
 
 	installCmd := fmt.Sprintf(

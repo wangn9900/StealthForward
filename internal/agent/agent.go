@@ -332,6 +332,18 @@ func (a *Agent) RunOnce() {
 }
 
 func (a *Agent) IssueCertLocally(domain string) {
+	// 首先检查证书是否已经存在
+	certDir := "/etc/stealthforward/certs/" + domain
+	certFile := certDir + "/cert.crt"
+	keyFile := certDir + "/cert.key"
+
+	if _, err := os.Stat(certFile); err == nil {
+		if _, err := os.Stat(keyFile); err == nil {
+			log.Printf("Certificate for %s already exists at %s, skipping issuance.", domain, certDir)
+			return
+		}
+	}
+
 	log.Printf("Starting local ACME issuance for %s...", domain)
 	home, _ := os.UserHomeDir()
 	acmePath := filepath.Join(home, ".acme.sh/acme.sh")
@@ -413,10 +425,10 @@ func (a *Agent) IssueCertLocally(domain string) {
 	log.Printf("Successfully issued certificate for %s", domain)
 
 	// 安装证书到本地指定目录
-	certDir := "/etc/stealthforward/certs/" + domain
+	certDir = "/etc/stealthforward/certs/" + domain
 	os.MkdirAll(certDir, 0755)
-	certFile := certDir + "/cert.crt"
-	keyFile := certDir + "/cert.key"
+	certFile = certDir + "/cert.crt"
+	keyFile = certDir + "/cert.key"
 
 	cmd = exec.Command(acmePath, "--install-cert", "-d", domain,
 		"--fullchain-file", certFile,
