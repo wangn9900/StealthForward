@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/wangn9900/StealthForward/internal/agent"
+	"github.com/wangn9900/StealthForward/internal/tunnel"
 )
 
 func setRLimit() {
@@ -28,8 +29,8 @@ func setRLimit() {
 }
 
 func main() {
-	setRLimit()
 	// 1. 定义命令行参数
+	tunnelPath := flag.String("tunnel", "", "Path to standalone tunnel config (Isolated mode)")
 	controllerAddr := flag.String("controller", "http://your-controller-ip:8080", "Controller API address")
 	nodeID := flag.Int("node", 1, "Entry Node ID")
 	syncInterval := flag.Int("interval", 60, "Sync interval in seconds")
@@ -42,6 +43,17 @@ func main() {
 	once := flag.Bool("once", false, "Run once and exit")
 
 	flag.Parse()
+
+	// 优先检查是否为隧道独立模式
+	if *tunnelPath != "" {
+		log.Printf("[Agent] Running in Independent Tunnel Mode: %s", *tunnelPath)
+		if err := tunnel.RunStandalone(*tunnelPath); err != nil {
+			log.Fatalf("Tunnel execution error: %v", err)
+		}
+		return
+	}
+
+	setRLimit()
 
 	// 智能探测内核路径
 	if _, err := os.Stat(*corePath); os.IsNotExist(err) {
