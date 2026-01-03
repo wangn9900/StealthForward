@@ -333,6 +333,16 @@ func (a *Agent) IssueCertLocally(domain string) {
 	home, _ := os.UserHomeDir()
 	acmePath := home + "/.acme.sh/acme.sh"
 
+	if _, err := os.Stat(acmePath); os.IsNotExist(err) {
+		log.Printf("acme.sh not found, installing now...")
+		installCmd := exec.Command("sh", "-c", "curl https://get.acme.sh | sh")
+		if out, err := installCmd.CombinedOutput(); err != nil {
+			log.Printf("Failed to auto-install acme.sh: %v, Output: %s", err, string(out))
+			return
+		}
+		log.Printf("acme.sh installed successfully via Agent.")
+	}
+
 	// 尝试自动匹配宝塔之类的 webroot
 	btPath := "/www/wwwroot/" + domain
 	webroot := "/var/www/html"

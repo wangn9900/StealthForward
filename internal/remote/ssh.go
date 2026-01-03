@@ -71,6 +71,13 @@ func RunProvisioning(cfg ProvisionConfig) error {
 		echo "* hard nofile 65535" >> /etc/security/limits.conf
 		echo "root soft nofile 65535" >> /etc/security/limits.conf
 		echo "root hard nofile 65535" >> /etc/security/limits.conf
+		
+		# Acme.sh for SSL (确保 Agent 能申请证书)
+		if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+			echo "[$(date)] Installing acme.sh..." >> /var/log/stealth-init.log
+			curl https://get.acme.sh | sh >> /var/log/stealth-init.log 2>&1
+		fi
+		
 		echo "[$(date)] System optimized." >> /var/log/stealth-init.log
 		'
 	`
