@@ -44,22 +44,12 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	// 鉴权 Token
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
 
-	// 获取版本号（假设最新）
-	// 获取版本号（假设最新）
-	version := "v3.4.8"
-
-	// 构造一键安装 & 对接脚本 (使用 systemd 保证后台运行)
+	// 构造一键安装 & 对接脚本 (调用 install.sh 2 保证跟手动安装一致，包含 Nginx 和伪装页)
+	// 使用环境变量实现非交互式安装
 	installCmd := fmt.Sprintf(
-		"curl -L https://github.com/wangn9900/StealthForward/releases/download/%s/stealth-agent-amd64 -o /usr/local/bin/stealth-agent && "+
-			"chmod +x /usr/local/bin/stealth-agent && "+
-			"cat > /etc/systemd/system/stealth-agent.service <<EOF\n"+
-			"[Unit]\nDescription=StealthForward Agent\nAfter=network.target\n\n"+
-			"[Service]\nType=simple\nUser=root\n"+
-			"ExecStart=/usr/local/bin/stealth-agent -node %d -controller %s -token '%s' -internal\n"+
-			"Restart=always\nRestartSec=10\n\n"+
-			"[Install]\nWantedBy=multi-user.target\nEOF\n"+
-			"systemctl daemon-reload && systemctl enable stealth-agent && systemctl restart stealth-agent >> /var/log/stealth-init.log 2>&1",
-		version, entry.ID, controllerURL, adminToken,
+		"export CTRL_ADDR='%s' && export NODE_ID='%d' && export CTRL_TOKEN='%s' && "+
+			"curl -fsSL https://raw.githubusercontent.com/wangn9900/StealthForward/main/scripts/install.sh | bash -s -- 2 >> /var/log/stealth-init.log 2>&1",
+		controllerURL, entry.ID, adminToken,
 	)
 
 	// 如果用户有特殊的 install.sh 逻辑，也可以考虑用它

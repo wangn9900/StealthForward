@@ -178,11 +178,20 @@ install_agent() {
     fi
   fi
   
-  read -p "请输入 Controller API 地址 [http://127.0.0.1:8080]: " CTRL_ADDR
+  # 如果环境变量已提供，则跳过交互
+  if [ -z "$CTRL_ADDR" ]; then
+    read -p "请输入 Controller API 地址 [http://127.0.0.1:8080]: " CTRL_ADDR
+  fi
   CTRL_ADDR=${CTRL_ADDR:-http://127.0.0.1:8080}
-  read -p "请输入当前节点 ID [1]: " NODE_ID
+  
+  if [ -z "$NODE_ID" ]; then
+    read -p "请输入当前节点 ID [1]: " NODE_ID
+  fi
   NODE_ID=${NODE_ID:-1}
-  read -p "请输入管理口令 (STEALTH_ADMIN_TOKEN) [留空则无需鉴权]: " CTRL_TOKEN
+  
+  if [ -z "$CTRL_TOKEN" ]; then
+    read -p "请输入管理口令 (STEALTH_ADMIN_TOKEN) [留空则无需鉴权]: " CTRL_TOKEN
+  fi
 
   cat > /etc/systemd/system/stealth-agent.service <<EOF
 [Unit]
@@ -304,4 +313,17 @@ main_menu() {
   esac
 }
 
-main_menu
+# 根据命令行参数直接运行特定功能，否则进入主菜单
+if [ -n "$1" ]; then
+  case $1 in
+    1) install_controller ;;
+    2) install_agent ;;
+    3) install_ss_exit ;;
+    4) uninstall_controller ;;
+    5) uninstall_agent ;;
+    6) uninstall_ss_exit ;;
+    *) echo "未知参数: $1" ; exit 1 ;;
+  esac
+else
+  main_menu
+fi
