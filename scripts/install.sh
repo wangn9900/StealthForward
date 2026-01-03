@@ -43,6 +43,13 @@ issue_certificate() {
     return 1
   fi
 
+  # 检查证书是否已存在（避免重复申请被限速）
+  local cert_dir="/etc/stealthforward/certs/$domain"
+  if [ -f "$cert_dir/cert.crt" ] && [ -s "$cert_dir/cert.crt" ]; then
+    echo -e "${GREEN}证书已存在于 $cert_dir，跳过申请（续期由 acme.sh cron 自动处理）。${NC}"
+    return 0
+  fi
+
   echo -e "${CYAN}正在通过 acme.sh 申请证书 for $domain ...${NC}"
   
   # 1. 安装依赖 (增加 cron，这是 acme.sh installer 报错 Pre-check failed 的常见原因)

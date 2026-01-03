@@ -33,10 +33,12 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	}
 
 	// 2. 构造对接指令 (由主控地址和 Token 组成)
-	// 假设主控公网地址可以通过配置获取，或者从请求头推断 (这里暂时推断)
+	// 支持 Nginx 反向代理：优先读取 X-Forwarded-Proto 头
 	host := c.Request.Host
 	protocol := "http"
-	if c.Request.TLS != nil {
+	if forwardedProto := c.GetHeader("X-Forwarded-Proto"); forwardedProto != "" {
+		protocol = forwardedProto
+	} else if c.Request.TLS != nil {
 		protocol = "https"
 	}
 	controllerURL := fmt.Sprintf("%s://%s", protocol, host)
@@ -44,7 +46,7 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	// 鉴权 Token
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
 
-	version := "v3.5.4"
+	version := "v3.5.5"
 	_ = version
 
 	installCmd := fmt.Sprintf(

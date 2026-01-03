@@ -133,7 +133,7 @@ async function reprovisionNode() {
 }
 
 function copyUpdateCommand() {
-  const version = 'v3.5.4'
+  const version = 'v3.5.5'
   const cmd = `systemctl stop stealth-agent && mv /usr/local/bin/stealth-agent /usr/local/bin/stealth-agent.bak && wget -O /usr/local/bin/stealth-agent https://github.com/wangn9900/StealthForward/releases/download/${version}/stealth-agent-amd64 && chmod +x /usr/local/bin/stealth-agent && systemctl start stealth-agent && systemctl status stealth-agent`
   
   navigator.clipboard.writeText(cmd).then(() => {
