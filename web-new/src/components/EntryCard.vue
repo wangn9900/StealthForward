@@ -99,6 +99,24 @@ async function toggleAutoRotate() {
   }
 }
 
+const issuingCert = ref(false)
+async function issueCertificate() {
+  if (!props.entry.domain) {
+    alert('请先编辑节点并填写域名')
+    return
+  }
+  if (!confirm(`确定为域名 ${props.entry.domain} 申请证书? 请确保域名已解析到当前 IP: ${props.entry.ip}`)) return
+  issuingCert.value = true
+  try {
+    const res = await apiPost('/api/v1/node/issue-cert', { domain: props.entry.domain })
+    alert(res.message)
+  } catch (e) {
+    alert('申请指令发送失败: ' + e.message)
+  } finally {
+    issuingCert.value = false
+  }
+}
+
 const provisioning = ref(false)
 
 async function reprovisionNode() {
@@ -115,7 +133,7 @@ async function reprovisionNode() {
 }
 
 function copyUpdateCommand() {
-  const version = 'v3.4.3'
+  const version = 'v3.4.4'
   const cmd = `systemctl stop stealth-agent && mv /usr/local/bin/stealth-agent /usr/local/bin/stealth-agent.bak && wget -O /usr/local/bin/stealth-agent https://github.com/wangn9900/StealthForward/releases/download/${version}/stealth-agent-amd64 && chmod +x /usr/local/bin/stealth-agent && systemctl start stealth-agent && systemctl status stealth-agent`
   
   navigator.clipboard.writeText(cmd).then(() => {
@@ -182,12 +200,15 @@ function formatUptime(seconds) {
         <button @click="rotateIP" :disabled="rotating" class="btn-rotate" title="换IP">
            <svg class="w-3.5 h-3.5" :class="{'animate-spin': rotating}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
         </button>
+        <button @click="issueCertificate" :disabled="issuingCert" class="btn-tool" style="color: #ec4899" title="申请/重签 SSL 证书">
+          <svg class="w-3.5 h-3.5" :class="{'animate-pulse text-pink-400': issuingCert}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+        </button>
         <button @click="reprovisionNode" :disabled="provisioning" class="btn-tool" style="color: #6366f1" title="自动化部署 (BBR+对接)">
           <svg class="w-3.5 h-3.5" :class="{'animate-bounce': provisioning}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
         </button>
         <button @click="copyUpdateCommand" class="btn-tool" title="更新脚本"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></button>
-        <button @click="$emit('edit', entry)" class="btn-tool"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-        <button @click="handleDelete" class="btn-tool del"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+        <button @click="$emit('edit', entry)" class="btn-tool" title="编辑节点"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+        <button @click="handleDelete" class="btn-tool del" title="删除节点"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
       </div>
     </div>
 
