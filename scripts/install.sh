@@ -45,23 +45,34 @@ issue_certificate() {
 
   echo -e "${CYAN}正在通过 acme.sh 申请证书 for $domain ...${NC}"
   
-  # 1. 安装依赖
-  echo -e "${YELLOW}检查并安装 acme.sh 依赖 (socat, curl)...${NC}"
+  # 1. 安装依赖 (增加 cron，这是 acme.sh installer 报错 Pre-check failed 的常见原因)
+  echo -e "${YELLOW}检查并安装 acme.sh 依赖 (socat, curl, cron)...${NC}"
   if command -v apt-get &> /dev/null; then
-    apt-get update && apt-get install -y socat curl
+    apt-get update && apt-get install -y socat curl cron
+    systemctl enable cron && systemctl start cron
   elif command -v yum &> /dev/null; then
-    yum install -y socat curl
+    yum install -y socat curl cronie
+    systemctl enable crond && systemctl start crond
   fi
 
   # 2. 安装 acme.sh
-  if [ ! -f "$HOME/.acme.sh/acme.sh" ]; then
+  if [ ! -f "/root/.acme.sh/acme.sh" ]; then
     echo -e "${YELLOW}正在安装 acme.sh...${NC}"
     curl https://get.acme.sh | sh
+    
+    # 强制兜底：如果安装脚本失败，直接手动下载脚本文件
+    if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+      echo -e "${YELLOW}标准安装失败，执行手动补救模式...${NC}"
+      mkdir -p /root/.acme.sh
+      curl -L https://raw.githubusercontent.com/acmesh-official/acme.sh/master/acme.sh -o /root/.acme.sh/acme.sh
+      chmod +x /root/.acme.sh/acme.sh
+    fi
   fi
   
-  local ACME="$HOME/.acme.sh/acme.sh"
+  local ACME="/root/.acme.sh/acme.sh"
   
   # 3. 注册账户 (LetsEncrypt)
+  echo -e "${CYAN}正在注册 ACME 账户...${NC}"
   $ACME --register-account -m admin@$domain --server letsencrypt >> /var/log/stealth-init.log 2>&1
   
   # 4. 申请证书 (使用 Nginx Webroot 验证，因为伪装页已部署)
@@ -76,7 +87,7 @@ issue_certificate() {
     echo -e "${GREEN}证书成功颁发并安装到 /etc/stealthforward/certs/$domain/ ${NC}"
     return 0
   else
-    echo -e "${RED}证书申请失败！可能原因: 80 端口不通、域名解析未生效、或 acme.sh 限制。${NC}"
+    echo -e "${RED}Webroot 模式证书申请失败，正在分析原因...${NC}"
     echo -e "${YELLOW}尝试暴力 Standalone 模式 (需要暂时停止 Nginx)...${NC}"
     systemctl stop nginx
     $ACME --issue --server letsencrypt -d $domain --standalone --force >> /var/log/stealth-init.log 2>&1
@@ -87,6 +98,8 @@ issue_certificate() {
        $ACME --install-cert -d $domain --fullchain-file /etc/stealthforward/certs/$domain/cert.crt --key-file /etc/stealthforward/certs/$domain/cert.key >> /var/log/stealth-init.log 2>&1
        echo -e "${GREEN}Standalone 模式证书申请成功！${NC}"
        return 0
+    else
+       echo -e "${RED}终极失败：即使 Standalone 模式也无法领证。请检查域名解析是否生效，或 80 端口是否被服务商防火墙拦截。${NC}"
     fi
     return 1
   fi
