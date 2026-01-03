@@ -145,7 +145,10 @@ func (a *Agent) ApplyConfig(configStr string) error {
 	a.lastConfig = configStr
 	log.Printf("New config applied to %s", configPath)
 
-	// 3. 重启 Sing-box 服务
+	// 3. 确保内核二进制文件存在，否则自动下载
+	a.EnsureCoreInstalled()
+
+	// 4. 重启 Sing-box 服务
 	return a.RestartSingBox()
 }
 
@@ -331,17 +334,45 @@ func (a *Agent) RunOnce() {
 func (a *Agent) IssueCertLocally(domain string) {
 	log.Printf("Starting local ACME issuance for %s...", domain)
 	home, _ := os.UserHomeDir()
-	acmePath := home + "/.acme.sh/acme.sh"
+	acmePath := filepath.Join(home, ".acme.sh/acme.sh")
 
-	if _, err := os.Stat(acmePath); os.IsNotExist(err) {
-		log.Printf("acme.sh not found, installing now...")
-		installCmd := exec.Command("sh", "-c", "curl https://get.acme.sh | sh")
+	// 探测 acme.sh 路径 (root / home / bin)
+	paths := []string{
+		acmePath, // /root/.acme.sh/acme.sh
+		"/usr/local/bin/acme.sh",
+		"/usr/bin/acme.sh",
+	}
+
+	foundPath := ""
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			foundPath = p
+			break
+		}
+	}
+
+	if foundPath == "" {
+		log.Printf("acme.sh not found in common paths, installing now...")
+		// 补齐依赖并安装
+		installCmd := exec.Command("sh", "-c", "apt-get update && apt-get install -y socat curl || yum install -y socat curl && curl https://get.acme.sh | sh")
 		if out, err := installCmd.CombinedOutput(); err != nil {
 			log.Printf("Failed to auto-install acme.sh: %v, Output: %s", err, string(out))
 			return
 		}
-		log.Printf("acme.sh installed successfully via Agent.")
+		// 重新探测
+		for _, p := range paths {
+			if _, err := os.Stat(p); err == nil {
+				foundPath = p
+				break
+			}
+		}
+		if foundPath == "" {
+			log.Printf("Critical: acme.sh installed but still not found at expected paths.")
+			return
+		}
+		log.Printf("acme.sh installed successfully at %s", foundPath)
 	}
+	acmePath = foundPath
 
 	// 尝试自动匹配宝塔之类的 webroot
 	btPath := "/www/wwwroot/" + domain
@@ -422,4 +453,30 @@ func (a *Agent) StartMasqueradeServer(port int) {
 			log.Printf("Masquerade server error: %v", err)
 		}
 	}()
+}
+func (a *Agent) EnsureCoreInstalled() {
+	path := a.cfg.SingBoxPath
+	if _, err := os.Stat(path); err == nil {
+		return
+	}
+
+	log.Printf("Core binary missing at %s, attempting to download...", path)
+	os.MkdirAll(filepath.Dir(path), 0755)
+
+	// 从 GitHub 下载最新的官方内核 (推荐版本 v1.10.x)
+	version := "v1.10.7"
+	arch := "amd64"
+	if runtime.GOARCH == "arm64" {
+		arch = "arm64"
+	}
+	url := fmt.Sprintf("https://github.com/SagerNet/sing-box/releases/download/%s/sing-box-%s-linux-%s.tar.gz", version, version[1:], arch)
+
+	log.Printf("Downloading core from: %s", url)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("curl -L %s | tar -xz --strip-components=1 -C /tmp && mv /tmp/sing-box %s && chmod +x %s", url, path, path))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Printf("Failed to download core: %v, Output: %s", err, string(out))
+		// 备选地址 (如果 GitHub 慢)
+		return
+	}
+	log.Printf("Core binary installed successfully to %s", path)
 }

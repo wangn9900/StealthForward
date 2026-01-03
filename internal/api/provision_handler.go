@@ -46,7 +46,7 @@ func ReprovisionNodeHandler(c *gin.Context) {
 
 	// 获取版本号（假设最新）
 	// 获取版本号（假设最新）
-	version := "v3.4.7"
+	version := "v3.4.8"
 
 	// 构造一键安装 & 对接脚本 (使用 systemd 保证后台运行)
 	installCmd := fmt.Sprintf(
