@@ -371,6 +371,47 @@ uninstall_agent() {
   echo -e "${GREEN}Agent 及其关联组件已彻底清除！${NC}"
 }
 
+update_agent() {
+  local version=$1
+  if [ -z "$version" ]; then
+    echo -e "${RED}错误: 未指定版本号。${NC}"
+    exit 1
+  fi
+  
+  echo -e "${BLUE}正在更新 Agent 到版本 $version ...${NC}"
+  
+  # 停止服务
+  systemctl stop stealth-agent
+  
+  # 备份旧文件
+  if [ -f "$BIN_DIR/stealth-agent" ]; then
+    mv "$BIN_DIR/stealth-agent" "$BIN_DIR/stealth-agent.bak"
+  fi
+  
+  echo -e "${YELLOW}正在下载 stealth-agent ($version | $PLATFORM)...${NC}"
+  local url="https://github.com/$REPO/releases/download/$version/stealth-agent-$PLATFORM"
+  
+  curl -L -f -o "$BIN_DIR/stealth-agent" "$url"
+  
+  if [ $? -ne 0 ]; then
+    echo -e "${RED}下载失败! 请检查版本号是否正确 (例如 v3.5.6)${NC}"
+    if [ -f "$BIN_DIR/stealth-agent.bak" ]; then
+      mv "$BIN_DIR/stealth-agent.bak" "$BIN_DIR/stealth-agent"
+      systemctl start stealth-agent
+    fi
+    exit 1
+  fi
+  
+  chmod +x "$BIN_DIR/stealth-agent"
+  
+  # 启动服务
+  systemctl start stealth-agent
+  sleep 2
+  systemctl status stealth-agent --no-pager
+  
+  echo -e "${GREEN}Agent 已成功更新到 $version${NC}"
+}
+
 main_menu() {
   show_logo
   echo -e "1. 安装 ${GREEN}Controller (中控端)${NC}"
@@ -406,6 +447,13 @@ if [ -n "$1" ]; then
     4) uninstall_controller ;;
     5) uninstall_agent ;;
     6) uninstall_ss_exit ;;
+    --update-agent)
+      if [ -z "$2" ]; then
+        echo "错误: 请提供版本号 (e.g. v3.5.6)"
+        exit 1
+      fi
+      update_agent "$2"
+      ;;
     *) echo "未知参数: $1" ; exit 1 ;;
   esac
 else
