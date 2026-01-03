@@ -29,6 +29,12 @@ func InitDB() {
 		&models.SystemSetting{},
 		&models.CloudAccount{},
 		&models.SSHKey{},
+		&models.UltraTunnelNode{},
+		&models.User{},
+		&models.UltraTunnelLine{},
+		&models.UltraTunnelRule{},
+		&models.Plan{},
+		&models.Order{},
 	)
 	if err != nil {
 		log.Fatalf("failed to migrate database: %v", err)

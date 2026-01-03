@@ -8,8 +8,11 @@ const emit = defineEmits(['update:activeTab', 'toggle-theme', 'refresh', 'logout
 
 const tabs = [
   { key: 'dashboard', label: '概览' },
-  { key: 'mappings', label: '配置' },
-  { key: 'settings', label: '系统' }
+  { key: 'profile', label: '个人中心' },
+  { key: 'user_rules', label: '我的规则' },
+  { key: 'mall', label: '商城' },
+  { key: 'ultra', label: '高级中转' },
+  { key: 'settings', label: '配置' }
 ]
 </script>
 

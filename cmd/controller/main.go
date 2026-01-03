@@ -179,6 +179,17 @@ func main() {
 		// 系统备份与恢复
 		v1.GET("/system/backup", api.ExportConfigHandler)
 		v1.POST("/system/restore", api.ImportConfigHandler)
+
+		// --- Ultra Tunnel (Independent Relay) ---
+		v1.GET("/ultra/nodes", api.GetUltraNodes)
+		v1.POST("/ultra/nodes", api.AddUltraNode)
+		v1.POST("/ultra/nodes/:id/deploy", api.DeployUltraNode)
+		v1.GET("/ultra/lines", api.GetUltraLines)
+		v1.POST("/ultra/lines", api.AddUltraLine)
+		v1.GET("/ultra/rules", api.GetUltraTunnels)
+		v1.POST("/ultra/rules", api.AddUltraRule)
+		v1.DELETE("/ultra/rules/:id", api.DeleteUltraRule)
+		v1.POST("/ultra/traffic", api.ReportUltraTraffic)
 	}
 
 	log.Printf("StealthForward Controller is running on %s", *listenAddr)

@@ -13,6 +13,7 @@ require (
 	github.com/sagernet/sing v0.8.0-beta.6
 	github.com/sagernet/sing-box v0.0.0-00010101000000-000000000000
 	github.com/shirou/gopsutil/v3 v3.24.5
+	golang.org/x/crypto v0.46.0
 	gorm.io/gorm v1.31.1
 )
 
@@ -164,7 +165,6 @@ require (
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/arch v0.23.0 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/mod v0.30.0 // indirect
 	golang.org/x/net v0.48.0 // indirect

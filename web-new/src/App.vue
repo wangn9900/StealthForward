@@ -3,6 +3,10 @@ import { ref, onMounted, watch, provide } from 'vue'
 import Header from './components/Header.vue'
 import Dashboard from './components/Dashboard.vue'
 import Mappings from './components/Mappings.vue'
+import UltraTunnel from './components/UltraTunnel.vue'
+import UserUltraRules from './components/UserUltraRules.vue'
+import PersonalCenter from './components/PersonalCenter.vue'
+import Mall from './components/Mall.vue'
 import Settings from './components/Settings.vue'
 import LoginModal from './components/LoginModal.vue'
 import { useApi } from './composables/useApi'
@@ -145,9 +149,12 @@ async function fetchSettings() {
       </div>
 
       <!-- Main Content -->
-      <Dashboard v-if="activeTab === 'dashboard'" @refresh="fetchData" />
-      <Mappings v-else-if="activeTab === 'mappings'" @refresh="fetchData" />
-      <Settings v-else-if="activeTab === 'settings'" />
+      <Dashboard v-if="activeTab === 'dashboard'" />
+      <PersonalCenter v-if="activeTab === 'profile'" />
+      <UserUltraRules v-if="activeTab === 'user_rules'" />
+      <Mall v-if="activeTab === 'mall'" />
+      <UltraTunnel v-if="activeTab === 'ultra'" />
+      <Settings v-if="activeTab === 'settings'" />
     </div>
 
     <!-- Login Modal -->
