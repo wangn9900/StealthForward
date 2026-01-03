@@ -200,20 +200,25 @@ func (a *Agent) UpdateInternalCore(configStr string) error {
 	}
 	b.Router().AppendTracker(hs)
 
-	// 平滑切换逻辑：先启动新内核，成功后再关旧内核
-	err = b.Start()
-	if err != nil {
-		return fmt.Errorf("start new sing-box error: %s", err)
+	// 热重载：先停止旧内核释放端口，再启动新内核
+	if a.box != nil {
+		log.Println("Hot reload: stopping old core to release ports...")
+		a.box.Close()
+		time.Sleep(200 * time.Millisecond) // 等待端口释放
 	}
 
-	if a.box != nil {
-		oldBox := a.box
-		go func() {
-			// 给旧连接 1 秒钟的缓冲时间尝试处理完当前包
-			time.Sleep(1 * time.Second)
-			oldBox.Close()
-			log.Println("Old sing-box core closed after graceful transition.")
-		}()
+	// 启动新内核，带重试机制防止端口未完全释放
+	var startErr error
+	for retry := 0; retry < 3; retry++ {
+		startErr = b.Start()
+		if startErr == nil {
+			break // 启动成功
+		}
+		log.Printf("Start attempt %d failed: %v, retrying...", retry+1, startErr)
+		time.Sleep(500 * time.Millisecond) // 等待更长时间后重试
+	}
+	if startErr != nil {
+		return fmt.Errorf("start new sing-box error after 3 retries: %s", startErr)
 	}
 
 	a.box = b

@@ -46,8 +46,8 @@ func ReprovisionNodeHandler(c *gin.Context) {
 	// 鉴权 Token
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
 
-	version := "v3.5.5"
-	_ = version
+	agentVersion := "v3.5.6"
+	_ = agentVersion
 
 	installCmd := fmt.Sprintf(
 		"export CTRL_ADDR='%s' && export NODE_ID='%d' && export CTRL_TOKEN='%s' && export CTRL_DOMAIN='%s' && "+
