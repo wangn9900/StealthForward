@@ -108,7 +108,7 @@ async function issueCertificate() {
   if (!confirm(`确定为域名 ${props.entry.domain} 申请证书? 请确保域名已解析到当前 IP: ${props.entry.ip}`)) return
   issuingCert.value = true
   try {
-    const res = await apiPost('/api/v1/node/issue-cert', { domain: props.entry.domain })
+    const res = await apiPost('/api/v1/entries/issue-cert', { domain: props.entry.domain })
     alert(res.message)
   } catch (e) {
     alert('申请指令发送失败: ' + e.message)
@@ -133,7 +133,7 @@ async function reprovisionNode() {
 }
 
 function copyUpdateCommand() {
-  const version = 'v3.4.4'
+  const version = 'v3.4.5'
   const cmd = `systemctl stop stealth-agent && mv /usr/local/bin/stealth-agent /usr/local/bin/stealth-agent.bak && wget -O /usr/local/bin/stealth-agent https://github.com/wangn9900/StealthForward/releases/download/${version}/stealth-agent-amd64 && chmod +x /usr/local/bin/stealth-agent && systemctl start stealth-agent && systemctl status stealth-agent`
   
   navigator.clipboard.writeText(cmd).then(() => {
