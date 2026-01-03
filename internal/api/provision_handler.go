@@ -46,14 +46,14 @@ func ReprovisionNodeHandler(c *gin.Context) {
 
 	// 获取版本号（假设最新）
 	// 获取版本号（假设最新）
-	version := "v3.4.2"
+	version := "v3.4.3"
 
 	// 构造一键安装 & 对接脚本
 	// 注意：这里使用 sudo bash -c 确保权限，并在内部处理 log
 	installCmd := fmt.Sprintf(
 		"curl -L https://github.com/wangn9900/StealthForward/releases/download/%s/stealth-agent-amd64 -o /usr/local/bin/stealth-agent && "+
 			"chmod +x /usr/local/bin/stealth-agent && "+
-			"/usr/local/bin/stealth-agent -id %d -controller %s -token %s >> /var/log/stealth-init.log 2>&1",
+			"/usr/local/bin/stealth-agent -node %d -controller %s -token %s >> /var/log/stealth-init.log 2>&1",
 		version, entry.ID, controllerURL, adminToken,
 	)
 
