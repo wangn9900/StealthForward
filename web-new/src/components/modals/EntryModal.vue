@@ -51,7 +51,7 @@ const cloudInstances = ref([])
 const availableProtocols = computed(() => {
   const all = [
     { value: 'anytls', label: 'AnyTLS', proOnly: false },
-    { value: 'vless', label: 'VLESS+Vision', proOnly: true },
+    { value: 'vless', label: 'VLESS', proOnly: true },  // Vision 仅在 TCP 模式下自动启用
     { value: 'vmess', label: 'VMess', proOnly: true },
     { value: 'trojan', label: 'Trojan', proOnly: true },
   ]
@@ -64,7 +64,7 @@ const availableProtocols = computed(() => {
 // 可用传输层列表
 const availableTransports = computed(() => {
   return [
-    { value: 'tcp', label: 'TCP (直连最优)' },
+    { value: 'tcp', label: 'TCP+Vision (直连最优)' },
     { value: 'grpc', label: 'gRPC (抗审查)' },
     { value: 'ws', label: 'WebSocket' },
     { value: 'h2', label: 'HTTP/2' },
@@ -180,11 +180,9 @@ async function handleSubmit() {
               {{ t.label }}
             </option>
           </select>
-        </label>
-
-        <label v-if="form.protocol !== 'anytls' && form.transport === 'grpc'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          gRPC Service Name
-          <input v-model="form.grpc_service" placeholder="grpc (留空使用默认)" />
+          <span v-if="form.transport === 'grpc'" class="text-[10px] text-amber-500/60">
+            gRPC 模式下自动使用默认 serviceName，与 V2Board 配置保持一致
+          </span>
         </label>
 
         <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">

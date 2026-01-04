@@ -102,11 +102,15 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				"uuid": rule.UserID,
 			}
 		default:
-			// VLESS 使用 uuid + flow (保持原有逻辑不变！)
+			// VLESS: 只有 TCP 模式才支持 Vision 流控
+			// gRPC/WS/H2 不支持 flow，必须留空！
 			user = map[string]interface{}{
 				"name": rule.UserEmail,
 				"uuid": rule.UserID,
-				"flow": "xtls-rprx-vision",
+			}
+			// 仅当传输层为 TCP 或空（默认）时才加 flow
+			if entry.Transport == "" || entry.Transport == "tcp" {
+				user["flow"] = "xtls-rprx-vision"
 			}
 		}
 
