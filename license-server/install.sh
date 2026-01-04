@@ -50,11 +50,15 @@ fi
 BINARY_URL="https://github.com/$GITHUB_REPO/releases/download/$LATEST_TAG/license-server-$ARCH"
 echo -e "${CYAN}正在下载: $BINARY_URL${NC}"
 
-if false; then
-    # Skip binary download for now to force update from source
-    echo "Skipping binary download..."
+# 尝试下载最新二进制包
+echo -e "${CYAN}正在尝试下载最新 Release 版本: ${LATEST_TAG}${NC}"
+
+if curl -L -f -o $INSTALL_DIR/license-server.new "$BINARY_URL" 2>/dev/null; then
+    mv $INSTALL_DIR/license-server.new $INSTALL_DIR/license-server
+    chmod +x $INSTALL_DIR/license-server
+    echo -e "${GREEN}下载预编译版本成功！${NC}"
 else
-    echo -e "${YELLOW}正在拉取最新源码编译安装 (v3.6.20+)...${NC}"
+    echo -e "${YELLOW}预编译版本下载失败（可能Github Action还在构建中），自动切换为源码编译安装最新版...${NC}"
     
     # 检查Go是否安装
     if ! command -v go &> /dev/null; then
