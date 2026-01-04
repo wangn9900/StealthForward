@@ -22,6 +22,7 @@ const (
 	DefaultLicenseServer = "https://license.stealthforward.com/api/v1"
 	HeartbeatInterval    = 6 * time.Hour
 	VerifyTimeout        = 30 * time.Second
+	KeyFile              = "data/license.key"
 )
 
 // 授权等级
@@ -75,11 +76,45 @@ var (
 // Init 初始化授权模块
 func Init() {
 	licenseKey = os.Getenv("STEALTH_LICENSE_KEY")
+	// 如果环境变量没配，尝试从文件加载
+	if licenseKey == "" {
+		licenseKey = LoadKey()
+	}
+
 	serverURL = os.Getenv("STEALTH_LICENSE_SERVER")
 	if serverURL == "" {
 		serverURL = DefaultLicenseServer
 	}
 	stopChan = make(chan struct{})
+}
+
+// SetKey 设置内存中的 License Key (用于初次激活)
+func SetKey(key string) {
+	licenseKey = key
+}
+
+// SaveKey 持久化保存 Key
+func SaveKey(key string) error {
+	if err := os.MkdirAll("data", 0755); err != nil {
+		return err
+	}
+	// 同时更新内存
+	SetKey(key)
+	return os.WriteFile(KeyFile, []byte(key), 0644)
+}
+
+// LoadKey 从文件加载 Key
+func LoadKey() string {
+	data, err := os.ReadFile(KeyFile)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// GetKey 获取当前的 License Key
+func GetKey() string {
+	return licenseKey
 }
 
 // Verify 验证授权

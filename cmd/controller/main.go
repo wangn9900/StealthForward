@@ -25,15 +25,20 @@ func main() {
 	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
 	licenseKey := os.Getenv("STEALTH_LICENSE_KEY")
 
+	// 尝试从持久化文件加载 Key (优先级高于环境变量，或者作为补充)
+	if licenseKey == "" {
+		licenseKey = license.LoadKey()
+	}
+
 	if licenseKey != "" && os.Getenv("SKIP_LICENSE") != "true" {
 		// 有License Key时尝试预验证
 		log.Println("正在验证授权...")
+		// 确保 license 模块使用正确的 key
+		license.SetKey(licenseKey)
+
 		if err := license.Verify(); err != nil {
 			log.Printf("⚠️ 授权验证失败: %v", err)
-			if adminToken == "" {
-				log.Fatalf("❌ 无管理员密码且授权无效，无法启动")
-			}
-			log.Println("📌 将以管理员模式运行")
+			log.Println("⚠️ 系统将以受限模式启动，请在 Web 端重新输入 Key 激活")
 		} else {
 			info := license.GetInfo()
 			log.Printf("✅ 授权验证成功 [%s] 有效期至 %s",
@@ -44,7 +49,7 @@ func main() {
 	} else if adminToken != "" {
 		log.Println("📌 管理员模式启动（无需授权验证）")
 	} else {
-		log.Println("⚠️ 未配置授权Key或管理员密码，用户需在登录时输入License Key")
+		log.Println("⚠️ 未配置授权Key或管理员密码，即将在 Web 端等待 License Key 激活...")
 	}
 
 	// 1. 初始化数据库
@@ -59,16 +64,30 @@ func main() {
 
 	// --- 鉴权中间件 ---
 	// adminToken 已在上方声明
+	// --- 鉴权中间件 ---
+	// adminToken 已在上方声明
 	authMiddleware := func(c *gin.Context) {
-		if adminToken != "" {
-			token := c.GetHeader("Authorization")
-			if token == "" {
-				token = c.Query("token")
-			}
-			if token != adminToken {
-				c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
-				return
-			}
+		// 动态获取当前应该使用的 Token (Admin Token 优先，其次是 License Key)
+		requiredToken := adminToken
+		if requiredToken == "" {
+			requiredToken = license.GetKey()
+		}
+
+		// 如果系统既没设管理员密码，也没激活 License，则拒绝所有 API 访问 (除 Login 外)
+		if requiredToken == "" {
+			c.AbortWithStatusJSON(401, gin.H{"error": "System not activated"})
+			return
+		}
+
+		token := c.GetHeader("Authorization")
+		if token == "" {
+			token = c.Query("token")
+		}
+
+		// 简单的 Token 比对
+		if token != requiredToken {
+			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+			return
 		}
 		c.Next()
 	}

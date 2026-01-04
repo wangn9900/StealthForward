@@ -56,6 +56,11 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
+	// 兼容逻辑：如果在密码框直接输入了 License Key (以 SF- 开头)，则自动识别为方式2
+	if req.Password != "" && strings.HasPrefix(req.Password, "SF-") && req.LicenseKey == "" {
+		req.LicenseKey = req.Password
+	}
+
 	// ========== 方式2：License Key 登录（远程验证）==========
 	if req.LicenseKey != "" {
 		// 验证License Key格式
@@ -64,8 +69,10 @@ func LoginHandler(c *gin.Context) {
 			return
 		}
 
-		// 设置License Key并验证
-		os.Setenv("STEALTH_LICENSE_KEY", req.LicenseKey)
+		// 设置License Key到内存
+		license.SetKey(req.LicenseKey)
+
+		// 验证
 		if err := license.Verify(); err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "授权验证失败: " + err.Error(),
@@ -73,6 +80,15 @@ func LoginHandler(c *gin.Context) {
 			})
 			return
 		}
+
+		// 验证成功，持久化保存！确保下次启动可用
+		if err := license.SaveKey(req.LicenseKey); err != nil {
+			// 保存失败仅打印日志，不阻拦用户登录
+			// log.Printf("Failed to save license key: %v", err)
+		}
+
+		// 启动心跳 (如果还没启动)
+		go license.StartHeartbeat()
 
 		info := license.GetInfo()
 		c.JSON(http.StatusOK, gin.H{
