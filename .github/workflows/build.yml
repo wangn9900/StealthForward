@@ -60,9 +60,29 @@ jobs:
             stealth-*
             sing-box-mod-*
             license-server-*
+            
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Frontend
+        run: |
+          cd web-new
+          npm install
+          npm run build
+          # Validating dist exists (Vite config outputs to ../web-dist)
+          cd ../web-dist
+          zip -r ../web.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-assets
+          path: web.zip
 
   release:
-    needs: build
+    needs: [build, build-frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -84,6 +104,8 @@ jobs:
             stealth-binaries-arm64/stealth-agent-arm64
             stealth-binaries-arm64/stealth-admin-arm64
             stealth-binaries-arm64/sing-box-mod-arm64
+            stealth-binaries-arm64/sing-box-mod-arm64
             stealth-binaries-arm64/license-server-arm64
+            web-assets/web.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -186,18 +186,57 @@ install_controller() {
   download_binary "stealth-admin" "stealth-admin"
 
   echo -e "${YELLOW}正在同步可视化面板资源...${NC}"
-  # 下载 index.html
-  curl -L -f -o "$INSTALL_DIR/web/index.html" "https://raw.githubusercontent.com/$REPO/main/web/index.html"
   
-  # 下载 Vite 构建的 assets 目录（JS + CSS）
-  mkdir -p $INSTALL_DIR/web/assets
-  # 获取 assets 文件列表并下载
-  ASSETS_URL="https://api.github.com/repos/$REPO/contents/web/assets?ref=main"
-  ASSETS_LIST=$(curl -s "$ASSETS_URL" | grep '"name"' | sed -E 's/.*"name": "([^"]+)".*/\1/')
-  for FILE in $ASSETS_LIST; do
-    echo -e "${CYAN}  下载 assets/$FILE ...${NC}"
-    curl -L -f -o "$INSTALL_DIR/web/assets/$FILE" "https://raw.githubusercontent.com/$REPO/main/web/assets/$FILE"
-  done
+  # 获取最新 Release Tag (用于拼接下载链接)
+  LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  
+  # 优先尝试从 Release 下载 web.zip (由 CI 自动构建)
+  ZIP_URL="https://github.com/$REPO/releases/download/$LATEST_TAG/web.zip"
+  DOWNLOAD_SUCCESS=0
+
+  if [ -n "$LATEST_TAG" ] && curl -L --fail --connect-timeout 10 -o "$INSTALL_DIR/web.zip" "$ZIP_URL"; then
+      echo -e "${GREEN}成功下载前端资源包 ($LATEST_TAG)，正在解压...${NC}"
+      
+      # 确保安装 unzip
+      if ! command -v unzip &> /dev/null; then
+          echo -e "${YELLOW}正在安装解压工具...${NC}"
+          if command -v apt-get &> /dev/null; then apt-get update && apt-get install -y unzip
+          elif command -v yum &> /dev/null; then yum install -y unzip
+          fi
+      fi
+      
+      mkdir -p "$INSTALL_DIR/web"
+      if unzip -o "$INSTALL_DIR/web.zip" -d "$INSTALL_DIR/web" > /dev/null; then
+          rm -f "$INSTALL_DIR/web.zip"
+          DOWNLOAD_SUCCESS=1
+      else
+          echo -e "${RED}解压失败，尝试回退...${NC}"
+          rm -f "$INSTALL_DIR/web.zip"
+      fi
+  fi
+
+  # 兜底方案：如果 web.zip 下载或解压失败，回退到源码 Raw 模式
+  if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
+      echo -e "${YELLOW}未检测到 Release 资源包，切换到源码同步模式 (Fallback)...${NC}"
+      
+      # 下载 index.html
+      curl -L -f -o "$INSTALL_DIR/web/index.html" "https://raw.githubusercontent.com/$REPO/main/web/index.html"
+      
+      # 下载 Vite 构建的 assets 目录
+      mkdir -p $INSTALL_DIR/web/assets
+      ASSETS_URL="https://api.github.com/repos/$REPO/contents/web/assets?ref=main"
+      ASSETS_LIST=$(curl -s "$ASSETS_URL" | grep '"name"' | sed -E 's/.*"name": "([^"]+)".*/\1/')
+      
+      if [ -z "$ASSETS_LIST" ]; then
+         echo -e "${RED}警告：无法获取 assets 列表，面板可能无法加载。${NC}"
+      else
+         for FILE in $ASSETS_LIST; do
+            echo -e "${CYAN}  下载 assets/$FILE ...${NC}"
+            curl -L -f -o "$INSTALL_DIR/web/assets/$FILE" "https://raw.githubusercontent.com/$REPO/main/web/assets/$FILE"
+         done
+      fi
+  fi
+
   echo -e "${GREEN}面板资源同步完成！${NC}"
   
   # 使用 'EOF' (带引号) 防止变量被提前解析
