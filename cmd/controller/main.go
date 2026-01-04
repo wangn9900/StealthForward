@@ -84,6 +84,25 @@ func main() {
 			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
 			return
 		}
+
+		// --- 商业授权熔断机制 ---
+		// 如果未激活，仅允许:
+		// 1. GET 请求 (只读查看)
+		// 2. /api/v1/system/activate (激活操作)
+		// 其他写操作一律拦截
+		if !license.IsValid() {
+			isRead := c.Request.Method == "GET" || c.Request.Method == "OPTIONS" || c.Request.Method == "HEAD"
+			isActivate := strings.HasSuffix(c.Request.URL.Path, "/activate")
+
+			if !isRead && !isActivate {
+				c.AbortWithStatusJSON(403, gin.H{
+					"error": "🚫 System is in View-Only mode. Please activate your license to perform this action.",
+					"code":  "LICENSE_REQUIRED",
+				})
+				return
+			}
+		}
+
 		c.Next()
 	}
 

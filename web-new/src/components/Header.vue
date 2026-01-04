@@ -81,7 +81,7 @@ async function activate() {
         
         <!-- Buy License Placeholder -->
         <a 
-          href="https://t.me/your_contact" 
+          href="https://t.me/Milkyone_y" 
           target="_blank"
           class="glass px-4 py-2 rounded-xl text-sm font-bold text-amber-500 hover:text-amber-400 border border-amber-500/30 flex items-center gap-1 transition hover:bg-amber-500/10"
         >
