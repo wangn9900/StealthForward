@@ -19,19 +19,32 @@ func main() {
 	listenAddr := flag.String("addr", ":8080", "Listen address (e.g. :8080 or 127.0.0.1:8080)")
 	flag.Parse()
 
-	// === 授权验证 ===
-	if os.Getenv("SKIP_LICENSE") != "true" {
+	// === 授权验证（可选） ===
+	// 管理员模式：设置STEALTH_ADMIN_TOKEN即可使用，不依赖授权服务器
+	// 用户模式：需要在登录时输入License Key验证
+	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
+	licenseKey := os.Getenv("STEALTH_LICENSE_KEY")
+
+	if licenseKey != "" && os.Getenv("SKIP_LICENSE") != "true" {
+		// 有License Key时尝试预验证
 		log.Println("正在验证授权...")
 		if err := license.Verify(); err != nil {
-			log.Fatalf("❌ 授权验证失败: %v", err)
+			log.Printf("⚠️ 授权验证失败: %v", err)
+			if adminToken == "" {
+				log.Fatalf("❌ 无管理员密码且授权无效，无法启动")
+			}
+			log.Println("📌 将以管理员模式运行")
+		} else {
+			info := license.GetInfo()
+			log.Printf("✅ 授权验证成功 [%s] 有效期至 %s",
+				info.Level,
+				info.ExpiresAt.Format("2006-01-02"))
+			go license.StartHeartbeat()
 		}
-		info := license.GetInfo()
-		log.Printf("✅ 授权验证成功 [%s] 有效期至 %s",
-			info.Level,
-			info.ExpiresAt.Format("2006-01-02"))
-		go license.StartHeartbeat()
+	} else if adminToken != "" {
+		log.Println("📌 管理员模式启动（无需授权验证）")
 	} else {
-		log.Println("⚠️ 已跳过授权验证 (SKIP_LICENSE=true)")
+		log.Println("⚠️ 未配置授权Key或管理员密码，用户需在登录时输入License Key")
 	}
 
 	// 1. 初始化数据库
@@ -45,7 +58,7 @@ func main() {
 	r := gin.Default()
 
 	// --- 鉴权中间件 ---
-	adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
+	// adminToken 已在上方声明
 	authMiddleware := func(c *gin.Context) {
 		if adminToken != "" {
 			token := c.GetHeader("Authorization")
