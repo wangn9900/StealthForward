@@ -78,11 +78,34 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	portToUsers := make(map[int][]map[string]interface{})
 	defaultPortUsers := []map[string]interface{}{}
 
+	// 根据协议类型构建不同的 users 结构
+	protocolType := entry.Protocol
+	if protocolType == "" {
+		protocolType = "vless"
+	}
+
 	for _, rule := range rules {
-		user := map[string]interface{}{
-			"name": rule.UserEmail,
-			"uuid": rule.UserID,
-			"flow": "xtls-rprx-vision",
+		var user map[string]interface{}
+
+		switch protocolType {
+		case "anytls", "trojan":
+			// AnyTLS 和 Trojan 使用 password 字段
+			user = map[string]interface{}{
+				"password": rule.UserID,
+			}
+		case "vmess":
+			// VMess 使用 uuid，无 flow
+			user = map[string]interface{}{
+				"name": rule.UserEmail,
+				"uuid": rule.UserID,
+			}
+		default:
+			// VLESS 使用 uuid + flow (保持原有逻辑不变！)
+			user = map[string]interface{}{
+				"name": rule.UserEmail,
+				"uuid": rule.UserID,
+				"flow": "xtls-rprx-vision",
+			}
 		}
 
 		// 从 UserEmail (n20-xxx) 提取节点 ID，找到对应的端口
