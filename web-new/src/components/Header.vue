@@ -56,7 +56,7 @@ async function activate() {
 }
 
 function resetLicense() {
-  if (confirm('确定要清除当前授权信息并切换账号吗？')) {
+  if (confirm('确定要重置当前授权吗？\n\n重置后您可以用新的 License Key 重新激活，以升级 Pro 版或切换账号。')) {
     localStorage.removeItem('stealth_token')
     localStorage.removeItem('stealth_expires')
     localStorage.removeItem('stealth_level')
@@ -79,7 +79,7 @@ function resetLicense() {
       
       <!-- Validity Display or Activation Input -->
       <template v-if="expiresAt">
-        <div @click="resetLicense" class="glass px-4 py-2 rounded-xl text-sm font-mono text-emerald-400 border border-emerald-500/20 flex items-center gap-2 animate-fade-in cursor-pointer hover:bg-emerald-500/10 transition" title="点击切换授权账号">
+        <div @click="resetLicense" class="glass px-4 py-2 rounded-xl text-sm font-mono text-emerald-400 border border-emerald-500/20 flex items-center gap-2 animate-fade-in cursor-pointer hover:bg-emerald-500/10 transition" title="点击重置或升级授权">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           有效期至 {{ expiresAt }}
         </div>
