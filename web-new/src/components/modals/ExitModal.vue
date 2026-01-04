@@ -78,13 +78,14 @@ async function handleSubmit() {
           <input v-model="form.name" placeholder="香港 01 / 新加坡出口" />
         </label>
         
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          协议
-          <select v-model="form.protocol">
-            <option value="ss">Shadowsocks (2022)</option>
-            <option value="vless">VLESS</option>
-          </select>
-        </label>
+          <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+            协议
+            <select v-model="form.protocol">
+              <option value="ss">Shadowsocks (AEAD / 2022)</option>
+              <option value="vmess">VMess</option>
+              <option value="vless">VLESS</option>
+            </select>
+          </label>
         
         <div class="grid grid-cols-2 gap-4">
           <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
@@ -105,9 +106,19 @@ async function handleSubmit() {
         <label v-if="form.protocol === 'ss'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
           加密方法
           <select v-model="form.method">
+            <!-- 经典 AEAD -->
+            <option value="aes-128-gcm">aes-128-gcm</option>
+            <option value="aes-256-gcm">aes-256-gcm</option>
+            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
+            <option value="xchacha20-ietf-poly1305">xchacha20-ietf-poly1305</option>
+            
+            <!-- 2022 -->
             <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm</option>
             <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm</option>
             <option value="2022-blake3-chacha20-poly1305">2022-blake3-chacha20-poly1305</option>
+            
+            <!-- 其他 -->
+            <option value="none">none</option>
           </select>
         </label>
       </div>
