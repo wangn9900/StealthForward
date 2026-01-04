@@ -134,7 +134,7 @@ async function reprovisionNode() {
 }
 
 function copyUpdateCommand() {
-  const version = 'v3.6.21'
+  const version = import.meta.env.VITE_APP_VERSION || 'Dev'
   const cmd = `curl -fsSL https://raw.githubusercontent.com/wangn9900/StealthForward/main/scripts/install.sh | bash -s -- --update-agent ${version}`
   
   navigator.clipboard.writeText(cmd).then(() => {

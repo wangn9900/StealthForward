@@ -12,6 +12,8 @@ const tabs = [
   { key: 'settings', label: '系统' }
 ]
 
+const appVersion = import.meta.env.VITE_APP_VERSION || 'Dev'
+
 import { ref, onMounted, computed, watch } from 'vue'
 import { useLicense } from '../composables/useLicense'
 
@@ -92,7 +94,7 @@ function resetLicense() {
       <h1 class="text-2xl font-black tracking-tight text-[var(--text-primary)] relative z-10 flex items-center gap-3">
         StealthForward
         <span class="text-sm px-2 py-0.5 rounded-md bg-[var(--accent-color)] text-white font-mono opacity-80 backdrop-blur-sm self-start mt-1 shadow-sm">
-          v3.6.21
+          {{ appVersion }}
         </span>
       </h1>
       <p class="text-[var(--text-muted)] text-sm mt-1">First-Principles 架构 | 隐形中转分流中心</p>

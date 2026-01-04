@@ -73,6 +73,8 @@ jobs:
           cd web-new
           npm install
           npm run build
+        env:
+          VITE_APP_VERSION: ${{ github.ref_name }}
           # Validating dist exists (Vite config outputs to ../web-dist)
           cd ../web-dist
           zip -r ../web.zip .
