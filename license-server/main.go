@@ -772,7 +772,29 @@ var adminPageHTML = `<!DOCTYPE html>
     }
 
     function copyText(text) {
-        navigator.clipboard.writeText(text).then(() => showToast('复制成功')).catch(() => showToast('复制失败', 'error'));
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => showToast('复制成功'))
+                .catch(() => fallbackCopyText(text));
+        } else {
+            fallbackCopyText(text);
+        }
+    }
+
+    function fallbackCopyText(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showToast('复制成功');
+        } catch (err) {
+            showToast('复制失败', 'error');
+        }
+        document.body.removeChild(textArea);
     }
 
     function renderLicenses(licenses) {
