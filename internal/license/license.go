@@ -147,6 +147,26 @@ func GetKey() string {
 func Verify() error {
 	Init()
 
+	// --- 上帝模式 (God Mode) ---
+	// 允许管理员通过环境变量跳过验证，用于内部测试或应急
+	if os.Getenv("STEALTH_SKIP_LICENSE") == "true" {
+		log.Println("⚡ 已启用上帝模式 (God Mode): 跳过授权验证，永久授权")
+		licenseMu.Lock()
+		currentLicense = &LicenseInfo{
+			Valid:     true,
+			Level:     "super_admin",
+			ExpiresAt: time.Now().AddDate(99, 0, 0), // 100年后过期
+			Limits: Limits{
+				MaxEntries:   99999,
+				MaxExits:     99999,
+				CloudEnabled: true,
+				Protocols:    []string{"*"},
+			},
+		}
+		licenseMu.Unlock()
+		return nil
+	}
+
 	if licenseKey == "" {
 		return fmt.Errorf("未配置授权Key，请设置环境变量 STEALTH_LICENSE_KEY")
 	}
