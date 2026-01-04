@@ -19,7 +19,7 @@ import (
 
 const (
 	// 授权服务器地址 - 部署后修改
-	DefaultLicenseServer = "http://127.0.0.1:9000/api/v1"
+	DefaultLicenseServer = "https://license.stealthforward.com/api/v1"
 	HeartbeatInterval    = 6 * time.Hour
 	VerifyTimeout        = 30 * time.Second
 	KeyFile              = "data/license.key"
