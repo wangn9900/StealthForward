@@ -11,6 +11,13 @@ const tabs = [
   { key: 'mappings', label: '配置' },
   { key: 'settings', label: '系统' }
 ]
+
+import { ref, onMounted } from 'vue'
+const expiresAt = ref('')
+
+onMounted(() => {
+  expiresAt.value = localStorage.getItem('stealth_expires') || ''
+})
 </script>
 
 <template>
@@ -23,6 +30,13 @@ const tabs = [
 
     <!-- Controls -->
     <div class="flex gap-3 items-center">
+      
+      <!-- Validity Display (Commercial Feature) -->
+      <div v-if="expiresAt" class="glass px-4 py-2 rounded-xl text-sm font-mono text-emerald-400 border border-emerald-500/20 flex items-center gap-2 animate-fade-in">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        有效期至 {{ expiresAt }}
+      </div>
+
       <!-- Tab Switcher -->
       <div class="glass flex p-1 rounded-2xl items-center">
         <div
