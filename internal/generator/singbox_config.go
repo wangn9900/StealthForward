@@ -105,7 +105,6 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			// VLESS: 只有 TCP 模式才支持 Vision 流控
 			// gRPC/WS/H2 不支持 flow，必须留空！
 			user = map[string]interface{}{
-				"name": rule.UserEmail,
 				"uuid": rule.UserID,
 			}
 			// 仅当传输层为 TCP 或空（默认）时才加 flow

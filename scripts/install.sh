@@ -128,12 +128,18 @@ esac
 download_binary() {
   local name=$1
   local target_name=$2
-  echo -e "${YELLOW}正在探测最新版本...${NC}"
-  
-  LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  local force_tag=$3
+
+  if [ -n "$force_tag" ]; then
+    echo -e "${YELLOW}使用指定版本: $force_tag${NC}"
+    LATEST_TAG="$force_tag"
+  else
+    echo -e "${YELLOW}正在探测最新版本...${NC}"
+    LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  fi
   
   if [ -z "$LATEST_TAG" ]; then
-    echo -e "${RED}无法获取最新版本号，请检查网络。${NC}"
+    echo -e "${RED}无法获取版本号，请检查网络。${NC}"
     exit 1
   fi
 
@@ -448,7 +454,7 @@ if [ -n "$1" ]; then
       show_logo
       echo -e "${YELLOW}正在更新 Agent...${NC}"
       systemctl stop stealth-agent 2>/dev/null
-      download_binary "stealth-agent" "stealth-agent"
+      download_binary "stealth-agent" "stealth-agent" "$2"
       systemctl start stealth-agent
       echo -e "${GREEN}Agent 更新完成并不是重启！${NC}"
       ;;

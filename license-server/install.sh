@@ -44,7 +44,7 @@ echo -e "${YELLOW}[2/4] 下载授权服务器...${NC}"
 # 先尝试从Release下载预编译版本
 LATEST_TAG=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 if [ -z "$LATEST_TAG" ]; then
-    LATEST_TAG="v3.6.22"
+    LATEST_TAG="v3.6.23"
 fi
 
 BINARY_URL="https://github.com/$GITHUB_REPO/releases/download/$LATEST_TAG/license-server-$ARCH"
