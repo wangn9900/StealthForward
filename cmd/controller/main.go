@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/wangn9900/StealthForward/internal/api"
 	"github.com/wangn9900/StealthForward/internal/database"
+	"github.com/wangn9900/StealthForward/internal/license"
 	"github.com/wangn9900/StealthForward/internal/sync"
 )
 
@@ -17,6 +18,21 @@ func main() {
 	// 0. 解析参数
 	listenAddr := flag.String("addr", ":8080", "Listen address (e.g. :8080 or 127.0.0.1:8080)")
 	flag.Parse()
+
+	// === 授权验证 ===
+	if os.Getenv("SKIP_LICENSE") != "true" {
+		log.Println("正在验证授权...")
+		if err := license.Verify(); err != nil {
+			log.Fatalf("❌ 授权验证失败: %v", err)
+		}
+		info := license.GetInfo()
+		log.Printf("✅ 授权验证成功 [%s] 有效期至 %s",
+			info.Level,
+			info.ExpiresAt.Format("2006-01-02"))
+		go license.StartHeartbeat()
+	} else {
+		log.Println("⚠️ 已跳过授权验证 (SKIP_LICENSE=true)")
+	}
 
 	// 1. 初始化数据库
 	database.InitDB()
@@ -179,6 +195,9 @@ func main() {
 		// 系统备份与恢复
 		v1.GET("/system/backup", api.ExportConfigHandler)
 		v1.POST("/system/restore", api.ImportConfigHandler)
+
+		// --- License 授权信息 ---
+		v1.GET("/license/info", api.GetLicenseInfoHandler)
 	}
 
 	log.Printf("StealthForward Controller is running on %s", *listenAddr)

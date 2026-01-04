@@ -58,6 +58,17 @@ func RegisterNodeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// === 授权检查 ===
+	// 检查节点数量限制
+	if !CheckCanAddEntry(c) {
+		return
+	}
+	// 检查协议权限
+	if entry.Protocol != "" && !CheckProtocolAllowed(c, entry.Protocol) {
+		return
+	}
+
 	database.DB.Save(&entry)
 	// 保存成功后立即尝试拉取一次 V2Board 数据
 	sync.GlobalSyncNow()
@@ -69,6 +80,11 @@ func CreateExitNodeHandler(c *gin.Context) {
 	var exit models.ExitNode
 	if err := c.ShouldBindJSON(&exit); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// === 授权检查：落地节点数量限制 ===
+	if !CheckCanAddExit(c) {
 		return
 	}
 

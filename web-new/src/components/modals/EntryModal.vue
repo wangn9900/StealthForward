@@ -1,6 +1,7 @@
 <script setup>
-import { ref, inject, onMounted, watch } from 'vue'
+import { ref, inject, onMounted, watch, computed } from 'vue'
 import { useApi } from '../../composables/useApi'
+import { useLicense } from '../../composables/useLicense'
 
 const props = defineProps({
   entry: Object
@@ -10,6 +11,11 @@ const emit = defineEmits(['close', 'saved'])
 
 const exits = inject('exits')
 const { apiPost, apiGet } = useApi()
+const { fetchLicenseInfo, isProtocolAllowed, isCloudEnabled, isPro, isAdmin } = useLicense()
+
+// 授权信息
+const licenseLoaded = ref(false)
+const licenseLevel = ref('admin')
 
 const form = ref({
   id: null,
@@ -17,6 +23,7 @@ const form = ref({
   domain: '',
   ip: '',
   port: 443,
+  protocol: 'anytls', // 新增：入口协议
   certificate: '',
   key: '',
   fallback: '127.0.0.1:80',
@@ -38,7 +45,27 @@ const detecting = ref(false)
 const loadingInstances = ref(false)
 const cloudInstances = ref([])
 
+// 可用协议列表（根据授权等级）
+const availableProtocols = computed(() => {
+  const all = [
+    { value: 'anytls', label: 'AnyTLS', proOnly: false },
+    { value: 'vless', label: 'VLESS', proOnly: true },
+    { value: 'vmess', label: 'VMess', proOnly: true },
+    { value: 'trojan', label: 'Trojan', proOnly: true },
+    { value: 'shadowsocks', label: 'Shadowsocks', proOnly: true },
+  ]
+  return all.map(p => ({
+    ...p,
+    disabled: p.proOnly && !isPro()
+  }))
+})
+
 onMounted(async () => {
+  // 加载授权信息
+  const info = await fetchLicenseInfo()
+  licenseLevel.value = info?.level || 'admin'
+  licenseLoaded.value = true
+
   if (props.entry) {
     form.value = { ...props.entry }
     if (form.value.cloud_provider !== 'none' && form.value.cloud_region) {
@@ -108,9 +135,26 @@ async function handleSubmit() {
       <h3 class="text-2xl font-bold mb-6 text-white">{{ entry ? '编辑' : '新增' }}入站节点</h3>
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-        <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
           显示名称
           <input v-model="form.name" placeholder="美国 01 / 日本入口" />
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          入口协议
+          <select v-model="form.protocol">
+            <option 
+              v-for="p in availableProtocols" 
+              :key="p.value" 
+              :value="p.value"
+              :disabled="p.disabled"
+            >
+              {{ p.label }}{{ p.disabled ? ' (Pro版)' : '' }}
+            </option>
+          </select>
+          <span v-if="licenseLevel === 'basic'" class="text-[10px] text-amber-500/60">
+            升级到Pro版可解锁 VLESS/VMess 等全协议
+          </span>
         </label>
 
         <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">

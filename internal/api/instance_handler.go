@@ -14,6 +14,11 @@ import (
 
 // ProvisionInstanceHandler 处理创建 AWS 实例请求
 func ProvisionInstanceHandler(c *gin.Context) {
+	// === 授权检查：云功能 ===
+	if !CheckCloudEnabled(c) {
+		return
+	}
+
 	var req cloud.CreateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -46,6 +51,11 @@ type TerminateInstanceRequest struct {
 }
 
 func TerminateInstanceHandler(c *gin.Context) {
+	// === 授权检查：云功能 ===
+	if !CheckCloudEnabled(c) {
+		return
+	}
+
 	var req TerminateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -180,6 +190,11 @@ func ListLightsailBlueprintsHandler(c *gin.Context) {
 }
 
 func ProvisionLightsailHandler(c *gin.Context) {
+	// === 授权检查：云功能 ===
+	if !CheckCloudEnabled(c) {
+		return
+	}
+
 	var req cloud.CreateLightsailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -199,6 +214,11 @@ func ProvisionLightsailHandler(c *gin.Context) {
 // We can overload or make new. Let's make new for clarity.
 
 func TerminateLightsailHandler(c *gin.Context) {
+	// === 授权检查：云功能 ===
+	if !CheckCloudEnabled(c) {
+		return
+	}
+
 	var req struct {
 		Region       string `json:"region"`
 		InstanceName string `json:"instance_name"`
