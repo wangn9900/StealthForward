@@ -77,7 +77,7 @@ jobs:
           npm run build
           # Validating dist exists (Vite config outputs to ../web-dist)
           cd ../web-dist
-          zip -r ../web.zip .
+          zip -r -X ../web.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: web-assets
