@@ -12,10 +12,19 @@ const tabs = [
   { key: 'settings', label: '系统' }
 ]
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 const expiresAt = ref('')
 const activKey = ref('')
 const loadingActiv = ref(false)
+
+const renewVisible = computed(() => {
+  if (!expiresAt.value) return false
+  const exp = new Date(expiresAt.value)
+  const now = new Date()
+  const diffTime = exp - now
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays <= 7 // 这里设置剩下7天内显示续费
+})
 
 onMounted(() => {
   expiresAt.value = localStorage.getItem('stealth_expires') || ''
@@ -59,10 +68,20 @@ async function activate() {
     <div class="flex gap-3 items-center">
       
       <!-- Validity Display or Activation Input -->
-      <div v-if="expiresAt" class="glass px-4 py-2 rounded-xl text-sm font-mono text-emerald-400 border border-emerald-500/20 flex items-center gap-2 animate-fade-in">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        有效期至 {{ expiresAt }}
-      </div>
+      <template v-if="expiresAt">
+        <div class="glass px-4 py-2 rounded-xl text-sm font-mono text-emerald-400 border border-emerald-500/20 flex items-center gap-2 animate-fade-in">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          有效期至 {{ expiresAt }}
+        </div>
+        <a 
+          v-if="renewVisible"
+          href="https://t.me/Milkyone_y" 
+          target="_blank"
+          class="glass px-4 py-2 rounded-xl text-sm font-bold text-amber-500 hover:text-amber-400 border border-amber-500/30 flex items-center gap-1 transition hover:bg-amber-500/10 animate-fade-in"
+        >
+          ⏱️ 立即续费
+        </a>
+      </template>
       
       <div v-else class="flex gap-2 animate-fade-in">
         <input 

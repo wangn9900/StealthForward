@@ -1,4 +1,5 @@
 <script setup>
+// This replacement is just a placeholder as I need to find another file.
 import { inject, computed, ref } from 'vue'
 import { useApi } from '../composables/useApi'
 

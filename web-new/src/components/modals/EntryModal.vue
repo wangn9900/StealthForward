@@ -52,7 +52,6 @@ const availableProtocols = computed(() => {
     { value: 'vless', label: 'VLESS', proOnly: true },
     { value: 'vmess', label: 'VMess', proOnly: true },
     { value: 'trojan', label: 'Trojan', proOnly: true },
-    { value: 'shadowsocks', label: 'Shadowsocks', proOnly: true },
   ]
   return all.map(p => ({
     ...p,
