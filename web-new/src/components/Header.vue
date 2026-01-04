@@ -91,9 +91,9 @@ function resetLicense() {
   <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
     <!-- Logo & Title -->
     <div>
-      <h1 class="text-2xl font-black tracking-tight text-[var(--text-primary)] relative z-10 flex items-center gap-3">
+      <h1 class="text-4xl font-extrabold tracking-tighter text-[var(--text-primary)] flex items-baseline gap-3">
         StealthForward
-        <span class="text-sm px-2 py-0.5 rounded-md bg-[var(--accent-color)] text-white font-mono opacity-80 backdrop-blur-sm self-start mt-1 shadow-sm">
+        <span class="text-lg font-mono text-[var(--text-muted)] opacity-60">
           {{ appVersion }}
         </span>
       </h1>
