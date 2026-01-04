@@ -68,8 +68,8 @@ async function activate() {
         <input 
           v-model="activKey" 
           type="text" 
-          placeholder="请输入 License Key 激活" 
-          class="glass px-3 py-2 rounded-xl text-sm text-white placeholder-gray-400 border border-white/10 focus:border-primary-500 outline-none w-64"
+          placeholder="输入 License/Smart Key 激活" 
+          class="glass px-3 py-2 rounded-xl text-sm text-white placeholder-gray-400 border border-white/10 focus:border-primary-500 outline-none w-96"
         />
         <button 
           @click="activate" 

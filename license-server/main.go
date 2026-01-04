@@ -1,10 +1,14 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -98,12 +102,15 @@ type CreateLicenseRequest struct {
 	CustomerName  string `json:"customer_name"`
 	CustomerEmail string `json:"customer_email"`
 	DurationDays  int    `json:"duration_days"`
+	ServerURL     string `json:"server_url"`
 }
 
 // ========== 全局变量 ==========
 
 var db *gorm.DB
 var signSecret = "your-secret-key-change-in-production"
+
+const SmartKeySecret = "StealthForward_Smart_License_Key_2025_Secret"
 
 func main() {
 	// 初始化数据库
@@ -313,7 +320,26 @@ func createLicenseHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, license)
+	// 生成 Smart Key (如果传入了 Server URL)
+	smartKey := ""
+	if req.ServerURL != "" {
+		smartKey = generateSmartKey(key, req.ServerURL)
+	}
+
+	// 手动构造响应 Map，以便添加 smart_key 字段
+	resp := gin.H{
+		"id":             license.ID,
+		"license_key":    license.LicenseKey,
+		"level":          license.Level,
+		"customer_name":  license.CustomerName,
+		"customer_email": license.CustomerEmail,
+		"is_active":      license.IsActive,
+		"created_at":     license.CreatedAt,
+		"expires_at":     license.ExpiresAt,
+		"smart_key":      smartKey,
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func updateLicenseHandler(c *gin.Context) {
@@ -424,6 +450,36 @@ func signData(data string) string {
 	mac := hmac.New(sha256.New, []byte(signSecret))
 	mac.Write([]byte(data))
 	return hex.EncodeToString(mac.Sum(nil))[:32]
+}
+
+func generateSmartKey(key, url string) string {
+	payload := map[string]string{
+		"k": key,
+		"u": url,
+	}
+	jsonBytes, _ := json.Marshal(payload)
+	encrypted := encryptAES(jsonBytes)
+	return "STEALTH-" + base64.StdEncoding.EncodeToString(encrypted)
+}
+
+func encryptAES(data []byte) []byte {
+	keyHash := sha256.Sum256([]byte(SmartKeySecret))
+	block, err := aes.NewCipher(keyHash[:])
+	if err != nil {
+		return data
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return data
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return data
+	}
+
+	return gcm.Seal(nonce, nonce, data, nil)
 }
 
 func maskIP(ip string) string {
@@ -584,6 +640,9 @@ var adminPageHTML = `<!DOCTYPE html>
                     </div>
                     <button class="btn-success" onclick="createLicense()">生成授权</button>
                 </div>
+                <p style="margin-top:0.5rem;color:#6b7280;font-size:12px">
+                    * 生成的智能Key已自动内置当前服务器地址 (<span id="server-url-display"></span>)
+                </p>
             </div>
 
             <div class="card">
@@ -624,6 +683,8 @@ var adminPageHTML = `<!DOCTYPE html>
             document.getElementById('token').value = storedToken;
             login(); // 尝试自动登录
         }
+        const display = document.getElementById('server-url-display');
+        if(display) display.innerText = window.location.origin + "/api/v1";
     }
 
     function handleEnter(e) {
@@ -718,11 +779,13 @@ var adminPageHTML = `<!DOCTYPE html>
     }
 
     async function createLicense() {
+        const serverUrl = window.location.origin + "/api/v1";
         const data = {
             level: document.getElementById('new-level').value,
             customer_name: document.getElementById('new-name').value,
             customer_email: document.getElementById('new-email').value,
-            duration_days: parseInt(document.getElementById('new-days').value) || 30
+            duration_days: parseInt(document.getElementById('new-days').value) || 30,
+            server_url: serverUrl
         };
         
         try {
@@ -735,8 +798,13 @@ var adminPageHTML = `<!DOCTYPE html>
             if (res.ok) {
                 const license = await res.json();
                 showToast('创建成功');
-                // 暂时简单的alert显示key
-                alert('🔥 创建成功！\n请复制 License Key:\n\n' + license.license_key);
+                
+                const displayKey = license.smart_key || license.license_key;
+                const msg = license.smart_key 
+                    ? '🔥 创建成功！\n请复制 key 发给客户 (内置服务器地址):\n\n' + displayKey 
+                    : '🔥 创建成功！\nLicense Key:\n\n' + displayKey;
+
+                alert(msg);
                 loadLicenses();
                 // 清空表单
                 document.getElementById('new-name').value = '';

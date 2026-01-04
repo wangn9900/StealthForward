@@ -2,8 +2,11 @@ package license
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,6 +21,9 @@ import (
 )
 
 const (
+	// SmartKeySecret 智能Key加密密钥
+	SmartKeySecret = "StealthForward_Smart_License_Key_2025_Secret"
+
 	// 授权服务器地址 - 部署后修改
 	DefaultLicenseServer = "https://license.stealthforward.com/api/v1"
 	HeartbeatInterval    = 6 * time.Hour
@@ -85,7 +91,21 @@ func Init() {
 		licenseKey = LoadKey()
 	}
 
-	serverURL = os.Getenv("STEALTH_LICENSE_SERVER")
+	// 尝试解析 Smart Key
+	if strings.HasPrefix(licenseKey, "STEALTH-") {
+		realKey, url := parseSmartKey(licenseKey)
+		if realKey != "" {
+			licenseKey = realKey
+			if url != "" {
+				serverURL = url
+				log.Printf("🔑 已识别智能Key，自动设定授权服务器: %s", serverURL)
+			}
+		}
+	}
+
+	if serverURL == "" {
+		serverURL = os.Getenv("STEALTH_LICENSE_SERVER")
+	}
 	if serverURL == "" {
 		serverURL = DefaultLicenseServer
 	}
@@ -94,6 +114,15 @@ func Init() {
 
 // SetKey 设置内存中的 License Key (用于初次激活)
 func SetKey(key string) {
+	if strings.HasPrefix(key, "STEALTH-") {
+		realKey, url := parseSmartKey(key)
+		if realKey != "" && url != "" {
+			licenseKey = realKey
+			serverURL = url
+			log.Printf("🔑 激活智能Key，自动连接服务器: %s", serverURL)
+			return
+		}
+	}
 	licenseKey = key
 }
 
@@ -424,6 +453,47 @@ func GetDefaultLimits(level string) Limits {
 }
 
 // --- 辅助函数 ---
+
+func parseSmartKey(smartKey string) (string, string) {
+	encoded := strings.TrimPrefix(smartKey, "STEALTH-")
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", ""
+	}
+
+	decrypted, err := decryptAES(data)
+	if err != nil {
+		return "", ""
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(decrypted, &payload); err != nil {
+		return "", ""
+	}
+
+	return payload["k"], payload["u"]
+}
+
+func decryptAES(ciphertext []byte) ([]byte, error) {
+	keyHash := sha256.Sum256([]byte(SmartKeySecret))
+	block, err := aes.NewCipher(keyHash[:])
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ciphertext) < gcm.NonceSize() {
+		return nil, fmt.Errorf("ciphertext too short")
+	}
+
+	nonce := ciphertext[:gcm.NonceSize()]
+	data := ciphertext[gcm.NonceSize():]
+	return gcm.Open(nil, nonce, data, nil)
+}
 
 // getServerIP 获取服务器公网IP
 func getServerIP() string {
