@@ -260,7 +260,7 @@ EOF
   systemctl enable stealth-controller
   systemctl start stealth-controller
   echo -e "${GREEN}Controller 安装并启动成功！${NC}"
-  echo -e "${CYAN}面板地址: http://你的公网IP:8080/dashboard${NC}"
+  echo -e "${CYAN}面板地址: http://你的公网IP:8090/dashboard${NC}"
 }
 
 install_agent() {
@@ -300,9 +300,9 @@ install_agent() {
   
   # 如果环境变量已提供，则跳过交互
   if [ -z "$CTRL_ADDR" ]; then
-    read -p "请输入 Controller API 地址 [http://127.0.0.1:8080]: " CTRL_ADDR
+    read -p "请输入 Controller API 地址 [http://127.0.0.1:8090]: " CTRL_ADDR
   fi
-  CTRL_ADDR=${CTRL_ADDR:-http://127.0.0.1:8080}
+  CTRL_ADDR=${CTRL_ADDR:-http://127.0.0.1:8090}
   
   if [ -z "$NODE_ID" ]; then
     read -p "请输入当前节点 ID [1]: " NODE_ID

@@ -16,7 +16,7 @@ import (
 
 func main() {
 	// 0. 解析参数
-	listenAddr := flag.String("addr", ":8080", "Listen address (e.g. :8080 or 127.0.0.1:8080)")
+	listenAddr := flag.String("addr", ":8090", "Listen address (e.g. :8090 or 127.0.0.1:8090)")
 	flag.Parse()
 
 	// === 授权验证（可选） ===
