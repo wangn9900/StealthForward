@@ -9,8 +9,6 @@ export function useLicense() {
     const { apiGet } = useApi()
 
     async function fetchLicenseInfo() {
-        if (licenseInfo.value) return licenseInfo.value
-
         loading.value = true
         error.value = null
         try {
@@ -19,15 +17,15 @@ export function useLicense() {
             return res
         } catch (e) {
             error.value = e.message
-            // 如果获取失败，假设是admin模式（开发环境）
+            // 安全回退：获取失败默认为 Basic，防止权限泄露
             licenseInfo.value = {
-                level: 'admin',
-                expires_at: '永久',
+                level: 'basic',
+                expires_at: '-',
                 limits: {
-                    protocols: ['*'],
-                    max_entries: 999999,
-                    max_exits: 999999,
-                    cloud_enabled: true
+                    protocols: ['anytls'],
+                    max_entries: 5,
+                    max_exits: 5,
+                    cloud_enabled: false
                 },
                 usage: { entries: 0, exits: 0 }
             }
@@ -38,32 +36,32 @@ export function useLicense() {
     }
 
     function isProtocolAllowed(protocol) {
-        if (!licenseInfo.value) return true // 未加载时允许
+        if (!licenseInfo.value) return protocol.toLowerCase() === 'anytls'
         const protocols = licenseInfo.value.limits?.protocols || []
         return protocols.includes('*') || protocols.includes(protocol.toLowerCase())
     }
 
     function isCloudEnabled() {
-        if (!licenseInfo.value) return true
-        return licenseInfo.value.limits?.cloud_enabled ?? true
+        if (!licenseInfo.value) return false
+        return licenseInfo.value.limits?.cloud_enabled ?? false
     }
 
     function canAddEntry() {
-        if (!licenseInfo.value) return true
-        const max = licenseInfo.value.limits?.max_entries || 999999
+        if (!licenseInfo.value) return false
+        const max = licenseInfo.value.limits?.max_entries || 0
         const current = licenseInfo.value.usage?.entries || 0
         return current < max
     }
 
     function canAddExit() {
-        if (!licenseInfo.value) return true
-        const max = licenseInfo.value.limits?.max_exits || 999999
+        if (!licenseInfo.value) return false
+        const max = licenseInfo.value.limits?.max_exits || 0
         const current = licenseInfo.value.usage?.exits || 0
         return current < max
     }
 
     function getLevel() {
-        return licenseInfo.value?.level || 'admin'
+        return licenseInfo.value?.level || 'basic'
     }
 
     function isAdmin() {
