@@ -67,22 +67,25 @@ func main() {
 	// --- 鉴权中间件 ---
 	// adminToken 已在上方声明
 	authMiddleware := func(c *gin.Context) {
-		// 确定当前有效的 Admin Token (环境变量 > 默认 "admin")
+		// 确定当前有效的 Admin Token
 		validToken := os.Getenv("STEALTH_ADMIN_TOKEN")
+
+		// 如果未配置 Admin Token，则视为不需要鉴权（开发/调试模式）
+		// 如果需要 "admin" 作为默认值，请在启动脚本中显式 export STEALTH_ADMIN_TOKEN=admin
 		if validToken == "" {
-			validToken = "admin"
-		}
+			// 直接放行，但保留 License 检查逻辑
+		} else {
+			// 获取请求 Token
+			token := c.GetHeader("Authorization")
+			if token == "" {
+				token = c.Query("token")
+			}
 
-		// 获取请求 Token
-		token := c.GetHeader("Authorization")
-		if token == "" {
-			token = c.Query("token")
-		}
-
-		// 验证 Token (只要 Token 对就可以访问，具体功能权限由 handler 内部判断)
-		if token != validToken {
-			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
-			return
+			// 验证 Token
+			if token != validToken {
+				c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+				return
+			}
 		}
 
 		// --- 商业授权熔断机制 ---
