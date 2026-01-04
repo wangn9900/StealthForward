@@ -183,8 +183,6 @@ install_controller() {
   
   mkdir -p $INSTALL_DIR/web
   download_binary "stealth-controller" "stealth-controller"
-  download_binary "stealth-controller" "stealth-controller"
-  download_binary "stealth-admin" "stealth-admin"
 
   # --- 新增：配置授权服务器地址 ---
   # --- 配置授权服务器地址 (默认留空，由Web端配置或智能Key覆盖) ---
