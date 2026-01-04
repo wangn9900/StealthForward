@@ -444,6 +444,14 @@ main_menu() {
 # 根据命令行参数直接运行特定功能，否则进入主菜单
 if [ -n "$1" ]; then
   case $1 in
+    --update-agent)
+      show_logo
+      echo -e "${YELLOW}正在更新 Agent...${NC}"
+      systemctl stop stealth-agent 2>/dev/null
+      download_binary "stealth-agent" "stealth-agent"
+      systemctl start stealth-agent
+      echo -e "${GREEN}Agent 更新完成并不是重启！${NC}"
+      ;;
     1) install_controller ;;
     2) install_agent ;;
     3) install_ss_exit ;;
