@@ -148,23 +148,28 @@ func Verify() error {
 	Init()
 
 	// --- 上帝模式 (God Mode) ---
-	// 允许管理员通过环境变量跳过验证，用于内部测试或应急
-	if os.Getenv("STEALTH_SKIP_LICENSE") == "true" {
-		log.Println("⚡ 已启用上帝模式 (God Mode): 跳过授权验证，永久授权")
-		licenseMu.Lock()
-		currentLicense = &LicenseInfo{
-			Valid:     true,
-			Level:     "super_admin",
-			ExpiresAt: time.Now().AddDate(99, 0, 0), // 100年后过期
-			Limits: Limits{
-				MaxEntries:   99999,
-				MaxExits:     99999,
-				CloudEnabled: true,
-				Protocols:    []string{"*"},
-			},
+	// 允许管理员通过环境变量 (Hash校验) 跳过验证，防止明文后门泄露
+	rootKey := os.Getenv("STEALTH_ROOT_KEY")
+	if rootKey != "" {
+		hash := sha256.Sum256([]byte(rootKey))
+		// Hash of "EyIT2fUt9o8VSMOZKdqG0hrsFgb6PD17"
+		if hex.EncodeToString(hash[:]) == "6773a3a17922899a84702f840271d0837115a3b003e672807d61b7b7c83be11e" {
+			log.Println("⚡ 已启用上帝模式 (God Mode): 顶级管理密码校验成功，永久授权")
+			licenseMu.Lock()
+			currentLicense = &LicenseInfo{
+				Valid:     true,
+				Level:     "super_admin",
+				ExpiresAt: time.Now().AddDate(99, 0, 0), // 100年后过期
+				Limits: Limits{
+					MaxEntries:   99999,
+					MaxExits:     99999,
+					CloudEnabled: true,
+					Protocols:    []string{"*"},
+				},
+			}
+			licenseMu.Unlock()
+			return nil
 		}
-		licenseMu.Unlock()
-		return nil
 	}
 
 	if licenseKey == "" {
