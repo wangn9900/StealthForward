@@ -40,7 +40,7 @@ jobs:
         run: |
           cd license-server
           go mod tidy
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=1 go build -ldflags="-s -w" -o ../license-server-${{ matrix.goarch }} .
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../license-server-${{ matrix.goarch }} .
 
       - name: Build Standalone Sing-box Mod (with VLESS Fallback)
         run: |
