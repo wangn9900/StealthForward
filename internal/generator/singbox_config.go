@@ -88,8 +88,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		var user map[string]interface{}
 
 		switch protocolType {
-		case "anytls", "trojan":
-			// AnyTLS 和 Trojan 使用 password 字段
+		case "anytls", "trojan", "shadowsocks", "ss", "hysteria2":
+			// AnyTLS, Trojan, Shadowsocks, Hysteria2 使用 password 字段
 			// 必须加上 name 字段，否则 sing-box 无法识别用户，流量统计会失效！
 			user = map[string]interface{}{
 				"name":     rule.UserEmail,
@@ -141,6 +141,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		defaultType = "vless" // 默认 VLESS
 	} else if defaultType == "v2ray" {
 		defaultType = "vmess"
+	} else if defaultType == "ss" {
+		defaultType = "shadowsocks"
 	}
 
 	// 创建默认端口的 inbound
@@ -155,8 +157,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"users":         defaultPortUsers,
 	}
 
-	// 根据协议类型决定是否需要 fallback (AnyTLS 不需要)
-	if defaultType != "anytls" {
+	// 根据协议类型决定是否需要 fallback (AnyTLS, Shadowsocks 不需要)
+	if defaultType != "anytls" && defaultType != "shadowsocks" {
 		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -171,11 +173,14 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"key_path":         keyPath,
 		"min_version":      "1.2",
 	}
-	defaultInbound["tls"] = tlsConfig
+	// Shadowsocks 不使用 TLS
+	if defaultType != "shadowsocks" {
+		defaultInbound["tls"] = tlsConfig
+	}
 
-	// gRPC/WS/H2 传输层配置 (仅适用于非 AnyTLS 协议)
+	// gRPC/WS/H2 传输层配置 (仅适用于非 AnyTLS/Shadowsocks 协议)
 	// AnyTLS 是纯 TLS 协议，不支持额外的传输层封装
-	if defaultType != "anytls" {
+	if defaultType != "anytls" && defaultType != "shadowsocks" {
 		if entry.Transport == "grpc" {
 			serviceName := entry.GrpcService
 			if serviceName == "" {
@@ -214,6 +219,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 		if inboundType == "v2ray" {
 			inboundType = "vmess"
+		} else if inboundType == "ss" {
+			inboundType = "shadowsocks"
 		}
 
 		inboundTag := fmt.Sprintf("node_%d_port_%d", entry.ID, port)
@@ -248,6 +255,24 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		json.Unmarshal([]byte(exit.Config), &exitOutbound)
 		if exit.Protocol == "ss" {
 			exitOutbound["type"] = "shadowsocks"
+
+			// --- 自愈逻辑：Shadowsocks 2022 强制校验 ---
+			// 如果内核检测到 2022 协议但密码长度不对，会直接导致整个 Agent 崩溃。
+			// 这里我们主动检测不合规的配置并跳过，宁可少一个节点，不要挂整个服务。
+			if method, ok := exitOutbound["method"].(string); ok && strings.Contains(method, "2022-blake3") {
+				if pwd, ok := exitOutbound["password"].(string); ok {
+					// 所有的 2022 协议都要求 password 是 Base64 编码的 16/32 字节密钥
+					// 简单起见，我们只能检查它是否像一个普通密码（比如长度<32）
+					// 标准 32 bytes 密钥 base64 编码后长度约为 44 字符
+					// 16 bytes 密钥 base64 编码后长度约为 24 字符
+					if len(pwd) < 20 {
+						// 记录日志或直接静默跳过
+						// fmt.Printf("Skipping invalid SS-2022 node %d (%s): password too short for %s\n", exit.ID, exit.Name, method)
+						continue
+					}
+				}
+			}
+
 			if cipher, ok := exitOutbound["cipher"]; ok {
 				exitOutbound["method"] = cipher
 			}
