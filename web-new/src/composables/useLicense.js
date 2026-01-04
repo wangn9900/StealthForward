@@ -67,12 +67,13 @@ export function useLicense() {
     }
 
     function isAdmin() {
-        return getLevel() === 'admin'
+        const level = getLevel()
+        return level === 'admin' || level === 'super_admin'
     }
 
     function isPro() {
         const level = getLevel()
-        return level === 'pro' || level === 'admin'
+        return level === 'pro' || level === 'admin' || level === 'super_admin'
     }
 
     return {
