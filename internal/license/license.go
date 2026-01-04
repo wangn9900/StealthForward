@@ -103,6 +103,32 @@ func SaveKey(key string) error {
 	return os.WriteFile(KeyFile, []byte(key), 0644)
 }
 
+const CacheFile = "data/license.cache"
+
+// saveCache 保存授权缓存
+func saveCache(info *LicenseInfo) {
+	data, _ := json.Marshal(info)
+	os.MkdirAll("data", 0755)
+	os.WriteFile(CacheFile, data, 0644)
+}
+
+// loadCache 加载授权缓存
+func loadCache() *LicenseInfo {
+	data, err := os.ReadFile(CacheFile)
+	if err != nil {
+		return nil
+	}
+	var info LicenseInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil
+	}
+	// 校验缓存是否过期
+	if time.Now().After(info.ExpiresAt) {
+		return nil
+	}
+	return &info
+}
+
 // LoadKey 从文件加载 Key
 func LoadKey() string {
 	data, err := os.ReadFile(KeyFile)
@@ -147,7 +173,15 @@ func Verify() error {
 		bytes.NewBuffer(jsonData),
 	)
 	if err != nil {
-		return fmt.Errorf("无法连接授权服务器: %v", err)
+		// 网络连接失败，尝试读取本地缓存救援
+		if cache := loadCache(); cache != nil {
+			log.Printf("⚠️ 无法连接授权服务器 (%v)，即使切换至离线缓存模式 (有效期至 %s)", err, cache.ExpiresAt.Format("2006-01-02"))
+			licenseMu.Lock()
+			currentLicense = cache
+			licenseMu.Unlock()
+			return nil
+		}
+		return fmt.Errorf("无法连接授权服务器且无有效缓存: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -175,6 +209,9 @@ func Verify() error {
 	licenseMu.Lock()
 	currentLicense = &info
 	licenseMu.Unlock()
+
+	// 更新本地缓存
+	saveCache(currentLicense)
 
 	return nil
 }
