@@ -187,22 +187,8 @@ install_controller() {
   download_binary "stealth-admin" "stealth-admin"
 
   # --- 新增：配置授权服务器地址 ---
-  echo -e "${YELLOW}配置授权服务器 (License Server) ...${NC}"
-  read -p "请输入授权服务器地址 (留空则默认使用官方服务器): " INPUT_LICENSE_SERVER
-  
+  # --- 配置授权服务器地址 (默认留空，由Web端配置或智能Key覆盖) ---
   LICENSE_ENV_LINE=""
-  if [ -n "$INPUT_LICENSE_SERVER" ]; then
-      # 自动移除末尾斜杠
-      INPUT_LICENSE_SERVER=${INPUT_LICENSE_SERVER%/}
-      # 如果用户只输入了 IP:Port，自动补全 API 路径
-      if [[ "$INPUT_LICENSE_SERVER" != *"/api/v1" ]]; then
-          INPUT_LICENSE_SERVER="${INPUT_LICENSE_SERVER}/api/v1"
-      fi
-      echo -e "${GREEN}已设定授权服务器: $INPUT_LICENSE_SERVER${NC}"
-      LICENSE_ENV_LINE="Environment=\"STEALTH_LICENSE_SERVER=$INPUT_LICENSE_SERVER\""
-  else
-      echo -e "${CYAN}使用默认官方授权服务器${NC}"
-  fi
 
 
   echo -e "${YELLOW}正在同步可视化面板资源...${NC}"
