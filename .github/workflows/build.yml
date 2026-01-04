@@ -77,7 +77,7 @@ jobs:
           npm run build
           # Validating dist exists (Vite config outputs to ../web-dist)
           cd ../web-dist
-          zip -r -X ../web.zip .
+          python3 -c "import zipfile, os; z=zipfile.ZipFile('../web.zip','w',zipfile.ZIP_DEFLATED); [z.write(os.path.join(r,f), os.path.join(r,f)[2:]) for r,_,fs in os.walk('.') for f in fs]; z.close()"
       - uses: actions/upload-artifact@v4
         with:
           name: web-assets
