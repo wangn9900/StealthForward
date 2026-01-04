@@ -47,9 +47,9 @@ func main() {
 			go license.StartHeartbeat()
 			// 注册熔断回调：当 Heartbeat 失败时，直接杀掉 Controller 进程
 			license.RegisterServiceStopper(func() {
-				log.Fatalf("License expired or invalid. Stopping service now.")
-				// os.Exit(1) is implied by log.Fatalf, but let's be explicit if we use Println
-				os.Exit(1)
+				log.Println("⚠️ 授权失效或过期！系统已自动切换至 [只读/维护模式]。")
+				log.Println("👉 所有管理功能已被冻结，请登录 Web 面板重新激活授权。")
+				// 关键修改：不再执行 os.Exit(1)，保持进程存活以允许用户访问 Web 端进行续费
 			})
 		}
 	} else if adminToken != "" {
