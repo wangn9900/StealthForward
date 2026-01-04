@@ -12,7 +12,10 @@ const tabs = [
   { key: 'settings', label: '系统' }
 ]
 
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useLicense } from '../composables/useLicense'
+
+const { licenseInfo, fetchLicenseInfo } = useLicense()
 const expiresAt = ref('')
 const activKey = ref('')
 const loadingActiv = ref(false)
@@ -26,8 +29,24 @@ const renewVisible = computed(() => {
   return diffDays <= 7 // 这里设置剩下7天内显示续费
 })
 
-onMounted(() => {
+onMounted(async () => {
   expiresAt.value = localStorage.getItem('stealth_expires') || ''
+  // 强制与后端同步授权状态
+  await fetchLicenseInfo()
+})
+
+// 监听后端授权状态变化，自动同步 UI
+watch(licenseInfo, (newVal) => {
+  if (newVal && (newVal.expires_at === '-' || !newVal.expires_at)) {
+    // 授权无效或过期
+    expiresAt.value = ''
+    localStorage.removeItem('stealth_expires')
+    localStorage.removeItem('stealth_level')
+  } else if (newVal && newVal.expires_at) {
+    // 授权有效，更新状态
+    expiresAt.value = newVal.expires_at
+    localStorage.setItem('stealth_expires', newVal.expires_at)
+  }
 })
 
 async function activate() {
