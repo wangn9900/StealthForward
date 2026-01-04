@@ -90,7 +90,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		switch protocolType {
 		case "anytls", "trojan":
 			// AnyTLS 和 Trojan 使用 password 字段
+			// 必须加上 name 字段，否则 sing-box 无法识别用户，流量统计会失效！
 			user = map[string]interface{}{
+				"name":     rule.UserEmail,
 				"password": rule.UserID,
 			}
 		case "vmess":
