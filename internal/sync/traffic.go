@@ -208,10 +208,7 @@ func pushTrafficAndOnlineToV2Board() {
 			if nodeType == "" {
 				nodeType = "v2ray"
 			}
-			// 兼容性修复: AnyTLS 本质是本地协议，上报 V2Board 时需映射为标准协议 (默认 vless)
-			if nodeType == "anytls" {
-				nodeType = "vless"
-			}
+			// V2Board 已原生支持 AnyTLS，无需再合并到 VLESS
 
 			var totalUp, totalDown int64
 			for _, v := range payload {
