@@ -35,74 +35,58 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// ========== 方式1：管理员密码登录（本地验证，完全独立）==========
-	if req.Username == "admin" && req.Password != "" {
-		// 管理员密码验证（不依赖授权服务器）
-		adminToken := os.Getenv("STEALTH_ADMIN_TOKEN")
-		if adminToken == "" {
-			adminToken = "stealth@admin2024" // 默认密码
-		}
-
-		if req.Password == adminToken {
-			c.JSON(http.StatusOK, gin.H{
-				"token":   adminToken,
-				"role":    "admin",
-				"level":   "admin",
-				"message": "管理员登录成功",
-			})
-			return
-		}
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "管理员密码错误"})
-		return
+	// 默认使用 admin / admin (如果没有配置环境变量)
+	defaultPassword := "admin"
+	envToken := os.Getenv("STEALTH_ADMIN_TOKEN")
+	if envToken != "" {
+		defaultPassword = envToken
 	}
 
-	// 兼容逻辑：如果在密码框直接输入了 License Key (以 SF- 开头)，则自动识别为方式2
-	if req.Password != "" && strings.HasPrefix(req.Password, "SF-") && req.LicenseKey == "" {
-		req.LicenseKey = req.Password
-	}
-
-	// ========== 方式2：License Key 登录（远程验证）==========
-	if req.LicenseKey != "" {
-		// 验证License Key格式
-		if !strings.HasPrefix(req.LicenseKey, "SF-") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "无效的授权Key格式"})
-			return
-		}
-
-		// 设置License Key到内存
-		license.SetKey(req.LicenseKey)
-
-		// 验证
-		if err := license.Verify(); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "授权验证失败: " + err.Error(),
-				"expired": strings.Contains(err.Error(), "expired") || strings.Contains(err.Error(), "过期"),
-			})
-			return
-		}
-
-		// 验证成功，持久化保存！确保下次启动可用
-		if err := license.SaveKey(req.LicenseKey); err != nil {
-			// 保存失败仅打印日志，不阻拦用户登录
-			// log.Printf("Failed to save license key: %v", err)
-		}
-
-		// 启动心跳 (如果还没启动)
-		go license.StartHeartbeat()
-
-		info := license.GetInfo()
+	if req.Username == "admin" && req.Password == defaultPassword {
 		c.JSON(http.StatusOK, gin.H{
-			"token":      req.LicenseKey, // 用License Key作为Token
-			"role":       "user",
-			"level":      info.Level,
-			"expires_at": info.ExpiresAt.Format("2006-01-02"),
-			"limits":     info.Limits,
-			"message":    "授权验证成功",
+			"token":   defaultPassword,
+			"role":    "admin",
+			"level":   license.GetLevel(), // 虽然可能为空，但允许登录
+			"message": "登录成功",
 		})
 		return
 	}
 
-	c.JSON(http.StatusBadRequest, gin.H{"error": "请输入管理员密码或授权Key"})
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误 (默认: admin/admin)"})
+}
+
+// ActivateLicenseHandler 在线激活接口
+func ActivateLicenseHandler(c *gin.Context) {
+	var req struct {
+		LicenseKey string `json:"license_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if !strings.HasPrefix(req.LicenseKey, "SF-") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 License Key 格式"})
+		return
+	}
+
+	// 验证
+	license.SetKey(req.LicenseKey)
+	if err := license.Verify(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "激活失败: " + err.Error()})
+		return
+	}
+
+	// 保存
+	license.SaveKey(req.LicenseKey)
+	go license.StartHeartbeat()
+
+	info := license.GetInfo()
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "激活成功！",
+		"level":      info.Level,
+		"expires_at": info.ExpiresAt.Format("2006-01-02"),
+	})
 }
 
 // --- System Config ---

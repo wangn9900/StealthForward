@@ -67,25 +67,20 @@ func main() {
 	// --- 鉴权中间件 ---
 	// adminToken 已在上方声明
 	authMiddleware := func(c *gin.Context) {
-		// 动态获取当前应该使用的 Token (Admin Token 优先，其次是 License Key)
-		requiredToken := adminToken
-		if requiredToken == "" {
-			requiredToken = license.GetKey()
+		// 确定当前有效的 Admin Token (环境变量 > 默认 "admin")
+		validToken := os.Getenv("STEALTH_ADMIN_TOKEN")
+		if validToken == "" {
+			validToken = "admin"
 		}
 
-		// 如果系统既没设管理员密码，也没激活 License，则拒绝所有 API 访问 (除 Login 外)
-		if requiredToken == "" {
-			c.AbortWithStatusJSON(401, gin.H{"error": "System not activated"})
-			return
-		}
-
+		// 获取请求 Token
 		token := c.GetHeader("Authorization")
 		if token == "" {
 			token = c.Query("token")
 		}
 
-		// 简单的 Token 比对
-		if token != requiredToken {
+		// 验证 Token (只要 Token 对就可以访问，具体功能权限由 handler 内部判断)
+		if token != validToken {
 			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
 			return
 		}
@@ -156,6 +151,7 @@ func main() {
 		// 系统设置
 		v1.GET("/system/config", api.GetSystemConfigHandler)
 		v1.POST("/system/config", api.UpdateSystemConfigHandler)
+		v1.POST("/system/activate", api.ActivateLicenseHandler)
 
 		// 节点管理 (Entry)
 		v1.GET("/entries", api.ListEntryNodesHandler)

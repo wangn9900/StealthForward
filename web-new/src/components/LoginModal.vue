@@ -4,7 +4,8 @@ import { ref, computed } from 'vue'
 const emit = defineEmits(['login'])
 
 // 表单字段
-const inputKey = ref('')
+const username = ref('admin')
+const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
@@ -14,22 +15,15 @@ async function handleLogin() {
   error.value = ''
   
   try {
-    let body = {}
-    
-    const val = inputKey.value.trim()
-    
-    // 智能识别：以 SF- 开头视为 License Key，否则视为管理员密码
-    if (val.startsWith('SF-')) {
-      body = { license_key: val }
-    } else {
-      body = { username: 'admin', password: val }
-    }
-
     const res = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ 
+        username: username.value, 
+        password: password.value 
+      })
     })
+
     
     const data = await res.json()
     
@@ -66,22 +60,16 @@ async function handleLogin() {
         <!-- Login Form -->
         <div class="glass p-8 rounded-3xl space-y-6">
           
-          <!-- Unified Input -->
-          <div>
-            <label class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest pl-1">
-              授权验证
-            </label>
-            <input
-              type="text"
-              v-model="inputKey"
-              @keyup.enter="handleLogin"
-              class="w-full mt-2 p-4 rounded-xl text-lg tracking-wide bg-black/20 border border-white/10 focus:border-primary-500 focus:outline-none transition-colors text-white"
-              placeholder="粘贴 License Key 或输入管理员密码"
-              autofocus
-            />
-            <p class="text-xs text-[var(--text-muted)] mt-2 pl-1">
-              请直接输入 License Key 进行激活登录
-            </p>
+          <!-- Admin Input -->
+          <div class="space-y-4">
+            <div>
+               <label class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest pl-1">用户名</label>
+               <input type="text" v-model="username" class="w-full mt-1 p-3 rounded-xl bg-black/20 border border-white/10 text-white" />
+            </div>
+            <div>
+               <label class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest pl-1">密码</label>
+               <input type="password" v-model="password" @keyup.enter="handleLogin" class="w-full mt-1 p-3 rounded-xl bg-black/20 border border-white/10 text-white" placeholder="默认: admin" />
+            </div>
           </div>
         
         <button
@@ -92,7 +80,7 @@ async function handleLogin() {
             'w-full p-4 rounded-xl font-bold transition shadow-lg active:scale-95 disabled:opacity-50 bg-primary-600 hover:bg-primary-500 shadow-primary-500/20'
           ]"
         >
-          {{ loading ? '正在验证...' : '立即激活 / 登录' }}
+          {{ loading ? '登录中...' : '进入控制台' }}
         </button>
         
         <p v-if="error" class="text-center text-rose-500 text-sm animate-pulse">

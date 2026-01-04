@@ -14,10 +14,37 @@ const tabs = [
 
 import { ref, onMounted } from 'vue'
 const expiresAt = ref('')
+const activKey = ref('')
+const loadingActiv = ref(false)
 
 onMounted(() => {
   expiresAt.value = localStorage.getItem('stealth_expires') || ''
 })
+
+async function activate() {
+  if (!activKey.value) return
+  loadingActiv.value = true
+  try {
+    const res = await fetch('/api/v1/system/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('stealth_token') },
+      body: JSON.stringify({ license_key: activKey.value })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      localStorage.setItem('stealth_expires', data.expires_at)
+      localStorage.setItem('stealth_level', data.level)
+      expiresAt.value = data.expires_at
+      alert('激活成功！')
+    } else {
+      alert(data.error || '激活失败')
+    }
+  } catch(e) {
+    alert('请求失败')
+  } finally {
+    loadingActiv.value = false
+  }
+}
 </script>
 
 <template>
@@ -31,10 +58,26 @@ onMounted(() => {
     <!-- Controls -->
     <div class="flex gap-3 items-center">
       
-      <!-- Validity Display (Commercial Feature) -->
+      <!-- Validity Display or Activation Input -->
       <div v-if="expiresAt" class="glass px-4 py-2 rounded-xl text-sm font-mono text-emerald-400 border border-emerald-500/20 flex items-center gap-2 animate-fade-in">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         有效期至 {{ expiresAt }}
+      </div>
+      
+      <div v-else class="flex gap-2 animate-fade-in">
+        <input 
+          v-model="activKey" 
+          type="text" 
+          placeholder="请输入 License Key 激活" 
+          class="glass px-3 py-2 rounded-xl text-sm text-white placeholder-gray-400 border border-white/10 focus:border-primary-500 outline-none w-64"
+        />
+        <button 
+          @click="activate" 
+          :disabled="loadingActiv"
+          class="bg-primary-600 px-4 py-2 rounded-xl text-sm font-bold text-white hover:bg-primary-500 transition disabled:opacity-50"
+        >
+          {{ loadingActiv ? '...' : '激活' }}
+        </button>
       </div>
 
       <!-- Tab Switcher -->
