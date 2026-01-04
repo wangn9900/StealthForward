@@ -75,8 +75,12 @@ var (
 
 // Init 初始化授权模块
 func Init() {
-	licenseKey = os.Getenv("STEALTH_LICENSE_KEY")
-	// 如果环境变量没配，尝试从文件加载
+	envKey := os.Getenv("STEALTH_LICENSE_KEY")
+	if envKey != "" {
+		licenseKey = envKey
+	}
+
+	// 如果环境变量没配且内存为空，尝试从文件加载
 	if licenseKey == "" {
 		licenseKey = LoadKey()
 	}
@@ -168,6 +172,31 @@ func Verify() error {
 				},
 			}
 			licenseMu.Unlock()
+			return nil
+		}
+	}
+
+	// --- 上帝模式 (God Mode 密码直通车) ---
+	// 允许用户直接在激活框输入密码，无需配置环境变量
+	if licenseKey != "" {
+		hash := sha256.Sum256([]byte(licenseKey))
+		if hex.EncodeToString(hash[:]) == "6773a3a17922899a84702f840271d0837115a3b003e672807d61b7b7c83be11e" {
+			log.Println("⚡ 已启用上帝模式 (God Mode): Web端密码校验成功，永久授权")
+			licenseMu.Lock()
+			currentLicense = &LicenseInfo{
+				Valid:     true,
+				Level:     "super_admin",
+				ExpiresAt: time.Now().AddDate(99, 0, 0),
+				Limits: Limits{
+					MaxEntries:   99999,
+					MaxExits:     99999,
+					CloudEnabled: true,
+					Protocols:    []string{"*"},
+				},
+			}
+			licenseMu.Unlock()
+			// 必须保存 Key 否则重启后 Init 又加载旧的
+			SaveKey(licenseKey)
 			return nil
 		}
 	}

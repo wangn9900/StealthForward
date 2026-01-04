@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -62,11 +61,6 @@ func ActivateLicenseHandler(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	if !strings.HasPrefix(req.LicenseKey, "SF-") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 License Key 格式"})
 		return
 	}
 
