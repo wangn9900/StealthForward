@@ -285,7 +285,33 @@ func adminAuth() gin.HandlerFunc {
 func listLicensesHandler(c *gin.Context) {
 	var licenses []License
 	db.Order("created_at DESC").Find(&licenses)
-	c.JSON(http.StatusOK, licenses)
+
+	// 如果前端传了 server_url，则动态计算 Smart Key
+	serverURL := c.Query("server_url")
+
+	var result []map[string]interface{}
+	for _, l := range licenses {
+		item := map[string]interface{}{
+			"id":                l.ID,
+			"license_key":       l.LicenseKey,
+			"level":             l.Level,
+			"customer_name":     l.CustomerName,
+			"customer_email":    l.CustomerEmail,
+			"bound_ip":          l.BoundIP,
+			"bound_fingerprint": l.BoundFingerprint,
+			"is_active":         l.IsActive,
+			"created_at":        l.CreatedAt,
+			"expires_at":        l.ExpiresAt,
+			"last_verify_at":    l.LastVerifyAt,
+			"last_verify_ip":    l.LastVerifyIP,
+		}
+		if serverURL != "" {
+			item["smart_key"] = generateSmartKey(l.LicenseKey, serverURL)
+		}
+		result = append(result, item)
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func createLicenseHandler(c *gin.Context) {
@@ -734,7 +760,8 @@ var adminPageHTML = `<!DOCTYPE html>
     async function loadLicenses() {
         if (!currentToken) return;
         try {
-            const res = await fetch('/api/v1/admin/licenses?token=' + currentToken);
+            const serverUrl = encodeURIComponent(window.location.origin + "/api/v1");
+            const res = await fetch('/api/v1/admin/licenses?token=' + currentToken + '&server_url=' + serverUrl);
             if (res.status === 401) { logout(); return; }
             if (!res.ok) throw new Error('加载失败');
             const data = await res.json();
@@ -742,6 +769,10 @@ var adminPageHTML = `<!DOCTYPE html>
         } catch (e) {
             showToast(e.message, 'error');
         }
+    }
+
+    function copyText(text) {
+        navigator.clipboard.writeText(text).then(() => showToast('复制成功')).catch(() => showToast('复制失败', 'error'));
     }
 
     function renderLicenses(licenses) {
@@ -763,8 +794,17 @@ var adminPageHTML = `<!DOCTYPE html>
             
             const customerInfo = (l.customer_name || '-') + (l.customer_email ? '<br><span style="font-size:12px;color:#9ca3af">' + l.customer_email + '</span>' : '');
 
+            // Smart Key 按钮
+            let keyDisplay = '<div style="display:flex; flex-direction:column; gap:4px">';
+            keyDisplay += '<div style="display:flex; align-items:center; gap:5px"><span class="code">' + l.license_key + '</span><button onclick="copyText(\'' + l.license_key + '\')" style="padding:2px 6px; font-size:10px; background:rgba(255,255,255,0.1)">复制</button></div>';
+            
+            if (l.smart_key) {
+                 keyDisplay += '<button class="btn-success" onclick="copyText(\'' + l.smart_key + '\')" style="font-size:10px; padding:2px 5px; width:fit-content">🔑 复制加密 Smart Key</button>';
+            }
+            keyDisplay += '</div>';
+
             return '<tr>' +
-                '<td><span class="code">' + l.license_key + '</span></td>' +
+                '<td>' + keyDisplay + '</td>' +
                 '<td><span class="badge badge-' + l.level + '">' + l.level.toUpperCase() + '</span></td>' +
                 '<td>' + customerInfo + '</td>' +
                 '<td>' + statusBadge + '</td>' +
