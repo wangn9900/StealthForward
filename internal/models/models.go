@@ -16,7 +16,9 @@ type EntryNode struct {
 	Fallback     string `json:"fallback"`       // 回落地址，例如 "127.0.0.1:8080"
 	CertTask     bool   `json:"cert_task"`      // 是否有待处理的证书申请任务
 	TargetExitID uint   `json:"target_exit_id"` // 默认的一键转落地节点 ID（作为备用）
-	Protocol     string `json:"protocol"`       // vless
+	Protocol     string `json:"protocol"`       // anytls, vless, vmess, trojan
+	Transport    string `json:"transport"`      // tcp, grpc, ws, h2 (传输层类型)
+	GrpcService  string `json:"grpc_service"`   // gRPC service name (如 "grpc")
 	Security     string `json:"security"`       // xtls-vision
 
 	// V2Board 同步配置（全局默认）

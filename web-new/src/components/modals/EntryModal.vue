@@ -24,6 +24,8 @@ const form = ref({
   ip: '',
   port: 443,
   protocol: 'anytls', // 新增：入口协议
+  transport: 'tcp',   // 传输层：tcp, grpc, ws, h2
+  grpc_service: '',   // gRPC service name
   certificate: '',
   key: '',
   fallback: '127.0.0.1:80',
@@ -49,7 +51,7 @@ const cloudInstances = ref([])
 const availableProtocols = computed(() => {
   const all = [
     { value: 'anytls', label: 'AnyTLS', proOnly: false },
-    { value: 'vless', label: 'VLESS', proOnly: true },
+    { value: 'vless', label: 'VLESS+Vision', proOnly: true },
     { value: 'vmess', label: 'VMess', proOnly: true },
     { value: 'trojan', label: 'Trojan', proOnly: true },
   ]
@@ -57,6 +59,16 @@ const availableProtocols = computed(() => {
     ...p,
     disabled: p.proOnly && !isPro()
   }))
+})
+
+// 可用传输层列表
+const availableTransports = computed(() => {
+  return [
+    { value: 'tcp', label: 'TCP (直连最优)' },
+    { value: 'grpc', label: 'gRPC (抗审查)' },
+    { value: 'ws', label: 'WebSocket' },
+    { value: 'h2', label: 'HTTP/2' },
+  ]
 })
 
 onMounted(async () => {
@@ -154,6 +166,24 @@ async function handleSubmit() {
           <span v-if="licenseLevel === 'basic'" class="text-[10px] text-amber-500/60">
             升级到Pro版可解锁 VLESS/VMess 等全协议
           </span>
+        </label>
+
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          传输层
+          <select v-model="form.transport">
+            <option 
+              v-for="t in availableTransports" 
+              :key="t.value" 
+              :value="t.value"
+            >
+              {{ t.label }}
+            </option>
+          </select>
+        </label>
+
+        <label v-if="form.transport === 'grpc'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          gRPC Service Name
+          <input v-model="form.grpc_service" placeholder="grpc (留空使用默认)" />
         </label>
 
         <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">

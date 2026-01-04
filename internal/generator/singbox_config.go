@@ -107,10 +107,10 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// Determine default protocol type
-	defaultType := entry.V2boardType
+	// Determine default protocol type - 使用 entry.Protocol 而非 V2boardType
+	defaultType := entry.Protocol
 	if defaultType == "" {
-		defaultType = "vless"
+		defaultType = "vless" // 默认 VLESS
 	} else if defaultType == "v2ray" {
 		defaultType = "vmess"
 	}
@@ -124,19 +124,48 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"listen_port":   entry.Port,
 		"sniff":         true,
 		"sniff_timeout": "1s", // 放宽到 1s，牺牲极微小首包延迟，换取 100% 握手成功率与长连接稳定性
-		"fallback": map[string]interface{}{
+		"users":         defaultPortUsers,
+	}
+
+	// 根据协议类型决定是否需要 fallback (AnyTLS 不需要)
+	if defaultType != "anytls" {
+		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
-		},
-		"users": defaultPortUsers,
-		"tls": map[string]interface{}{
-			"enabled":          true,
-			"server_name":      entry.Domain,
-			"certificate_path": certPath,
-			"key_path":         keyPath,
-			"min_version":      "1.2",
-		},
+		}
 	}
+
+	// TLS 配置
+	tlsConfig := map[string]interface{}{
+		"enabled":          true,
+		"server_name":      entry.Domain,
+		"certificate_path": certPath,
+		"key_path":         keyPath,
+		"min_version":      "1.2",
+	}
+	defaultInbound["tls"] = tlsConfig
+
+	// gRPC 传输层配置
+	if entry.Transport == "grpc" {
+		serviceName := entry.GrpcService
+		if serviceName == "" {
+			serviceName = "grpc" // 默认 service name
+		}
+		defaultInbound["transport"] = map[string]interface{}{
+			"type":         "grpc",
+			"service_name": serviceName,
+		}
+	} else if entry.Transport == "ws" {
+		defaultInbound["transport"] = map[string]interface{}{
+			"type": "ws",
+			"path": "/",
+		}
+	} else if entry.Transport == "h2" {
+		defaultInbound["transport"] = map[string]interface{}{
+			"type": "http",
+		}
+	}
+
 	config.Inbounds = append(config.Inbounds, defaultInbound)
 
 	// 为每个独立端口创建 inbound
