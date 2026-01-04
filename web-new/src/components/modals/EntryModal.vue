@@ -168,7 +168,8 @@ async function handleSubmit() {
           </span>
         </label>
 
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+        <!-- 传输层选项 (AnyTLS 不支持传输层封装，自动隐藏) -->
+        <label v-if="form.protocol !== 'anytls'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
           传输层
           <select v-model="form.transport">
             <option 
@@ -181,7 +182,7 @@ async function handleSubmit() {
           </select>
         </label>
 
-        <label v-if="form.transport === 'grpc'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+        <label v-if="form.protocol !== 'anytls' && form.transport === 'grpc'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
           gRPC Service Name
           <input v-model="form.grpc_service" placeholder="grpc (留空使用默认)" />
         </label>

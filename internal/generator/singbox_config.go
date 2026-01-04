@@ -170,24 +170,27 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 	defaultInbound["tls"] = tlsConfig
 
-	// gRPC 传输层配置
-	if entry.Transport == "grpc" {
-		serviceName := entry.GrpcService
-		if serviceName == "" {
-			serviceName = "grpc" // 默认 service name
-		}
-		defaultInbound["transport"] = map[string]interface{}{
-			"type":         "grpc",
-			"service_name": serviceName,
-		}
-	} else if entry.Transport == "ws" {
-		defaultInbound["transport"] = map[string]interface{}{
-			"type": "ws",
-			"path": "/",
-		}
-	} else if entry.Transport == "h2" {
-		defaultInbound["transport"] = map[string]interface{}{
-			"type": "http",
+	// gRPC/WS/H2 传输层配置 (仅适用于非 AnyTLS 协议)
+	// AnyTLS 是纯 TLS 协议，不支持额外的传输层封装
+	if defaultType != "anytls" {
+		if entry.Transport == "grpc" {
+			serviceName := entry.GrpcService
+			if serviceName == "" {
+				serviceName = "grpc" // 默认 service name
+			}
+			defaultInbound["transport"] = map[string]interface{}{
+				"type":         "grpc",
+				"service_name": serviceName,
+			}
+		} else if entry.Transport == "ws" {
+			defaultInbound["transport"] = map[string]interface{}{
+				"type": "ws",
+				"path": "/",
+			}
+		} else if entry.Transport == "h2" {
+			defaultInbound["transport"] = map[string]interface{}{
+				"type": "http",
+			}
 		}
 	}
 
