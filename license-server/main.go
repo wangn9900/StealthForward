@@ -463,13 +463,14 @@ var adminPageHTML = `<!DOCTYPE html>
             padding: 2rem;
         }
         .container { max-width: 1200px; margin: 0 auto; }
-        h1 { margin-bottom: 2rem; color: #7c3aed; }
+        h1 { margin-bottom: 2rem; color: #7c3aed; display: flex; align-items: center; gap: 10px; }
         .card {
             background: rgba(255,255,255,0.05);
             border-radius: 16px;
             padding: 1.5rem;
             margin-bottom: 1rem;
             border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
         }
         input, select, button {
             padding: 0.75rem 1rem;
@@ -479,117 +480,238 @@ var adminPageHTML = `<!DOCTYPE html>
             color: #fff;
             margin-right: 0.5rem;
             margin-bottom: 0.5rem;
+            font-size: 14px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #7c3aed;
+            background: rgba(255,255,255,0.15);
         }
         button {
             background: #7c3aed;
             cursor: pointer;
             border: none;
             font-weight: bold;
+            transition: all 0.2s;
         }
-        button:hover { background: #6d28d9; }
-        .btn-danger { background: #dc2626; }
-        .btn-success { background: #059669; }
-        table { width: 100%; border-collapse: collapse; }
+        button:hover { background: #6d28d9; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        .btn-danger { background: #ef4444; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-success { background: #10b981; }
+        .btn-success:hover { background: #059669; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
         th, td { 
             padding: 1rem; 
             text-align: left; 
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
+        th { color: #9ca3af; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        
         .badge {
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
             font-size: 0.75rem;
             font-weight: bold;
+            display: inline-block;
         }
-        .badge-basic { background: #3b82f6; }
-        .badge-pro { background: #7c3aed; }
-        .badge-admin { background: #dc2626; }
-        .badge-active { background: #059669; }
-        .badge-expired { background: #6b7280; }
+        .badge-basic { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+        .badge-pro { background: rgba(124, 58, 237, 0.2); color: #a78bfa; border: 1px solid rgba(124, 58, 237, 0.4); }
+        .badge-admin { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-expired { background: rgba(107, 114, 128, 0.2); color: #9ca3af; border: 1px solid rgba(107, 114, 128, 0.4); }
+        
         .code { 
-            font-family: monospace; 
+            font-family: 'JetBrains Mono', monospace; 
             background: rgba(0,0,0,0.3);
             padding: 0.25rem 0.5rem;
             border-radius: 4px;
+            color: #e5e7eb;
+            font-size: 0.875rem;
+            user-select: all;
         }
-        #token-form { margin-bottom: 2rem; }
+        .hidden { display: none; }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            background: #1f2937;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transform: translateY(100px);
+            transition: transform 0.3s;
+            z-index: 100;
+        }
+        .toast.show { transform: translateY(0); }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔐 StealthForward License Server</h1>
         
-        <div class="card" id="token-form">
-            <input type="password" id="token" placeholder="管理员Token" style="width:300px">
-            <button onclick="loadLicenses()">登录</button>
+        <!-- 登录面板 -->
+        <div class="card" id="login-app">
+            <h3 style="margin-bottom:1rem">管理员登录</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="password" id="token" placeholder="请输入管理员Token" style="width:300px" onkeypress="handleEnter(event)">
+                <button onclick="login()">登录</button>
+            </div>
+            <p style="margin-top:1rem; color:#9ca3af; font-size:0.875rem">Token 在安装完成后会显示在终端中。</p>
         </div>
 
-        <div class="card">
-            <h3 style="margin-bottom:1rem">创建新授权</h3>
-            <select id="new-level">
-                <option value="basic">Basic (基础版)</option>
-                <option value="pro">Pro (专业版)</option>
-                <option value="admin">Admin (管理员)</option>
-            </select>
-            <input type="text" id="new-name" placeholder="客户名称">
-            <input type="email" id="new-email" placeholder="客户邮箱">
-            <input type="number" id="new-days" placeholder="有效天数" value="30" style="width:100px">
-            <button onclick="createLicense()">生成授权</button>
-        </div>
+        <!-- 主界面 (默认隐藏) -->
+        <div id="main-app" class="hidden">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem">
+                    <h3>创建新授权</h3>
+                    <button onclick="logout()" style="background:rgba(255,255,255,0.1); font-size:0.875rem">退出登录</button>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                    <select id="new-level">
+                        <option value="basic">Basic (基础版)</option>
+                        <option value="pro">Pro (专业版)</option>
+                        <option value="admin">Admin (管理员)</option>
+                    </select>
+                    <input type="text" id="new-name" placeholder="客户名称">
+                    <input type="email" id="new-email" placeholder="客户邮箱">
+                    <div style="display:flex; align-items:center; background:rgba(255,255,255,0.1); border-radius:8px; border:1px solid rgba(255,255,255,0.2); padding-right:10px">
+                        <input type="number" id="new-days" placeholder="30" value="30" style="width:70px; border:none; margin:0; background:transparent">
+                        <span style="color:#9ca3af">天</span>
+                    </div>
+                    <button class="btn-success" onclick="createLicense()">生成授权</button>
+                </div>
+            </div>
 
-        <div class="card">
-            <h3 style="margin-bottom:1rem">授权列表</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>License Key</th>
-                        <th>等级</th>
-                        <th>客户</th>
-                        <th>状态</th>
-                        <th>到期时间</th>
-                        <th>绑定IP</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="license-list"></tbody>
-            </table>
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem">
+                    <h3>授权列表</h3>
+                    <button onclick="loadLicenses()" style="background:transparent; border:1px solid rgba(255,255,255,0.2)">刷新</button>
+                </div>
+                <div style="overflow-x:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>License Key</th>
+                                <th>等级</th>
+                                <th>客户信息</th>
+                                <th>状态</th>
+                                <th>有效期</th>
+                                <th>绑定IP</th>
+                                <th style="text-align:right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="license-list"></tbody>
+                    </table>
+                </div>
+                <p id="empty-hint" style="text-align:center; color:#6b7280; padding:2rem; display:none">暂无授权数据</p>
+            </div>
         </div>
     </div>
 
+    <div id="toast" class="toast"></div>
+
     <script>
-    function getToken() {
-        return document.getElementById('token').value;
+    let currentToken = '';
+
+    // 初始化：检查本地存储
+    window.onload = function() {
+        const storedToken = localStorage.getItem('sf_admin_token');
+        if (storedToken) {
+            document.getElementById('token').value = storedToken;
+            login(); // 尝试自动登录
+        }
+    }
+
+    function handleEnter(e) {
+        if (e.key === 'Enter') login();
+    }
+
+    function showToast(msg, type = 'info') {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.borderColor = type === 'error' ? '#ef4444' : '#10b981';
+        toast.style.color = type === 'error' ? '#ef4444' : '#fff';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function login() {
+        const token = document.getElementById('token').value.trim();
+        if (!token) return showToast('请输入 Token', 'error');
+
+        try {
+            const res = await fetch('/api/v1/admin/licenses?token=' + token);
+            if (!res.ok) throw new Error('Token 无效或认证失败');
+            const data = await res.json();
+            
+            // 认证成功
+            currentToken = token;
+            localStorage.setItem('sf_admin_token', token);
+            
+            document.getElementById('login-app').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            renderLicenses(data);
+            showToast('登录成功');
+        } catch (e) {
+            showToast(e.message, 'error');
+            localStorage.removeItem('sf_admin_token');
+        }
+    }
+
+    function logout() {
+        currentToken = '';
+        localStorage.removeItem('sf_admin_token');
+        document.getElementById('main-app').classList.add('hidden');
+        document.getElementById('login-app').classList.remove('hidden');
+        document.getElementById('token').value = '';
     }
 
     async function loadLicenses() {
+        if (!currentToken) return;
         try {
-            const res = await fetch('/api/v1/admin/licenses?token=' + getToken());
-            if (!res.ok) throw new Error('认证失败');
+            const res = await fetch('/api/v1/admin/licenses?token=' + currentToken);
+            if (res.status === 401) { logout(); return; }
+            if (!res.ok) throw new Error('加载失败');
             const data = await res.json();
             renderLicenses(data);
         } catch (e) {
-            alert(e.message);
+            showToast(e.message, 'error');
         }
     }
 
     function renderLicenses(licenses) {
         const tbody = document.getElementById('license-list');
+        const emptyHint = document.getElementById('empty-hint');
+        
+        if (!licenses || licenses.length === 0) {
+            tbody.innerHTML = '';
+            emptyHint.style.display = 'block';
+            return;
+        }
+        emptyHint.style.display = 'none';
+
         tbody.innerHTML = licenses.map(l => {
             const isExpired = new Date(l.expires_at) < new Date();
             const statusBadge = isExpired 
                 ? '<span class="badge badge-expired">已过期</span>'
                 : (l.is_active ? '<span class="badge badge-active">有效</span>' : '<span class="badge badge-expired">已禁用</span>');
             
+            const customerInfo = (l.customer_name || '-') + (l.customer_email ? '<br><span style="font-size:12px;color:#9ca3af">' + l.customer_email + '</span>' : '');
+
             return '<tr>' +
                 '<td><span class="code">' + l.license_key + '</span></td>' +
                 '<td><span class="badge badge-' + l.level + '">' + l.level.toUpperCase() + '</span></td>' +
-                '<td>' + (l.customer_name || '-') + '</td>' +
+                '<td>' + customerInfo + '</td>' +
                 '<td>' + statusBadge + '</td>' +
                 '<td>' + new Date(l.expires_at).toLocaleDateString() + '</td>' +
-                '<td>' + (l.bound_ip || '未绑定') + '</td>' +
-                '<td>' +
-                    '<button class="btn-success" onclick="renewLicense(' + l.id + ')">续期30天</button>' +
-                    '<button class="btn-danger" onclick="deleteLicense(' + l.id + ')">删除</button>' +
+                '<td><span class="code" style="font-size:12px">' + (l.bound_ip || '未绑定') + '</span></td>' +
+                '<td style="text-align:right">' +
+                    '<button class="btn-success" onclick="renewLicense(' + l.id + ')" title="续期30天" style="padding:0.4rem 0.8rem;margin-right:0.5rem">续期</button>' +
+                    '<button class="btn-danger" onclick="deleteLicense(' + l.id + ')" title="删除" style="padding:0.4rem 0.8rem">删除</button>' +
                 '</td>' +
             '</tr>';
         }).join('');
@@ -603,37 +725,57 @@ var adminPageHTML = `<!DOCTYPE html>
             duration_days: parseInt(document.getElementById('new-days').value) || 30
         };
         
-        const res = await fetch('/api/v1/admin/licenses?token=' + getToken(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        
-        if (res.ok) {
-            const license = await res.json();
-            alert('创建成功！\n\nLicense Key:\n' + license.license_key);
-            loadLicenses();
-        } else {
-            alert('创建失败');
+        try {
+            const res = await fetch('/api/v1/admin/licenses?token=' + currentToken, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (res.ok) {
+                const license = await res.json();
+                showToast('创建成功');
+                // 暂时简单的alert显示key
+                alert('🔥 创建成功！\n请复制 License Key:\n\n' + license.license_key);
+                loadLicenses();
+                // 清空表单
+                document.getElementById('new-name').value = '';
+                document.getElementById('new-email').value = '';
+            } else {
+                throw new Error('创建失败');
+            }
+        } catch (e) {
+            showToast(e.message, 'error');
         }
     }
 
     async function renewLicense(id) {
-        const res = await fetch('/api/v1/admin/licenses/' + id + '/renew?token=' + getToken(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ days: 30 })
-        });
-        if (res.ok) {
-            alert('续期成功');
-            loadLicenses();
+        try {
+            const res = await fetch('/api/v1/admin/licenses/' + id + '/renew?token=' + currentToken, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ days: 30 })
+            });
+            if (res.ok) {
+                showToast('已续期 30 天');
+                loadLicenses();
+            } else {
+                throw new Error('续期失败');
+            }
+        } catch(e) {
+            showToast(e.message, 'error');
         }
     }
 
     async function deleteLicense(id) {
-        if (!confirm('确定要删除这个授权吗？')) return;
-        await fetch('/api/v1/admin/licenses/' + id + '?token=' + getToken(), { method: 'DELETE' });
-        loadLicenses();
+        if (!confirm('⚠️ 确定要永久删除这个授权吗？此操作不可恢复！')) return;
+        try {
+            await fetch('/api/v1/admin/licenses/' + id + '?token=' + currentToken, { method: 'DELETE' });
+            showToast('已删除');
+            loadLicenses();
+        } catch(e) {
+            showToast('删除失败', 'error');
+        }
     }
     </script>
 </body>
