@@ -107,6 +107,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			user = map[string]interface{}{
 				"uuid": rule.UserID,
 			}
+			// 恢复 name 字段以支持流量统计
+			// 必须确保 name 不为空
+			if rule.UserEmail != "" {
+				user["name"] = rule.UserEmail
+			}
+
 			// 仅当传输层为 TCP 或空（默认）时才加 flow
 			if entry.Transport == "" || entry.Transport == "tcp" {
 				user["flow"] = "xtls-rprx-vision"
