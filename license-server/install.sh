@@ -50,11 +50,14 @@ fi
 BINARY_URL="https://github.com/$GITHUB_REPO/releases/download/$LATEST_TAG/license-server-$ARCH"
 echo -e "${CYAN}正在下载: $BINARY_URL${NC}"
 
-if curl -L -f -o $INSTALL_DIR/license-server "$BINARY_URL" 2>/dev/null; then
+if [ -f "$INSTALL_DIR/license-server" ] && [ -s "$INSTALL_DIR/license-server" ]; then
+    echo -e "${GREEN}检测到本地已存在 license-server，跳过下载...${NC}"
+    chmod +x $INSTALL_DIR/license-server
+elif curl -L -f -o $INSTALL_DIR/license-server "$BINARY_URL" 2>/dev/null; then
     chmod +x $INSTALL_DIR/license-server
     echo -e "${GREEN}下载预编译版本成功！${NC}"
 else
-    echo -e "${YELLOW}预编译版本不存在，尝试从源码编译...${NC}"
+    echo -e "${YELLOW}预编译版本不存在（或无法下载），尝试从源码编译...${NC}"
     
     # 检查Go是否安装
     if ! command -v go &> /dev/null; then
