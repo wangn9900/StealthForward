@@ -45,6 +45,12 @@ func main() {
 				info.Level,
 				info.ExpiresAt.Format("2006-01-02"))
 			go license.StartHeartbeat()
+			// 注册熔断回调：当 Heartbeat 失败时，直接杀掉 Controller 进程
+			license.RegisterServiceStopper(func() {
+				log.Fatalf("License expired or invalid. Stopping service now.")
+				// os.Exit(1) is implied by log.Fatalf, but let's be explicit if we use Println
+				os.Exit(1)
+			})
 		}
 	} else if adminToken != "" {
 		log.Println("📌 管理员模式启动（无需授权验证）")

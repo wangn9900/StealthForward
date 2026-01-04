@@ -26,7 +26,7 @@ const (
 
 	// 授权服务器地址 - 部署后修改
 	DefaultLicenseServer = "https://license.stealthforward.com/api/v1"
-	HeartbeatInterval    = 6 * time.Hour
+	HeartbeatInterval    = 1 * time.Hour
 	VerifyTimeout        = 30 * time.Second
 	KeyFile              = "data/license.key"
 )
@@ -77,7 +77,14 @@ var (
 	licenseKey     string
 	serverURL      string
 	stopChan       chan struct{}
+	// ServiceStopper 是当授权失效时执行的强制停止回调函数
+	ServiceStopper func()
 )
+
+// RegisterServiceStopper 注册停止服务的回调函数
+func RegisterServiceStopper(f func()) {
+	ServiceStopper = f
+}
 
 // Init 初始化授权模块
 func Init() {
@@ -308,8 +315,12 @@ func StartHeartbeat() {
 		select {
 		case <-ticker.C:
 			if err := Verify(); err != nil {
-				log.Printf("⚠️ 授权验证失败: %v", err)
-				// 连续失败可考虑停止服务
+				log.Printf("⛔ 授权验证失败: %v", err)
+				// 立即执行熔断逻辑
+				if ServiceStopper != nil {
+					log.Printf("⛔ 授权已失效，正在强制停止核心服务...")
+					ServiceStopper()
+				}
 			} else {
 				log.Printf("✅ 授权心跳验证成功")
 			}
