@@ -243,6 +243,7 @@ async function handleSubmit() {
            <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
              Fingerprint
              <select v-model="form.reality_fingerprint">
+               <option value="">默认 (兼容旧版)</option>
                <option value="chrome">Chrome</option>
                <option value="safari">Safari</option>
                <option value="ios">iOS</option>
@@ -258,12 +259,12 @@ async function handleSubmit() {
           <input type="number" v-model.number="form.port" placeholder="443" />
         </label>
 
+        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+          {{ form.reality_enabled ? '连接地址 (Address/Domain)' : '解析域名 (TLS)' }}
+          <input v-model="form.domain" :placeholder="form.reality_enabled ? '1.2.3.4 (建议填IP)' : 'example.com'" />
+        </label>
+
         <template v-if="!form.reality_enabled">
-          <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-            解析域名 (TLS)
-            <input v-model="form.domain" placeholder="example.com" />
-          </label>
-          
           <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
             证书路径
             <input v-model="form.certificate" placeholder="/etc/stealthforward/certs/cert.crt" />

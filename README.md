@@ -1,7 +1,9 @@
-# StealthForward
-> Advanced Traffic Forwarding & Management System (v3.6.37 Reality Ready)ps://img.shields.io/badge/version-v2.1.46-blue) ![Status](https://img.shields.io/badge/status-stable-green)
+# StealthForward v3.6.38
 
-StealthForward 是一款专为**中转/专线机场**设计的下一代隐形转发系统。它基于 "First-Principles" 架构设计，利用 `Sing-box` 内核的强大能力，将传统的端口转发升级为具备**流量清洗**、**精准审计**和**多路分流**能力的智能路由中心。
+StealthForward 是一个高性能的流量转发和中转管理系统，专为复杂的网络环境设计。
+
+> **注意**: 本项目目前处于活跃开发阶段。
+它基于 "First-Principles" 架构设计，利用 `Sing-box` 内核的强大能力，将传统的端口转发升级为具备**流量清洗**、**精准审计**和**多路分流**能力的智能路由中心。
 
 ## ✨ 核心特性
 
