@@ -1,6 +1,5 @@
-# StealthForward (隐形转发面板) v2.0
-
-![Version](https://img.shields.io/badge/version-v2.1.46-blue) ![Status](https://img.shields.io/badge/status-stable-green)
+# StealthForward
+> Advanced Traffic Forwarding & Management System (v3.6.37 Reality Ready)ps://img.shields.io/badge/version-v2.1.46-blue) ![Status](https://img.shields.io/badge/status-stable-green)
 
 StealthForward 是一款专为**中转/专线机场**设计的下一代隐形转发系统。它基于 "First-Principles" 架构设计，利用 `Sing-box` 内核的强大能力，将传统的端口转发升级为具备**流量清洗**、**精准审计**和**多路分流**能力的智能路由中心。
 
