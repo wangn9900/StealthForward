@@ -34,6 +34,14 @@ type EntryNode struct {
 	CloudRecordName string `json:"cloud_record_name"` // Cloudflare 子域名 (如 "transitnode")
 	AutoRotateIP    bool   `json:"auto_rotate_ip"`    // 是否启用自动换 IP
 
+	// Reality 配置
+	RealityEnabled     bool   `json:"reality_enabled"`     // 是否启用 Reality
+	RealityServerName  string `json:"reality_server_name"` // SNI / ServerName (e.g. www.samsung.com)
+	RealityFallback    string `json:"reality_fallback"`    // Dest / ServerAddress (e.g. www.samsung.com:443)
+	RealityPrivateKey  string `json:"reality_private_key"` // Private Key
+	RealityShortID     string `json:"reality_short_id"`    // ShortId
+	RealityFingerprint string `json:"reality_fingerprint"` // FingerPrint (chrome, safari, etc.)
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

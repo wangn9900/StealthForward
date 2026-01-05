@@ -34,6 +34,13 @@ const form = ref({
   v2board_key: '',
   v2board_node_id: null,
   v2board_type: 'v2ray',
+  // Reality (VLESS)
+  reality_enabled: false,
+  reality_server_name: '',
+  reality_fallback: '',
+  reality_private_key: '',
+  reality_short_id: '',
+  reality_fingerprint: '',
   // 云平台绑定
   cloud_provider: 'none',
   cloud_region: '',
@@ -200,30 +207,78 @@ async function handleSubmit() {
           <span class="text-[10px] text-amber-500/60 leading-tight">输入 IP 后点击识别，可自动找回所属 AWS 区域和实例 ID</span>
         </label>
         
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          解析域名 (TLS)
-          <input v-model="form.domain" placeholder="example.com" />
+        <!-- VLESS Security Selection -->
+        <label v-if="form.protocol === 'vless'" class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)] border-t border-white/5 pt-2 mt-2">
+          安全性 (Security)
+          <select v-model="form.reality_enabled">
+            <option :value="false">TLS + Vision (标准)</option>
+            <option :value="true">Reality (无域名)</option>
+          </select>
         </label>
+
+        <!-- Reality Settings -->
+        <div v-if="form.reality_enabled" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/5 p-4 rounded-xl border border-white/10 mb-2">
+           <div class="md:col-span-2 text-amber-500 font-bold text-xs uppercase tracking-wider">Reality Settings</div>
+           
+           <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+             Server Name (SNI)
+             <input v-model="form.reality_server_name" placeholder="www.samsung.com" />
+           </label>
+
+           <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+             Dest (目标地址:端口)
+             <input v-model="form.reality_fallback" placeholder="www.samsung.com:443" />
+           </label>
+
+           <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
+             Private Key
+             <input v-model="form.reality_private_key" placeholder="Private Key" class="font-mono text-xs" />
+           </label>
+
+           <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+             Short ID
+             <input v-model="form.reality_short_id" placeholder="随意 (如 a1)" />
+           </label>
+
+           <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+             Fingerprint
+             <select v-model="form.reality_fingerprint">
+               <option value="chrome">Chrome</option>
+               <option value="safari">Safari</option>
+               <option value="ios">iOS</option>
+               <option value="android">Android</option>
+               <option value="edge">Edge</option>
+               <option value="firefox">Firefox</option>
+             </select>
+           </label>
+        </div>
         
         <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
           监听端口
           <input type="number" v-model.number="form.port" placeholder="443" />
         </label>
-        
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          证书路径
-          <input v-model="form.certificate" placeholder="/etc/stealthforward/certs/cert.crt" />
-        </label>
-        
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          私钥路径
-          <input v-model="form.key" placeholder="/etc/stealthforward/certs/cert.key" />
-        </label>
-        
-        <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
-          回落托管 (HTTP)
-          <input v-model="form.fallback" placeholder="127.0.0.1:80" />
-        </label>
+
+        <template v-if="!form.reality_enabled">
+          <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+            解析域名 (TLS)
+            <input v-model="form.domain" placeholder="example.com" />
+          </label>
+          
+          <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+            证书路径
+            <input v-model="form.certificate" placeholder="/etc/stealthforward/certs/cert.crt" />
+          </label>
+          
+          <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+            私钥路径
+            <input v-model="form.key" placeholder="/etc/stealthforward/certs/cert.key" />
+          </label>
+          
+          <label class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
+            回落托管 (HTTP)
+            <input v-model="form.fallback" placeholder="127.0.0.1:80" />
+          </label>
+        </template>
         
         <!-- V2Board Section -->
         <div class="md:col-span-2 text-primary-400 font-bold mt-2">V2Board API 同步 (可选)</div>

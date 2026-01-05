@@ -163,8 +163,22 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		"users":         defaultPortUsers,
 	}
 
+	// Reality 回落解析
+	realityDestHost := entry.RealityFallback
+	realityDestPort := 443
+	if entry.RealityFallback != "" {
+		if strings.Contains(entry.RealityFallback, ":") {
+			parts := strings.Split(entry.RealityFallback, ":")
+			realityDestHost = parts[0]
+			if p, err := strconv.Atoi(parts[1]); err == nil {
+				realityDestPort = p
+			}
+		}
+	}
+
 	// 根据协议类型决定是否需要 fallback (AnyTLS, Shadowsocks 不需要)
-	if defaultType != "anytls" && defaultType != "shadowsocks" {
+	// 如果开启了 Reality，回落由 Reality Handshake 接管，不需要 inbound 层的 fallback
+	if defaultType != "anytls" && defaultType != "shadowsocks" && !entry.RealityEnabled {
 		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -173,12 +187,30 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// TLS 配置
 	tlsConfig := map[string]interface{}{
-		"enabled":          true,
-		"server_name":      entry.Domain,
-		"certificate_path": certPath,
-		"key_path":         keyPath,
-		"min_version":      "1.2",
+		"enabled":     true,
+		"min_version": "1.2",
 	}
+
+	if entry.RealityEnabled {
+		// Reality 模式
+		tlsConfig["server_name"] = entry.RealityServerName
+		tlsConfig["reality"] = map[string]interface{}{
+			"enabled":     true,
+			"handshake":   map[string]interface{}{"server": realityDestHost, "server_port": realityDestPort},
+			"private_key": entry.RealityPrivateKey,
+			"short_id":    []string{entry.RealityShortID},
+		}
+		if entry.RealityFingerprint != "" {
+			tlsConfig["reality"].(map[string]interface{})["fingerprint"] = entry.RealityFingerprint
+		}
+		// Reality 不需要本地证书路径
+	} else {
+		// 标准 TLS 模式
+		tlsConfig["server_name"] = entry.Domain
+		tlsConfig["certificate_path"] = certPath
+		tlsConfig["key_path"] = keyPath
+	}
+
 	// Shadowsocks 不使用 TLS
 	if defaultType != "shadowsocks" {
 		defaultInbound["tls"] = tlsConfig
@@ -237,19 +269,18 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"listen_port":   port,
 			"sniff":         true,
 			"sniff_timeout": "1s",
-			"fallback": map[string]interface{}{
+			"users":         users,
+			"tls":           tlsConfig,
+		}
+
+		// 只有在非 Reality 模式下才添加本地伪装回落
+		if !entry.RealityEnabled {
+			inbound["fallback"] = map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
-			},
-			"users": users,
-			"tls": map[string]interface{}{
-				"enabled":          true,
-				"server_name":      entry.Domain,
-				"certificate_path": certPath,
-				"key_path":         keyPath,
-				"min_version":      "1.2",
-			},
+			}
 		}
+
 		config.Inbounds = append(config.Inbounds, inbound)
 	}
 
