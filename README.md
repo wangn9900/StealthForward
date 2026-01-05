@@ -1,4 +1,4 @@
-# StealthForward v3.6.38
+# StealthForward v3.6.39
 
 StealthForward 是一个高性能的流量转发和中转管理系统，专为复杂的网络环境设计。
 

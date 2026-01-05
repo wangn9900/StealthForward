@@ -200,9 +200,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"private_key": entry.RealityPrivateKey,
 			"short_id":    []string{entry.RealityShortID},
 		}
-		if entry.RealityFingerprint != "" {
-			tlsConfig["reality"].(map[string]interface{})["fingerprint"] = entry.RealityFingerprint
-		}
+
 		// Reality 不需要本地证书路径
 	} else {
 		// 标准 TLS 模式

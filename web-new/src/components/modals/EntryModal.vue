@@ -40,7 +40,7 @@ const form = ref({
   reality_fallback: '',
   reality_private_key: '',
   reality_short_id: '',
-  reality_fingerprint: '',
+
   // 云平台绑定
   cloud_provider: 'none',
   cloud_region: '',
@@ -240,18 +240,7 @@ async function handleSubmit() {
              <input v-model="form.reality_short_id" placeholder="随意 (如 a1)" />
            </label>
 
-           <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-             Fingerprint
-             <select v-model="form.reality_fingerprint">
-               <option value="">默认 (兼容旧版)</option>
-               <option value="chrome">Chrome</option>
-               <option value="safari">Safari</option>
-               <option value="ios">iOS</option>
-               <option value="android">Android</option>
-               <option value="edge">Edge</option>
-               <option value="firefox">Firefox</option>
-             </select>
-           </label>
+
         </div>
         
         <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
