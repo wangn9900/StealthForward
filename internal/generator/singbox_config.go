@@ -352,6 +352,18 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			exitOutbound["tcp_fast_open"] = false
 		}
 
+		if exitOutbound["server"] == "127.0.0.1" || exitOutbound["server"] == "localhost" {
+			// 特殊逻辑：如果落地 IP 是 127.0.0.1，强制转换为 Direct 模式
+			// 这允许用户通过在面板添加一个 127.0.0.1 的落地来实现“本机直连”
+			exitOutbound["type"] = "direct"
+			delete(exitOutbound, "server")
+			delete(exitOutbound, "server_port")
+			delete(exitOutbound, "method")
+			delete(exitOutbound, "password")
+			delete(exitOutbound, "plugin")
+			delete(exitOutbound, "plugin_opts")
+		}
+
 		exitOutbound["tag"] = "out-" + exit.Name
 		config.Outbounds = append(config.Outbounds, exitOutbound)
 	}
