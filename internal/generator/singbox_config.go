@@ -3,6 +3,7 @@ package generator
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -194,15 +195,21 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// AnyTLS 需要 padding_scheme 配置
+	// AnyTLS 需要 padding_scheme 配置
 	// AnyTLS 需要 padding_scheme 配置 (需将字符串解析为 JSON 对象)
-	if defaultProtocolType == "anytls" && entry.PaddingScheme != "" {
-		fmt.Printf("[Generator] Parsing PaddingScheme (Default): %s\n", entry.PaddingScheme) // DEBUG
-		var ps []string
-		if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
-			defaultInbound["padding_scheme"] = ps
-			fmt.Printf("[Generator] PaddingScheme Parsed: %+v\n", ps) // DEBUG
-		} else {
-			fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err) // DEBUG
+	if defaultProtocolType == "anytls" {
+		log.Printf("!!! GENERATING ANYTLS CONFIG (Default Inbound) !!!") // 显眼日志
+		if entry.PaddingScheme != "" {
+			fmt.Printf("[Generator] Parsing PaddingScheme (Default): %s\n", entry.PaddingScheme)
+			var ps []string
+			if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
+				defaultInbound["padding_scheme"] = ps
+				fmt.Printf("[Generator] PaddingScheme Parsed: %+v\n", ps)
+			} else {
+				fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err)
+				// 强制写入一个有效的，看是否生效 verify update
+				// defaultInbound["padding_scheme"] = []string{"stop=1"}
+			}
 		}
 	}
 
@@ -304,14 +311,16 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 
 		// AnyTLS 需要 padding_scheme 配置
-		// AnyTLS 需要 padding_scheme 配置
-		if inboundProtocolType == "anytls" && entry.PaddingScheme != "" {
-			fmt.Printf("[Generator] Parsing PaddingScheme (Port %d): %s\n", port, entry.PaddingScheme) // DEBUG
-			var ps []string
-			if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
-				inbound["padding_scheme"] = ps
-			} else {
-				fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err) // DEBUG
+		if inboundProtocolType == "anytls" {
+			log.Printf("!!! GENERATING ANYTLS CONFIG (Port %d) !!!", port) // 显眼日志
+			if entry.PaddingScheme != "" {
+				fmt.Printf("[Generator] Parsing PaddingScheme (Port %d): %s\n", port, entry.PaddingScheme)
+				var ps []string
+				if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
+					inbound["padding_scheme"] = ps
+				} else {
+					fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err)
+				}
 			}
 		}
 
