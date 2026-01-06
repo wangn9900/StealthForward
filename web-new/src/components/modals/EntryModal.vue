@@ -41,6 +41,9 @@ const form = ref({
   reality_private_key: '',
   reality_short_id: '',
 
+  // AnyTLS
+  padding_scheme: '',
+
   // 云平台绑定
   cloud_provider: 'none',
   cloud_region: '',
@@ -190,6 +193,15 @@ async function handleSubmit() {
           </select>
           <span v-if="form.transport === 'grpc'" class="text-[10px] text-amber-500/60">
             gRPC 模式下自动使用默认 serviceName，与 V2Board 配置保持一致
+          </span>
+        </label>
+
+        <!-- AnyTLS 填充方案 -->
+        <label v-if="form.protocol === 'anytls'" class="md:col-span-2 flex flex-col gap-1.5 text-[var(--text-muted)]">
+          填充方案 (Padding Scheme)
+          <input v-model="form.padding_scheme" placeholder='["stop=10","0=50-100","1=100-300"]' />
+          <span class="text-[10px] text-amber-500/60">
+            可选。JSON 数组格式，与 V2Board 节点编辑中的填充方案保持一致
           </span>
         </label>
 
