@@ -46,7 +46,7 @@ type Agent struct {
 }
 
 func NewAgent(cfg Config) *Agent {
-	log.Printf("StealthForward Agent v3.6.51 (Correct Padding Formatting)")
+	log.Printf("StealthForward Agent v3.6.52 (Debug Mode)")
 	// 确保目录存在
 	dirs := []string{cfg.LocalConfigDir, cfg.MasqueradeDir}
 	for _, d := range dirs {

@@ -196,12 +196,13 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	// AnyTLS 需要 padding_scheme 配置
 	// AnyTLS 需要 padding_scheme 配置 (需将字符串解析为 JSON 对象)
 	if defaultProtocolType == "anytls" && entry.PaddingScheme != "" {
-		var ps interface{}
+		fmt.Printf("[Generator] Parsing PaddingScheme (Default): %s\n", entry.PaddingScheme) // DEBUG
+		var ps []string
 		if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
 			defaultInbound["padding_scheme"] = ps
+			fmt.Printf("[Generator] PaddingScheme Parsed: %+v\n", ps) // DEBUG
 		} else {
-			// 解析失败则记录错误或忽略，避免生成错误的配置导致 sing-box 启动失败
-			// defaultInbound["padding_scheme"] = entry.PaddingScheme
+			fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err) // DEBUG
 		}
 	}
 
@@ -305,9 +306,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		// AnyTLS 需要 padding_scheme 配置
 		// AnyTLS 需要 padding_scheme 配置
 		if inboundProtocolType == "anytls" && entry.PaddingScheme != "" {
-			var ps interface{}
+			fmt.Printf("[Generator] Parsing PaddingScheme (Port %d): %s\n", port, entry.PaddingScheme) // DEBUG
+			var ps []string
 			if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
 				inbound["padding_scheme"] = ps
+			} else {
+				fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err) // DEBUG
 			}
 		}
 
