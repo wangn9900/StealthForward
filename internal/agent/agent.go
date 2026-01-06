@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -336,6 +338,7 @@ func (a *Agent) RunOnce() {
 	}
 }
 
+// IssueCertLocally logic updated for IP support
 func (a *Agent) IssueCertLocally(domain string) {
 	// 首先检查证书是否已经存在
 	certDir := "/etc/stealthforward/certs/" + domain
@@ -398,28 +401,55 @@ func (a *Agent) IssueCertLocally(domain string) {
 		webroot = btPath
 	}
 
-	// 1. 确保账户已注册 (LetsEncrypt 强制要求)
-	exec.Command(acmePath, "--register-account", "-m", "admin@"+domain, "--server", "letsencrypt").Run()
+	// 判断是否为 IP 地址 (IPv4)
+	isIP := false
+	if net.ParseIP(domain) != nil {
+		if strings.Contains(domain, ".") { // 简单区分 IPv4
+			isIP = true
+		}
+	}
 
-	// 2. 尝试第一种方式：Webroot 模式 (配合 Nginx)
-	log.Printf("Trying ACME issuance via Webroot (%s)...", webroot)
-	cmd := exec.Command(acmePath, "--issue", "--server", "letsencrypt", "-d", domain, "-w", webroot, "--force")
+	// 根据是否为 IP 选择 CA
+	caServer := "letsencrypt"
+	if isIP {
+		log.Printf("[%s] Detected IP address, switching CA to ZeroSSL...", domain)
+		caServer = "zerossl"
+	}
+
+	// 1. 确保账户已注册 (LetsEncrypt 和 ZeroSSL 都需要)
+	// 对于 ZeroSSL，我们需要一个邮箱。这里自动生成一个随机邮箱或者使用 admin@ip
+	email := "admin@" + domain
+	if isIP {
+		// ZeroSSL 限制每个邮箱的证书数量，使用随机邮箱规避 (自动化利器)
+		email = fmt.Sprintf("auto-%d@stealth-forward.xyz", time.Now().Unix())
+	}
+	// 不管是否已注册，再次注册一般不会报错，或者会返回已注册
+	exec.Command(acmePath, "--register-account", "-m", email, "--server", caServer).Run()
+
+	// 2. 尝试第一种方式：Webroot 模式 (配合 Nginx/Apache)
+	log.Printf("Trying ACME issuance via Webroot (%s) using CA: %s...", webroot, caServer)
+	cmd := exec.Command(acmePath, "--issue", "--server", caServer, "-d", domain, "-w", webroot, "--force")
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		log.Printf("Webroot mode failed: %v. Trying Standalone mode (temporary stopping Nginx)...", err)
+		log.Printf("Webroot mode failed: %v. Output snippet: %s", err, string(output))
+		log.Printf("Trying Standalone mode (temporarily stopping Nginx)...")
 
-		// 3. 尝试第二种方式：Standalone 模式 (暴力但最稳)
+		// 3. 尝试第二种方式：Standalone 模式 (最稳，模仿用户脚本逻辑)
 		// 暂时停止 Nginx 以释放 80 端口
 		exec.Command("systemctl", "stop", "nginx").Run()
+		// 停止可能占用的 Agent 自带 masquerade server
+		// 虽然这可能还在运行，但我们主要关心 80 端口。
 
 		// 补齐 socat 依赖 (Standalone 必齐)
 		exec.Command("sh", "-c", "apt-get install -y socat || yum install -y socat").Run()
 
-		standaloneCmd := exec.Command(acmePath, "--issue", "--server", "letsencrypt", "-d", domain, "--standalone", "--force")
+		// Standalone 模式申请
+		standaloneCmd := exec.Command(acmePath, "--issue", "--server", caServer, "-d", domain, "--standalone", "--force")
 		output, err = standaloneCmd.CombinedOutput()
 
-		// 无论成功与否，恢复 Nginx
+		// 无论成功与否，恢复 Nginx (如果之前是开着的)
+		// 简单的做法是总是尝试启动，因为我们刚才可能停了它
 		exec.Command("systemctl", "start", "nginx").Run()
 
 		if err != nil {
@@ -430,6 +460,7 @@ func (a *Agent) IssueCertLocally(domain string) {
 	log.Printf("Successfully issued certificate for %s", domain)
 
 	// 安装证书到本地指定目录
+	// 注意：acme.sh 安装时会自动提取 fullchain
 	certDir = "/etc/stealthforward/certs/" + domain
 	os.MkdirAll(certDir, 0755)
 	certFile = certDir + "/cert.crt"
