@@ -118,9 +118,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 					"uuid": r.UserID,
 				}
 			case "anytls":
-				// AnyTLS 是纯 TLS (VLESS)，不需要 XTLS Flow
+				// AnyTLS 使用 password 认证（UUID 作为密码）
 				u = map[string]interface{}{
-					"uuid": r.UserID,
+					"password": r.UserID,
 				}
 				if r.UserEmail != "" {
 					u["name"] = r.UserEmail
@@ -151,9 +151,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	defaultProtocolType := defaultProtocolFn
-	if defaultProtocolType == "anytls" {
-		defaultProtocolType = "vless"
-	} else if defaultProtocolType == "v2ray" {
+	// AnyTLS 保持原生类型，不再映射成 vless
+	if defaultProtocolType == "v2ray" {
 		defaultProtocolType = "vmess"
 	} else if defaultProtocolType == "ss" {
 		defaultProtocolType = "shadowsocks"
@@ -184,13 +183,19 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 	}
 
-	// 根据协议类型决定是否需要 fallback (AnyTLS, Shadowsocks 不需要)
+	// 根据协议类型决定是否需要 fallback
+	// AnyTLS 和 Shadowsocks 不需要 fallback
 	// 如果开启了 Reality，回落由 Reality Handshake 接管，不需要 inbound 层的 fallback
-	if defaultProtocolType != "vless" && defaultProtocolType != "shadowsocks" && !entry.RealityEnabled {
+	if defaultProtocolType != "anytls" && defaultProtocolType != "shadowsocks" && !entry.RealityEnabled {
 		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
 		}
+	}
+
+	// AnyTLS 需要 padding_scheme 配置
+	if defaultProtocolType == "anytls" && entry.PaddingScheme != "" {
+		defaultInbound["padding_scheme"] = entry.PaddingScheme
 	}
 
 	// TLS 配置
@@ -263,9 +268,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 
 		inboundProtocolType := inboundType
-		if inboundProtocolType == "anytls" {
-			inboundProtocolType = "vless"
-		} else if inboundProtocolType == "v2ray" {
+		// AnyTLS 保持原生类型，不再映射成 vless
+		if inboundProtocolType == "v2ray" {
 			inboundProtocolType = "vmess"
 		} else if inboundProtocolType == "ss" {
 			inboundProtocolType = "shadowsocks"

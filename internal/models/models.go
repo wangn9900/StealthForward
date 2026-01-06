@@ -4,22 +4,23 @@ import "time"
 
 // EntryNode 代表入口服务器（海外机）
 type EntryNode struct {
-	ID           uint   `json:"id"`
-	Name         string `json:"name"`
-	IP           string `json:"ip"`
-	Port         int    `json:"port"`           // 通常为 443 或 8443
-	Domain       string `json:"domain"`         // 用于 TLS
-	Certificate  string `json:"certificate"`    // 证书文件路径
-	Key          string `json:"key"`            // 私钥文件路径
-	CertBody     string `json:"cert_body"`      // 证书内容备份 (用于换机无感恢复)
-	KeyBody      string `json:"key_body"`       // 私钥内容备份
-	Fallback     string `json:"fallback"`       // 回落地址，例如 "127.0.0.1:8080"
-	CertTask     bool   `json:"cert_task"`      // 是否有待处理的证书申请任务
-	TargetExitID uint   `json:"target_exit_id"` // 默认的一键转落地节点 ID（作为备用）
-	Protocol     string `json:"protocol"`       // anytls, vless, vmess, trojan
-	Transport    string `json:"transport"`      // tcp, grpc, ws, h2 (传输层类型)
-	GrpcService  string `json:"grpc_service"`   // gRPC service name (如 "grpc")
-	Security     string `json:"security"`       // xtls-vision
+	ID            uint   `json:"id"`
+	Name          string `json:"name"`
+	IP            string `json:"ip"`
+	Port          int    `json:"port"`           // 通常为 443 或 8443
+	Domain        string `json:"domain"`         // 用于 TLS
+	Certificate   string `json:"certificate"`    // 证书文件路径
+	Key           string `json:"key"`            // 私钥文件路径
+	CertBody      string `json:"cert_body"`      // 证书内容备份 (用于换机无感恢复)
+	KeyBody       string `json:"key_body"`       // 私钥内容备份
+	Fallback      string `json:"fallback"`       // 回落地址，例如 "127.0.0.1:8080"
+	CertTask      bool   `json:"cert_task"`      // 是否有待处理的证书申请任务
+	TargetExitID  uint   `json:"target_exit_id"` // 默认的一键转落地节点 ID（作为备用）
+	Protocol      string `json:"protocol"`       // anytls, vless, vmess, trojan
+	Transport     string `json:"transport"`      // tcp, grpc, ws, h2 (传输层类型)
+	GrpcService   string `json:"grpc_service"`   // gRPC service name (如 "grpc")
+	Security      string `json:"security"`       // xtls-vision
+	PaddingScheme string `json:"padding_scheme"` // AnyTLS 填充方案
 
 	// V2Board 同步配置（全局默认）
 	V2boardURL    string `json:"v2board_url"`     // V2Board API 地址
