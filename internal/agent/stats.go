@@ -45,18 +45,22 @@ func (h *HookServer) RoutedConnection(ctx context.Context, conn net.Conn, m adap
 }
 
 func (h *HookServer) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, m adapter.InboundContext, rule adapter.Rule, outbound adapter.Outbound) N.PacketConn {
-	if m.User == "" {
-		return conn
-	}
-	// log.Printf("[Debug] Hook UDP for User: %s", m.User)
+	// 临时禁用 UDP 统计以修复 panic
+	return conn
+	/*
+		if m.User == "" {
+			return conn
+		}
+		// log.Printf("[Debug] Hook UDP for User: %s", m.User)
 
-	val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
-	storage := val.(*TrafficStorage)
+		val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
+		storage := val.(*TrafficStorage)
 
-	return &PacketConnCounter{
-		PacketConn: conn,
-		storage:    storage,
-	}
+		return &PacketConnCounter{
+			PacketConn: conn,
+			storage:    storage,
+		}
+	*/
 }
 
 // ConnCounter 包装 net.Conn 以统计流量 (TCP)
