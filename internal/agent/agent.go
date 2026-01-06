@@ -121,8 +121,12 @@ func (a *Agent) ApplyConfig(configStr string) error {
 						}
 					}
 
-					// 2. 强制为 AnyTLS 注入 ALPN
+					// 2. 强制为 AnyTLS 注入 ALPN 并关闭 Sniff 以提升稳定性
 					if t, ok := inbound["type"].(string); ok && t == "anytls" {
+						// 关闭 Sniffing
+						inbound["sniff"] = false
+						inbound["sniff_timeout"] = nil // 清除超时设置
+
 						if tlsVal, ok := inbound["tls"]; ok {
 							if tls, ok := tlsVal.(map[string]interface{}); ok {
 								tls["alpn"] = []string{"h2", "http/1.1"}
