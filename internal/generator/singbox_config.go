@@ -194,8 +194,15 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// AnyTLS 需要 padding_scheme 配置
+	// AnyTLS 需要 padding_scheme 配置 (需将字符串解析为 JSON 对象)
 	if defaultProtocolType == "anytls" && entry.PaddingScheme != "" {
-		defaultInbound["padding_scheme"] = entry.PaddingScheme
+		var ps interface{}
+		if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
+			defaultInbound["padding_scheme"] = ps
+		} else {
+			// 解析失败则记录错误或忽略，避免生成错误的配置导致 sing-box 启动失败
+			// defaultInbound["padding_scheme"] = entry.PaddingScheme
+		}
 	}
 
 	// TLS 配置
@@ -296,8 +303,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 
 		// AnyTLS 需要 padding_scheme 配置
+		// AnyTLS 需要 padding_scheme 配置
 		if inboundProtocolType == "anytls" && entry.PaddingScheme != "" {
-			inbound["padding_scheme"] = entry.PaddingScheme
+			var ps interface{}
+			if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
+				inbound["padding_scheme"] = ps
+			}
 		}
 
 		config.Inbounds = append(config.Inbounds, inbound)
