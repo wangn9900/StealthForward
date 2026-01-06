@@ -88,8 +88,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		var user map[string]interface{}
 
 		switch protocolType {
-		case "anytls", "trojan", "shadowsocks", "ss", "hysteria2":
-			// AnyTLS, Trojan, Shadowsocks, Hysteria2 使用 password 字段
+		case "trojan", "shadowsocks", "ss", "hysteria2":
+			// Trojan, Shadowsocks, Hysteria2 使用 password 字段
 			// 必须加上 name 字段，否则 sing-box 无法识别用户，流量统计会失效！
 			user = map[string]interface{}{
 				"name":     rule.UserEmail,
@@ -143,8 +143,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// Determine default protocol type - 使用 entry.Protocol 而非 V2boardType
 	defaultType := entry.Protocol
-	if defaultType == "" {
-		defaultType = "vless" // 默认 VLESS
+	if defaultType == "" || defaultType == "anytls" {
+		defaultType = "vless" // 默认 VLESS, AnyTLS 也是 VLESS
 	} else if defaultType == "v2ray" {
 		defaultType = "vmess"
 	} else if defaultType == "ss" {
