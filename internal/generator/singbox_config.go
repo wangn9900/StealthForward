@@ -184,9 +184,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// 根据协议类型决定是否需要 fallback
-	// AnyTLS 和 Shadowsocks 不需要 fallback
+	// 只有 VLESS 和 Trojan 支持 fallback
 	// 如果开启了 Reality，回落由 Reality Handshake 接管，不需要 inbound 层的 fallback
-	if defaultProtocolType != "anytls" && defaultProtocolType != "shadowsocks" && !entry.RealityEnabled {
+	if (defaultProtocolType == "vless" || defaultProtocolType == "trojan") && !entry.RealityEnabled {
 		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -287,8 +287,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"tls":           tlsConfig,
 		}
 
-		// 只有在非 Reality 模式下且非 AnyTLS/Shadowsocks 才添加本地伪装回落
-		if !entry.RealityEnabled && inboundProtocolType != "anytls" && inboundProtocolType != "shadowsocks" {
+		// 只有在非 Reality 模式下，且协议为 VLESS 或 Trojan 时才添加本地伪装回落
+		if !entry.RealityEnabled && (inboundProtocolType == "vless" || inboundProtocolType == "trojan") {
 			inbound["fallback"] = map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
