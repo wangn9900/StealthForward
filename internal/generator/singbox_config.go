@@ -195,22 +195,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// AnyTLS 需要 padding_scheme 配置
-	// AnyTLS 需要 padding_scheme 配置
-	// AnyTLS 需要 padding_scheme 配置 (需将字符串解析为 JSON 对象)
+	// AnyTLS 配置 (包括 padding_scheme) - 重构后逻辑
 	if defaultProtocolType == "anytls" {
-		log.Printf("!!! GENERATING ANYTLS CONFIG (Default Inbound) !!!") // 显眼日志
-		if entry.PaddingScheme != "" {
-			fmt.Printf("[Generator] Parsing PaddingScheme (Default): %s\n", entry.PaddingScheme)
-			var ps []string
-			if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
-				defaultInbound["padding_scheme"] = ps
-				fmt.Printf("[Generator] PaddingScheme Parsed: %+v\n", ps)
-			} else {
-				fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err)
-				// 强制写入一个有效的，看是否生效 verify update
-				// defaultInbound["padding_scheme"] = []string{"stop=1"}
-			}
-		}
+		applyAnyTLSConfig(defaultInbound, entry.PaddingScheme, "Default")
 	}
 
 	// TLS 配置
@@ -310,18 +297,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			}
 		}
 
-		// AnyTLS 需要 padding_scheme 配置
+		// AnyTLS 需要 padding_scheme 配置 - 重构后逻辑
 		if inboundProtocolType == "anytls" {
-			log.Printf("!!! GENERATING ANYTLS CONFIG (Port %d) !!!", port) // 显眼日志
-			if entry.PaddingScheme != "" {
-				fmt.Printf("[Generator] Parsing PaddingScheme (Port %d): %s\n", port, entry.PaddingScheme)
-				var ps []string
-				if err := json.Unmarshal([]byte(entry.PaddingScheme), &ps); err == nil {
-					inbound["padding_scheme"] = ps
-				} else {
-					fmt.Printf("[Generator] PaddingScheme Parse Error: %v\n", err)
-				}
-			}
+			applyAnyTLSConfig(inbound, entry.PaddingScheme, fmt.Sprintf("Port %d", port))
 		}
 
 		config.Inbounds = append(config.Inbounds, inbound)
@@ -427,4 +405,25 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	res, _ := json.MarshalIndent(config, "", "  ")
 	return string(res), nil
+}
+
+// applyAnyTLSConfig 是一个独立函数，用于强制刷新 AnyTLS 配置逻辑
+// 确保编译器不会使用旧的内联代码缓存
+func applyAnyTLSConfig(inbound map[string]interface{}, paddingScheme string, contextInfos string) {
+	log.Printf("!!! [v3.6.55] Applying AnyTLS Config for %s !!!", contextInfos)
+	if paddingScheme == "" {
+		return
+	}
+
+	fmt.Printf("[Generator] Raw PaddingScheme (%s): %s\n", contextInfos, paddingScheme)
+	var ps []string
+	// 尝试解析为字符串数组
+	if err := json.Unmarshal([]byte(paddingScheme), &ps); err == nil {
+		inbound["padding_scheme"] = ps
+		fmt.Printf("[Generator] Success! PaddingScheme is valid []string: %+v\n", ps)
+	} else {
+		// 如果失败，打印错误，且绝对不赋值
+		fmt.Printf("[Generator] ERROR: PaddingScheme is NOT a valid JSON string array: %v\n", err)
+		log.Printf("[Generator] ERROR: PaddingScheme parsing failed for %s", contextInfos)
+	}
 }
