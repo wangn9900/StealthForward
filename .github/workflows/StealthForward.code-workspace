@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../V2bX"
+		},
+		{
+			"path": "../../../v2board"
+		},
+		{
+			"path": "../../../sing-box_mod"
+		},
+		{
+			"path": "../../../sing-anytls"
+		},
+		{
+			"path": "../../../UltraForward"
+		}
+	],
+	"settings": {}
+}

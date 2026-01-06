@@ -75,50 +75,10 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// 构建端口到用户的映射
-	portToUsers := make(map[int][]map[string]interface{})
-	defaultPortUsers := []map[string]interface{}{}
-
-	// 根据协议类型构建不同的 users 结构
-	protocolType := entry.Protocol
-	if protocolType == "" {
-		protocolType = "vless"
-	}
+	portToUsers := make(map[int][]models.ForwardingRule)
+	defaultPortUsers := []models.ForwardingRule{}
 
 	for _, rule := range rules {
-		var user map[string]interface{}
-
-		switch protocolType {
-		case "trojan", "shadowsocks", "ss", "hysteria2":
-			// Trojan, Shadowsocks, Hysteria2 使用 password 字段
-			// 必须加上 name 字段，否则 sing-box 无法识别用户，流量统计会失效！
-			user = map[string]interface{}{
-				"name":     rule.UserEmail,
-				"password": rule.UserID,
-			}
-		case "vmess":
-			// VMess 使用 uuid，无 flow
-			user = map[string]interface{}{
-				"name": rule.UserEmail,
-				"uuid": rule.UserID,
-			}
-		default:
-			// VLESS: 只有 TCP 模式才支持 Vision 流控
-			// gRPC/WS/H2 不支持 flow，必须留空！
-			user = map[string]interface{}{
-				"uuid": rule.UserID,
-			}
-			// 恢复 name 字段以支持流量统计
-			// 必须确保 name 不为空
-			if rule.UserEmail != "" {
-				user["name"] = rule.UserEmail
-			}
-
-			// 仅当传输层为 TCP 或空（默认）时才加 flow
-			if entry.Transport == "" || entry.Transport == "tcp" {
-				user["flow"] = "xtls-rprx-vision"
-			}
-		}
-
 		// 从 UserEmail (n20-xxx) 提取节点 ID，找到对应的端口
 		assignedPort := entry.Port // 默认端口
 		if strings.HasPrefix(rule.UserEmail, "n") && strings.Contains(rule.UserEmail, "-") {
@@ -135,32 +95,80 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		}
 
 		if assignedPort == entry.Port {
-			defaultPortUsers = append(defaultPortUsers, user)
+			defaultPortUsers = append(defaultPortUsers, rule)
 		} else {
-			portToUsers[assignedPort] = append(portToUsers[assignedPort], user)
+			portToUsers[assignedPort] = append(portToUsers[assignedPort], rule)
 		}
 	}
 
+	// 辅助函数：根据协议生成 User 配置
+	generateUsers := func(protocol string, ruleList []models.ForwardingRule) []map[string]interface{} {
+		var users []map[string]interface{}
+		for _, r := range ruleList {
+			var u map[string]interface{}
+			switch protocol {
+			case "trojan", "shadowsocks", "ss", "hysteria2":
+				u = map[string]interface{}{
+					"name":     r.UserEmail,
+					"password": r.UserID,
+				}
+			case "vmess":
+				u = map[string]interface{}{
+					"name": r.UserEmail,
+					"uuid": r.UserID,
+				}
+			case "anytls":
+				// AnyTLS 是纯 TLS (VLESS)，不需要 XTLS Flow
+				u = map[string]interface{}{
+					"uuid": r.UserID,
+				}
+				if r.UserEmail != "" {
+					u["name"] = r.UserEmail
+				}
+			default: // VLESS and others
+				u = map[string]interface{}{
+					"uuid": r.UserID,
+				}
+				if r.UserEmail != "" {
+					u["name"] = r.UserEmail
+				}
+				// 仅当 VLESS 且传输层为 TCP 或空（默认）时才加 flow
+				if entry.Transport == "" || entry.Transport == "tcp" {
+					u["flow"] = "xtls-rprx-vision"
+				}
+			}
+			users = append(users, u)
+		}
+		return users
+	}
+
 	// Determine default protocol type - 使用 entry.Protocol 而非 V2boardType
-	defaultType := entry.Protocol
-	if defaultType == "" || defaultType == "anytls" {
-		defaultType = "vless" // 默认 VLESS, AnyTLS 也是 VLESS
-	} else if defaultType == "v2ray" {
-		defaultType = "vmess"
-	} else if defaultType == "ss" {
-		defaultType = "shadowsocks"
+	// generateUsers 需要原始协议 ("anytls") 来决定是否加 flow
+	// 但 sing-box 配置文件需要 "vless"
+	defaultProtocolFn := entry.Protocol
+	if defaultProtocolFn == "" {
+		defaultProtocolFn = "vless" // 默认视为 VLESS (带 flow)
+	}
+
+	defaultProtocolType := defaultProtocolFn
+	if defaultProtocolType == "anytls" {
+		defaultProtocolType = "vless"
+	} else if defaultProtocolType == "v2ray" {
+		defaultProtocolType = "vmess"
+	} else if defaultProtocolType == "ss" {
+		defaultProtocolType = "shadowsocks"
 	}
 
 	// 创建默认端口的 inbound
 	defaultInboundTag := fmt.Sprintf("node_%d", entry.ID)
 	defaultInbound := map[string]interface{}{
-		"type":          defaultType,
+		"type":          defaultProtocolType,
 		"tag":           defaultInboundTag,
 		"listen":        "::",
 		"listen_port":   entry.Port,
 		"sniff":         true,
 		"sniff_timeout": "1s", // 放宽到 1s，牺牲极微小首包延迟，换取 100% 握手成功率与长连接稳定性
-		"users":         defaultPortUsers,
+		"users":         generateUsers(defaultProtocolFn, defaultPortUsers),
 	}
 
 	// Reality 回落解析
@@ -178,7 +186,7 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 
 	// 根据协议类型决定是否需要 fallback (AnyTLS, Shadowsocks 不需要)
 	// 如果开启了 Reality，回落由 Reality Handshake 接管，不需要 inbound 层的 fallback
-	if defaultType != "anytls" && defaultType != "shadowsocks" && !entry.RealityEnabled {
+	if defaultProtocolType != "vless" && defaultProtocolType != "shadowsocks" && !entry.RealityEnabled {
 		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -210,13 +218,13 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	}
 
 	// Shadowsocks 不使用 TLS
-	if defaultType != "shadowsocks" {
+	if defaultProtocolType != "shadowsocks" {
 		defaultInbound["tls"] = tlsConfig
 	}
 
 	// gRPC/WS/H2 传输层配置 (仅适用于非 AnyTLS/Shadowsocks 协议)
 	// AnyTLS 是纯 TLS 协议，不支持额外的传输层封装
-	if defaultType != "anytls" && defaultType != "shadowsocks" {
+	if defaultProtocolFn != "anytls" && defaultProtocolType != "shadowsocks" {
 		if entry.Transport == "grpc" {
 			serviceName := entry.GrpcService
 			if serviceName == "" {
@@ -253,21 +261,25 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 		if m, ok := portToMapping[port]; ok && m.V2boardType != "" {
 			inboundType = m.V2boardType
 		}
-		if inboundType == "v2ray" {
-			inboundType = "vmess"
-		} else if inboundType == "ss" {
-			inboundType = "shadowsocks"
+
+		inboundProtocolType := inboundType
+		if inboundProtocolType == "anytls" {
+			inboundProtocolType = "vless"
+		} else if inboundProtocolType == "v2ray" {
+			inboundProtocolType = "vmess"
+		} else if inboundProtocolType == "ss" {
+			inboundProtocolType = "shadowsocks"
 		}
 
 		inboundTag := fmt.Sprintf("node_%d_port_%d", entry.ID, port)
 		inbound := map[string]interface{}{
-			"type":          inboundType,
+			"type":          inboundProtocolType,
 			"tag":           inboundTag,
 			"listen":        "::",
 			"listen_port":   port,
 			"sniff":         true,
 			"sniff_timeout": "1s",
-			"users":         users,
+			"users":         generateUsers(inboundType, users),
 			"tls":           tlsConfig,
 		}
 

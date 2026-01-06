@@ -47,7 +47,7 @@ type Agent struct {
 }
 
 func NewAgent(cfg Config) *Agent {
-	log.Printf("StealthForward Agent v3.6.44 (AnyTLS Fixed)")
+	log.Printf("StealthForward Agent v3.6.46 (AnyTLS No-Flow Fix)")
 	// 确保目录存在
 	dirs := []string{cfg.LocalConfigDir, cfg.MasqueradeDir}
 	for _, d := range dirs {
