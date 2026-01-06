@@ -61,6 +61,7 @@ const availableProtocols = computed(() => {
     { value: 'vless', label: 'VLESS', proOnly: true },  // Vision 仅在 TCP 模式下自动启用
     { value: 'vmess', label: 'VMess', proOnly: true },
     { value: 'trojan', label: 'Trojan', proOnly: true },
+    { value: 'shadowsocks', label: 'Shadowsocks', proOnly: true },
   ]
   return all.map(p => ({
     ...p,
@@ -284,6 +285,7 @@ async function handleSubmit() {
             <option value="vless">VLESS</option>
             <option value="shadowsocks">Shadowsocks</option>
             <option value="anytls">AnyTLS</option>
+            <option value="trojan">Trojan</option>
           </select>
         </div>
         
