@@ -287,12 +287,17 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"tls":           tlsConfig,
 		}
 
-		// 只有在非 Reality 模式下才添加本地伪装回落
-		if !entry.RealityEnabled {
+		// 只有在非 Reality 模式下且非 AnyTLS/Shadowsocks 才添加本地伪装回落
+		if !entry.RealityEnabled && inboundProtocolType != "anytls" && inboundProtocolType != "shadowsocks" {
 			inbound["fallback"] = map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
 			}
+		}
+
+		// AnyTLS 需要 padding_scheme 配置
+		if inboundProtocolType == "anytls" && entry.PaddingScheme != "" {
+			inbound["padding_scheme"] = entry.PaddingScheme
 		}
 
 		config.Inbounds = append(config.Inbounds, inbound)
