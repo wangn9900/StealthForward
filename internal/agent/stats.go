@@ -45,22 +45,18 @@ func (h *HookServer) RoutedConnection(ctx context.Context, conn net.Conn, m adap
 }
 
 func (h *HookServer) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, m adapter.InboundContext, rule adapter.Rule, outbound adapter.Outbound) N.PacketConn {
-	// 临时禁用 UDP 统计以修复 panic
-	return conn
-	/*
-		if m.User == "" {
-			return conn
-		}
-		// log.Printf("[Debug] Hook UDP for User: %s", m.User)
+	if m.User == "" {
+		return conn
+	}
+	// log.Printf("[Debug] Hook UDP for User: %s", m.User)
 
-		val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
-		storage := val.(*TrafficStorage)
+	val, _ := h.counter.LoadOrStore(m.User, &TrafficStorage{})
+	storage := val.(*TrafficStorage)
 
-		return &PacketConnCounter{
-			PacketConn: conn,
-			storage:    storage,
-		}
-	*/
+	return &PacketConnCounter{
+		PacketConn: conn,
+		storage:    storage,
+	}
 }
 
 // ConnCounter 包装 net.Conn 以统计流量 (TCP)
@@ -114,6 +110,20 @@ func (c *PacketConnCounter) ReadPacket(buffer *buf.Buffer) (destination M.Socksa
 // WritePacket captures UDP Download traffic
 func (c *PacketConnCounter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	l := int64(buffer.Len())
+
+	// Defensive Copy: Ensure sufficient headroom for VMess/Trojan Mux header extension.
+	// We require at least 32 bytes of headroom to be safe.
+	const neededHeadroom = 32
+	if buffer.Start() < neededHeadroom {
+		newBuf := buf.NewPacket()
+		// Resize sets start=neededHeadroom and end=start+buffer.Len()
+		newBuf.Resize(neededHeadroom, buffer.Len())
+		copy(newBuf.Bytes(), buffer.Bytes())
+
+		buffer.Release()
+		buffer = newBuf
+	}
+
 	err := c.PacketConn.WritePacket(buffer, destination)
 	if err == nil {
 		c.storage.DownCounter.Add(l)
