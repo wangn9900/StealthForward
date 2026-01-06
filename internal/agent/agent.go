@@ -125,7 +125,7 @@ func (a *Agent) ApplyConfig(configStr string) error {
 					if t, ok := inbound["type"].(string); ok && t == "anytls" {
 						// 关闭 Sniffing
 						inbound["sniff"] = false
-						inbound["sniff_timeout"] = nil // 清除超时设置
+						delete(inbound, "sniff_timeout") // 彻底移除字段，避免 "invalid duration" 错误
 
 						if tlsVal, ok := inbound["tls"]; ok {
 							if tls, ok := tlsVal.(map[string]interface{}); ok {
