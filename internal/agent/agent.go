@@ -25,6 +25,11 @@ import (
 	sjson "github.com/sagernet/sing/common/json"
 )
 
+const (
+	// Version 客户端版本号
+	Version = "v3.6.60 (Local Direct Hotfix)"
+)
+
 type Config struct {
 	ControllerAddr string
 	NodeID         int
@@ -46,7 +51,7 @@ type Agent struct {
 }
 
 func NewAgent(cfg Config) *Agent {
-	log.Printf("StealthForward Agent v3.6.58 (Silent ALPN Fix)")
+	log.Printf("StealthForward Agent %s", Version)
 	// 确保目录存在
 	dirs := []string{cfg.LocalConfigDir, cfg.MasqueradeDir}
 	for _, d := range dirs {
@@ -105,8 +110,8 @@ func (a *Agent) ApplyConfig(configStr string) error {
 	// HOTFIX: 强制修复 AnyTLS 配置问题 (Padding + ALPN)
 	var rawCfg map[string]interface{}
 	if err := json.Unmarshal([]byte(configStr), &rawCfg); err == nil {
+		fixed := false
 		if inbounds, ok := rawCfg["inbounds"].([]interface{}); ok {
-			fixed := false
 			for _, ib := range inbounds {
 				if inbound, ok := ib.(map[string]interface{}); ok {
 					// 1. 检查是否存在 padding_scheme 且通过字符串传递
@@ -136,10 +141,39 @@ func (a *Agent) ApplyConfig(configStr string) error {
 					}
 				}
 			}
-			if fixed {
-				if newBytes, err := json.MarshalIndent(rawCfg, "", "  "); err == nil {
-					configStr = string(newBytes)
+		}
+
+		// 3. HOTFIX: 强制修复 127.0.0.1 落地为 Direct
+		// 防止 Generator 逻辑未生效导致连接拒绝
+		if outbounds, ok := rawCfg["outbounds"].([]interface{}); ok {
+			outFixed := false
+			for _, ob := range outbounds {
+				if outbound, ok := ob.(map[string]interface{}); ok {
+					// 检查是否为指向 127.0.0.1 的 Shadowsocks
+					if srv, ok := outbound["server"].(string); ok && (srv == "127.0.0.1" || srv == "localhost") {
+						if t, ok := outbound["type"].(string); ok && t == "shadowsocks" {
+							// 强制转换为 Direct
+							outbound["type"] = "direct"
+							delete(outbound, "server")
+							delete(outbound, "server_port")
+							delete(outbound, "method")
+							delete(outbound, "password")
+							delete(outbound, "plugin")
+							delete(outbound, "plugin_opts")
+							outFixed = true
+							// log.Printf("[Agent] Hot-fixed local exit to direct: %v", outbound["tag"])
+						}
+					}
 				}
+			}
+			if outFixed {
+				fixed = true
+			}
+		}
+
+		if fixed {
+			if newBytes, err := json.MarshalIndent(rawCfg, "", "  "); err == nil {
+				configStr = string(newBytes)
 			}
 		}
 	}
