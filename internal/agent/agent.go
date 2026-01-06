@@ -46,7 +46,7 @@ type Agent struct {
 }
 
 func NewAgent(cfg Config) *Agent {
-	log.Printf("StealthForward Agent v3.6.55 (Final AnyTLS Fix)")
+	log.Printf("StealthForward Agent v3.6.56 (Padding Hotfix)")
 	// 确保目录存在
 	dirs := []string{cfg.LocalConfigDir, cfg.MasqueradeDir}
 	for _, d := range dirs {
@@ -102,6 +102,40 @@ func (a *Agent) FetchConfig() (string, error) {
 
 // ApplyConfig 将配置保存到本地并尝试重启 Sing-box
 func (a *Agent) ApplyConfig(configStr string) error {
+	// HOTFIX: 强制修复 AnyTLS padding_scheme 格式问题
+	// 即使 generator 生成了错误的字符串格式，这里也会将其修正为 JSON 数组
+	var rawCfg map[string]interface{}
+	if err := json.Unmarshal([]byte(configStr), &rawCfg); err == nil {
+		if inbounds, ok := rawCfg["inbounds"].([]interface{}); ok {
+			fixed := false
+			for _, ib := range inbounds {
+				if inbound, ok := ib.(map[string]interface{}); ok {
+					// 检查是否存在 padding_scheme 且通过字符串传递
+					if ps, ok := inbound["padding_scheme"].(string); ok && ps != "" {
+						var psArr []string
+						// 尝试将 "[\"...\"]" 解析为 []string
+						if err := json.Unmarshal([]byte(ps), &psArr); err == nil {
+							inbound["padding_scheme"] = psArr
+							fixed = true
+							log.Printf("[Agent] Hot-fixed padding_scheme for inbound %v", inbound["tag"])
+						} else {
+							// 如果无法解析，说明格式真的错了，直接删除该字段以防 Sing-box 启动失败
+							log.Printf("[Agent] Removing invalid padding_scheme for %v: %v", inbound["tag"], err)
+							delete(inbound, "padding_scheme")
+							fixed = true
+						}
+					}
+				}
+			}
+			if fixed {
+				if newBytes, err := json.MarshalIndent(rawCfg, "", "  "); err == nil {
+					configStr = string(newBytes)
+					log.Println("[Agent] AnyTLS configuration patched successfully.")
+				}
+			}
+		}
+	}
+
 	// 如果配置没变，跳过
 	if configStr == a.lastConfig {
 		return nil
