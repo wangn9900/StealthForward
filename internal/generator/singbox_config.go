@@ -350,13 +350,24 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "port")
 			delete(exitOutbound, "cipher")
 			// --- 优化 1: 开启 TFO (TCP Fast Open) ---
-			// 仅保留 TFO，撤回 Multiplex 以应对高丢包环境
 			exitOutbound["tcp_fast_open"] = true
+
+			// --- 优化 2: 注入 Multiplex (多路复用) ---
+			// 既然 MTU 问题已解决，这就重新加回来
+			exitOutbound["multiplex"] = map[string]interface{}{
+				"enabled":         true,
+				"protocol":        "smux",
+				"max_connections": 8,
+				"min_streams":     4,
+				"padding":         true,
+			}
+
+			// --- 优化 3: 牛皮糖保活配置 ---
+			exitOutbound["tcp_keep_alive_interval"] = 15
+			exitOutbound["tcp_multi_path"] = true
 		}
 
 		if exitOutbound["server"] == "127.0.0.1" || exitOutbound["server"] == "localhost" {
-			// 特殊逻辑：如果落地 IP 是 127.0.0.1，强制转换为 Direct 模式
-			// 这允许用户通过在面板添加一个 127.0.0.1 的落地来实现“本机直连”
 			exitOutbound["type"] = "direct"
 			delete(exitOutbound, "server")
 			delete(exitOutbound, "server_port")
@@ -364,7 +375,12 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "password")
 			delete(exitOutbound, "plugin")
 			delete(exitOutbound, "plugin_opts")
+
+			// Direct 模式不需要这些优化
+			delete(exitOutbound, "multiplex")
 			delete(exitOutbound, "tcp_fast_open")
+			delete(exitOutbound, "tcp_keep_alive_interval")
+			delete(exitOutbound, "tcp_multi_path")
 		}
 
 		exitOutbound["tag"] = "out-" + exit.Name
