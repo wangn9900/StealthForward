@@ -26,7 +26,43 @@ var (
 	activeUsers sync.Map
 	// nodeStatsMap stores NodeID -> *models.SystemStats
 	nodeStatsMap sync.Map
+	// persistTicker 定时持久化流量到数据库
+	persistTicker *time.Ticker
 )
+
+// InitTrafficFromDB 从数据库加载历史流量统计
+func InitTrafficFromDB() {
+	log.Println("[Traffic] Loading traffic stats from database...")
+
+	// 加载入口节点流量
+	var entries []models.EntryNode
+	database.DB.Find(&entries)
+	for _, entry := range entries {
+		if entry.TotalUpload > 0 || entry.TotalDownload > 0 {
+			// 将数据库中的流量加载到内存供 UI 使用
+			// 注意：我们需要在 GetTrafficStatsByEntry 中直接读取数据库
+			log.Printf("[Traffic] Entry #%d loaded: ↑%s ↓%s", entry.ID, formatBytes(entry.TotalUpload), formatBytes(entry.TotalDownload))
+		}
+	}
+
+	// 加载落地节点流量
+	var exits []models.ExitNode
+	database.DB.Find(&exits)
+	for _, exit := range exits {
+		if exit.TotalUpload > 0 || exit.TotalDownload > 0 {
+			log.Printf("[Traffic] Exit #%d loaded: ↑%s ↓%s", exit.ID, formatBytes(exit.TotalUpload), formatBytes(exit.TotalDownload))
+		}
+	}
+
+	// 启动定时持久化任务 (每 5 分钟)
+	persistTicker = time.NewTicker(5 * time.Minute)
+	go func() {
+		for range persistTicker.C {
+			PersistTrafficToDB()
+		}
+	}()
+	log.Println("[Traffic] Traffic persistence initialized (interval: 5min)")
+}
 
 // CollectTraffic 接收来自 Agent 的流量快照
 func CollectTraffic(report models.NodeTrafficReport) {
@@ -295,46 +331,180 @@ func GetTrafficStatsByEntry() EntryTrafficStats {
 		return true
 	})
 
-	// 获取所有用户流量
+	// 获取所有用户流量 (内存中的实时数据)
 	userStats := GetTrafficStats()
 	result.UserStats = userStats
+
+	// 从数据库读取持久化的入口节点流量
+	var entries []models.EntryNode
+	database.DB.Find(&entries)
+	for _, entry := range entries {
+		// 数据库中的持久化流量 + 内存中还未持久化的增量
+		dbUp := entry.TotalUpload
+		dbDown := entry.TotalDownload
+
+		// 计算内存中的增量
+		var memUp, memDown int64
+		var rules []models.ForwardingRule
+		database.DB.Where("entry_node_id = ?", entry.ID).Find(&rules)
+		for _, rule := range rules {
+			if stat, ok := userStats[rule.UserEmail]; ok {
+				memUp += stat.Upload
+				memDown += stat.Download
+			}
+		}
+
+		// 使用内存中的实时数据（如果有的话），否则用数据库的
+		// 注意：内存数据在 PersistTrafficToDB 执行时会同步到数据库
+		finalUp := memUp
+		finalDown := memDown
+		if memUp == 0 && memDown == 0 {
+			// 内存中没有数据（可能刚重启），使用数据库中的
+			finalUp = dbUp
+			finalDown = dbDown
+		}
+
+		if finalUp > 0 || finalDown > 0 {
+			result.EntryStats[entry.ID] = models.TrafficStat{
+				Upload:   finalUp,
+				Download: finalDown,
+			}
+		}
+	}
+
+	// 从数据库读取持久化的落地节点流量
+	var exits []models.ExitNode
+	database.DB.Find(&exits)
+	for _, exit := range exits {
+		dbUp := exit.TotalUpload
+		dbDown := exit.TotalDownload
+
+		// 计算内存中的增量
+		var memUp, memDown int64
+		var rules []models.ForwardingRule
+		database.DB.Where("exit_node_id = ?", exit.ID).Find(&rules)
+		for _, rule := range rules {
+			if stat, ok := userStats[rule.UserEmail]; ok {
+				memUp += stat.Upload
+				memDown += stat.Download
+			}
+		}
+
+		finalUp := memUp
+		finalDown := memDown
+		if memUp == 0 && memDown == 0 {
+			finalUp = dbUp
+			finalDown = dbDown
+		}
+
+		if finalUp > 0 || finalDown > 0 {
+			result.ExitStats[exit.ID] = models.TrafficStat{
+				Upload:   finalUp,
+				Download: finalDown,
+			}
+		}
+	}
+
+	return result
+}
+
+// PersistTrafficToDB 将内存中的流量统计持久化到数据库
+func PersistTrafficToDB() {
+	// 获取当前内存中的用户流量统计
+	userStats := GetTrafficStats()
 
 	// 遍历所有转发规则，聚合入口和出口流量
 	var rules []models.ForwardingRule
 	database.DB.Find(&rules)
 
-	entryTotals := make(map[uint][2]int64)
-	exitTotals := make(map[uint][2]int64)
+	entryDeltas := make(map[uint][2]int64)
+	exitDeltas := make(map[uint][2]int64)
 
 	for _, rule := range rules {
-		// 找到该用户的流量
 		if stat, ok := userStats[rule.UserEmail]; ok {
-			// 累加到入口
-			entryTotals[rule.EntryNodeID] = [2]int64{
-				entryTotals[rule.EntryNodeID][0] + stat.Upload,
-				entryTotals[rule.EntryNodeID][1] + stat.Download,
+			entryDeltas[rule.EntryNodeID] = [2]int64{
+				entryDeltas[rule.EntryNodeID][0] + stat.Upload,
+				entryDeltas[rule.EntryNodeID][1] + stat.Download,
 			}
-			// 累加到出口
-			exitTotals[rule.ExitNodeID] = [2]int64{
-				exitTotals[rule.ExitNodeID][0] + stat.Upload,
-				exitTotals[rule.ExitNodeID][1] + stat.Download,
+			exitDeltas[rule.ExitNodeID] = [2]int64{
+				exitDeltas[rule.ExitNodeID][0] + stat.Upload,
+				exitDeltas[rule.ExitNodeID][1] + stat.Download,
 			}
 		}
 	}
 
-	// 转换为 TrafficStat 格式
-	for entryID, totals := range entryTotals {
-		result.EntryStats[entryID] = models.TrafficStat{
-			Upload:   totals[0],
-			Download: totals[1],
-		}
-	}
-	for exitID, totals := range exitTotals {
-		result.ExitStats[exitID] = models.TrafficStat{
-			Upload:   totals[0],
-			Download: totals[1],
-		}
+	// 更新入口节点流量
+	for entryID, delta := range entryDeltas {
+		// 使用原子更新，避免覆盖
+		database.DB.Model(&models.EntryNode{}).Where("id = ?", entryID).
+			Updates(map[string]interface{}{
+				"total_upload":   delta[0],
+				"total_download": delta[1],
+			})
 	}
 
-	return result
+	// 更新落地节点流量
+	for exitID, delta := range exitDeltas {
+		database.DB.Model(&models.ExitNode{}).Where("id = ?", exitID).
+			Updates(map[string]interface{}{
+				"total_upload":   delta[0],
+				"total_download": delta[1],
+			})
+	}
+
+	log.Printf("[Traffic] Persisted traffic to database: %d entries, %d exits", len(entryDeltas), len(exitDeltas))
+}
+
+// ClearEntryTraffic 清除指定入口节点的流量统计
+func ClearEntryTraffic(entryID uint) error {
+	// 1. 清除数据库中的流量
+	if err := database.DB.Model(&models.EntryNode{}).Where("id = ?", entryID).
+		Updates(map[string]interface{}{"total_upload": 0, "total_download": 0}).Error; err != nil {
+		return err
+	}
+
+	// 2. 清除内存中对应的用户流量
+	var rules []models.ForwardingRule
+	database.DB.Where("entry_node_id = ?", entryID).Find(&rules)
+	for _, rule := range rules {
+		totalTrafficMap.Delete(rule.UserEmail)
+		userTrafficMap.Delete(rule.UserEmail)
+	}
+
+	log.Printf("[Traffic] Cleared traffic for Entry #%d", entryID)
+	return nil
+}
+
+// ClearExitTraffic 清除指定落地节点的流量统计
+func ClearExitTraffic(exitID uint) error {
+	// 1. 清除数据库中的流量
+	if err := database.DB.Model(&models.ExitNode{}).Where("id = ?", exitID).
+		Updates(map[string]interface{}{"total_upload": 0, "total_download": 0}).Error; err != nil {
+		return err
+	}
+
+	// 2. 清除内存中对应的用户流量
+	var rules []models.ForwardingRule
+	database.DB.Where("exit_node_id = ?", exitID).Find(&rules)
+	for _, rule := range rules {
+		totalTrafficMap.Delete(rule.UserEmail)
+		userTrafficMap.Delete(rule.UserEmail)
+	}
+
+	log.Printf("[Traffic] Cleared traffic for Exit #%d", exitID)
+	return nil
+}
+
+// ClearAllTraffic 清除所有流量统计
+func ClearAllTraffic() error {
+	// 清除数据库中的所有流量
+	database.DB.Model(&models.EntryNode{}).Updates(map[string]interface{}{"total_upload": 0, "total_download": 0})
+	database.DB.Model(&models.ExitNode{}).Updates(map[string]interface{}{"total_upload": 0, "total_download": 0})
+
+	// 清除内存中的所有流量
+	totalTrafficMap = sync.Map{}
+	userTrafficMap = sync.Map{}
+
+	log.Println("[Traffic] Cleared ALL traffic stats")
+	return nil
 }

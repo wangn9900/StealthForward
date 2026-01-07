@@ -43,6 +43,10 @@ type EntryNode struct {
 	RealityShortID     string `json:"reality_short_id"`    // ShortId
 	RealityFingerprint string `json:"reality_fingerprint"` // FingerPrint (chrome, safari, etc.)
 
+	// 流量统计 (持久化)
+	TotalUpload   int64 `json:"total_upload"`   // 累计上行流量 (bytes)
+	TotalDownload int64 `json:"total_download"` // 累计下行流量 (bytes)
+
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -59,12 +63,17 @@ type NodeMapping struct {
 
 // ExitNode 代表落地服务器（小鸡）
 type ExitNode struct {
-	ID        uint      `json:"id"`
-	Name      string    `json:"name"`
-	Address   string    `json:"address"`
-	Port      int       `json:"port"`
-	Protocol  string    `json:"protocol"` // shadowsocks, vmess, vless
-	Config    string    `json:"config"`   // 存储具体的协议配置 (JSON string)
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	Address  string `json:"address"`
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol"` // shadowsocks, vmess, vless
+	Config   string `json:"config"`   // 存储具体的协议配置 (JSON string)
+
+	// 流量统计 (持久化)
+	TotalUpload   int64 `json:"total_upload"`   // 累计上行流量 (bytes)
+	TotalDownload int64 `json:"total_download"` // 累计下行流量 (bytes)
+
 	CreatedAt time.Time `json:"created_at"`
 }
 
