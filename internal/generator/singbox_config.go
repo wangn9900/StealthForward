@@ -349,7 +349,24 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "address")
 			delete(exitOutbound, "port")
 			delete(exitOutbound, "cipher")
-			exitOutbound["tcp_fast_open"] = false
+			// --- 优化 1: 开启 TFO (TCP Fast Open) ---
+			// 之前的 false 是硬拉，改为 true 可以降低握手延迟
+			exitOutbound["tcp_fast_open"] = true
+
+			// --- 优化 2: 注入 Multiplex (多路复用) ---
+			// 这是“丝滑”的关键。不让每个请求都去握手，而是复用长连接。
+			// 仅当落地机是 sing-box/xray 时有效 (您的环境已确认为 tox/sing-box)
+			exitOutbound["multiplex"] = map[string]interface{}{
+				"enabled":         true,
+				"protocol":        "smux", // 使用 smux 协议，轻量且适合代理场景
+				"max_connections": 8,      // 保持 8 条物理长连接
+				"min_streams":     4,      // 最小并发流
+				"padding":         true,   // 开启 padding 防止流量分析
+			}
+
+			// --- 优化 3: 牛皮糖保活配置 ---
+			exitOutbound["tcp_keep_alive_interval"] = 15 // 每15秒发一次心跳（激进保活）
+			exitOutbound["tcp_multi_path"] = true        // 尝试开启 MPTCP（如有多网口可叠加带宽）
 		}
 
 		if exitOutbound["server"] == "127.0.0.1" || exitOutbound["server"] == "localhost" {
@@ -362,6 +379,11 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "password")
 			delete(exitOutbound, "plugin")
 			delete(exitOutbound, "plugin_opts")
+			// Direct 模式不需要 multiplex 也不需要 TFO
+			delete(exitOutbound, "multiplex")
+			delete(exitOutbound, "tcp_fast_open")
+			delete(exitOutbound, "tcp_keep_alive_interval")
+			delete(exitOutbound, "tcp_multi_path")
 		}
 
 		exitOutbound["tag"] = "out-" + exit.Name
