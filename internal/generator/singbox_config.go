@@ -349,8 +349,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "address")
 			delete(exitOutbound, "port")
 			delete(exitOutbound, "cipher")
-			// --- 优化 1: 开启 TFO (TCP Fast Open) ---
-			exitOutbound["tcp_fast_open"] = true
+			// --- 优化 1: 关闭 TFO (TCP Fast Open) ---
+			// 经过测试，在该线路环境下 TFO 导致握手被丢包，故关闭以保证连通性
+			exitOutbound["tcp_fast_open"] = false
 
 			// --- 优化 2: 注入 Multiplex (多路复用) ---
 			// 既然 MTU 问题已解决，这就重新加回来
