@@ -363,8 +363,8 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 				"padding":         true,
 			}
 
-			// --- 优化 3: 牛皮糖保活配置 ---
-			exitOutbound["tcp_keep_alive_interval"] = 15
+			// --- 优化 3: 移除错误的保活字段，恢复 MPTCP ---
+			// tcp_keep_alive_interval 字段不存在于 sing-box outbound 顶层，导致报错，移除之。
 			exitOutbound["tcp_multi_path"] = true
 		}
 
