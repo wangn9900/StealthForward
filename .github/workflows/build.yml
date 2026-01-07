@@ -33,7 +33,7 @@ jobs:
           
           # Use -mod=vendor to ensure our patched VLESS Vision logic is used
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} cmd/agent/main.go
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} ./cmd/agent
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
 
       - name: Build License Server
