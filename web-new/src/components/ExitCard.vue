@@ -43,6 +43,21 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+import { ref } from 'vue'
+const clearingTraffic = ref(false)
+async function clearTraffic() {
+  if (!confirm('确定清除此落地节点的流量统计？此操作不可逆！')) return
+  clearingTraffic.value = true
+  try {
+    await apiDelete(`/api/v1/traffic/exit/${props.exit.id}`)
+    emit('refresh')
+  } catch (e) {
+    alert('清除失败: ' + e.message)
+  } finally {
+    clearingTraffic.value = false
+  }
+}
 </script>
 
 <template>
@@ -85,8 +100,20 @@ function formatBytes(bytes) {
     
     <div class="mt-4 flex items-center justify-between">
       <div class="text-[10px] text-[var(--text-muted)] uppercase tracking-tight">已用流量</div>
-      <div class="text-xs font-mono font-bold text-emerald-400">
-        {{ formatBytes(exitTraffic) }}
+      <div class="flex items-center gap-2">
+        <div class="text-xs font-mono font-bold text-emerald-400">
+          {{ formatBytes(exitTraffic) }}
+        </div>
+        <button 
+          @click="clearTraffic" 
+          :disabled="clearingTraffic" 
+          class="p-1 text-[var(--text-muted)] hover:text-rose-500 transition opacity-0 group-hover:opacity-50 hover:opacity-100"
+          title="清除流量统计"
+        >
+          <svg class="w-3 h-3" :class="{'animate-spin': clearingTraffic}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </div>
   </div>

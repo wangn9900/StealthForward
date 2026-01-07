@@ -164,6 +164,20 @@ function formatUptime(seconds) {
   if (h > 24) return `${Math.floor(h/24)}d ${h%24}h`
   return `${h}h`
 }
+
+const clearingTraffic = ref(false)
+async function clearTraffic() {
+  if (!confirm('确定清除此入口节点的流量统计？此操作不可逆！')) return
+  clearingTraffic.value = true
+  try {
+    await apiDelete(`/api/v1/traffic/entry/${props.entry.id}`)
+    emit('refresh')
+  } catch (e) {
+    alert('清除失败: ' + e.message)
+  } finally {
+    clearingTraffic.value = false
+  }
+}
 </script>
 
 <template>
@@ -241,7 +255,19 @@ function formatUptime(seconds) {
         </div>
         <div class="di">
           <span class="dl">TOTAL</span>
-          <span class="dv">{{ formatBytes(entryTraffic) }}</span>
+          <div class="dv-wrap">
+            <span class="dv">{{ formatBytes(entryTraffic) }}</span>
+            <button 
+              @click="clearTraffic" 
+              :disabled="clearingTraffic" 
+              class="clear-btn" 
+              title="清除流量统计"
+            >
+              <svg class="w-2.5 h-2.5" :class="{'animate-spin': clearingTraffic}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -426,6 +452,19 @@ function formatUptime(seconds) {
 .di { display: flex; flex-direction: column; }
 .di .dl { font-size: 0.55rem; text-transform: uppercase; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em; }
 .di .dv { font-size: 0.75rem; font-weight: 800; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+.dv-wrap { display: flex; align-items: center; gap: 0.25rem; }
+.clear-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+}
+.compact-card:hover .clear-btn { opacity: 0.5; }
+.clear-btn:hover { opacity: 1; color: #ef4444; }
 
 .waiting-row {
   margin-top: 1rem;
