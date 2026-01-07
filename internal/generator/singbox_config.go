@@ -187,7 +187,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	// 根据协议类型决定是否需要 fallback
 	// 只有 VLESS 和 Trojan 支持 fallback
 	// 如果开启了 Reality，回落由 Reality Handshake 接管，不需要 inbound 层的 fallback
-	if (defaultProtocolType == "vless" || defaultProtocolType == "trojan") && !entry.RealityEnabled {
+	// 重要：Fallback 只在 TCP 传输模式下生效！gRPC/WS/H2 传输层会拦截非法请求，fallback 无法触发
+	isTcpTransport := entry.Transport == "" || entry.Transport == "tcp"
+	if (defaultProtocolType == "vless" || defaultProtocolType == "trojan") && !entry.RealityEnabled && isTcpTransport {
 		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -289,8 +291,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"tls":           tlsConfig,
 		}
 
-		// 只有在非 Reality 模式下，且协议为 VLESS 或 Trojan 时才添加本地伪装回落
-		if !entry.RealityEnabled && (inboundProtocolType == "vless" || inboundProtocolType == "trojan") {
+		// 只有在非 Reality 模式下，且协议为 VLESS 或 Trojan，且传输层为 TCP 时才添加本地伪装回落
+		// gRPC/WS/H2 传输层不支持 fallback
+		if !entry.RealityEnabled && (inboundProtocolType == "vless" || inboundProtocolType == "trojan") && isTcpTransport {
 			inbound["fallback"] = map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
