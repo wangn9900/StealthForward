@@ -167,6 +167,15 @@ func pushTrafficAndOnlineToV2Board() {
 		// 按 V2Board Node ID 分组的 Payloads
 		nodePayloads := make(map[int]map[string][]int64)
 
+		// 事务回滚数据结构：NodeID -> []{UserEmail, Up, Down}
+		// 如果上报失败，我们需要知道把流量退还给谁
+		type trafficTx struct {
+			UserEmail string
+			Up        int64
+			Down      int64
+		}
+		rollbackData := make(map[int][]trafficTx)
+
 		var rules []models.ForwardingRule
 		database.DB.Where("entry_node_id = ?", entry.ID).Find(&rules)
 
@@ -197,6 +206,15 @@ func pushTrafficAndOnlineToV2Board() {
 				traffic := val.(*[2]int64)
 				u = atomic.SwapInt64(&traffic[0], 0)
 				d = atomic.SwapInt64(&traffic[1], 0)
+			}
+
+			// 如果有流量被取出，立即记录到回滚日志，以防发送失败
+			if u > 0 || d > 0 {
+				rollbackData[reportingNodeID] = append(rollbackData[reportingNodeID], trafficTx{
+					UserEmail: rule.UserEmail,
+					Up:        u,
+					Down:      d,
+				})
 			}
 
 			// 判断是否在线
@@ -253,7 +271,22 @@ func pushTrafficAndOnlineToV2Board() {
 
 			err := reportToV2BoardAPIWithID(entry, nodeID, nodeType, payload)
 			if err != nil {
-				log.Printf("[Sync-Error] V2Board 同步失败 (Entry #%d, Node #%d): %v", entry.ID, nodeID, err)
+				log.Printf("[Sync-Error] V2Board 同步失败 (Entry #%d, Node #%d): %v. 正在执行流量回滚...", entry.ID, nodeID, err)
+
+				// --- 核心修复：执行流量回滚 ---
+				if txList, ok := rollbackData[nodeID]; ok {
+					restoredCount := 0
+					for _, tx := range txList {
+						// 将流量原子加回 map
+						val, _ := userTrafficMap.LoadOrStore(tx.UserEmail, &[2]int64{0, 0})
+						traffic := val.(*[2]int64)
+						atomic.AddInt64(&traffic[0], tx.Up)
+						atomic.AddInt64(&traffic[1], tx.Down)
+						restoredCount++
+					}
+					log.Printf("[Sync-Rollback] 已成功回滚 %d 个用户的流量数据，等待下一次重试。", restoredCount)
+				}
+				// ---------------------------
 			} else {
 				// 详尽保留流量日志，方便监控
 				status := "OK"
