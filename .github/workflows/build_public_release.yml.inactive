@@ -1,0 +1,122 @@
+name: Build and Release StealthForward
+
+on:
+  push:
+    tags:
+      - 'v*' # 当你推送形如 v1.0.0 的 tag 时触发发布
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux]
+        goarch: [amd64, arm64] # 支持主流海外 VPS 架构
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Clone Required Sing-box Lib
+        run: |
+          # Clone to ../sing-box_mod to match go.mod replace directive
+          git clone --depth 1 --branch dev-next https://github.com/wangn9900/sing-box_mod.git ../sing-box_mod
+
+      - name: Build StealthForward Binaries
+        run: |
+          go mod tidy
+          
+          # Use -mod=vendor to ensure our patched VLESS Vision logic is used
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} ./cmd/agent
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
+
+      - name: Build License Server
+        run: |
+          cd license-server
+          go mod tidy
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o ../license-server-${{ matrix.goarch }} .
+
+      - name: Build Standalone Sing-box Mod (with VLESS Fallback)
+        run: |
+          cd ../sing-box_mod
+          
+          go mod tidy
+          
+          # This builds the raw sing-box from the cloned repo (unpatched)
+          # Note: If you want the Stealth Agent to be patched, the agent binary above is enough.
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o ../StealthForward/sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stealth-binaries-${{ matrix.goarch }}
+          path: |
+            stealth-*
+            sing-box-mod-*
+            license-server-*
+            
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Frontend
+        env:
+          VITE_APP_VERSION: ${{ github.ref_name }}
+        run: |
+          cd web-new
+          npm install
+          npm run build
+          # Validating dist exists (Vite config outputs to ../web-dist)
+          cd ../web-dist
+          python3 -c "import zipfile, os; z=zipfile.ZipFile('../web.zip','w',zipfile.ZIP_DEFLATED); [z.write(os.path.join(r,f), os.path.join(r,f)[2:]) for r,_,fs in os.walk('.') for f in fs]; z.close()"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-assets
+          path: web.zip
+
+  release:
+    needs: [build, build-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Prepare Public Install Script
+        run: |
+          # 动态修改 install.sh 指向公库
+          sed -i 's|wangn9900/StealthForward|wangn9900/StealthForward-Release|g' scripts/install.sh
+          # 验证
+          grep "StealthForward-Release" scripts/install.sh || exit 1
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: wangn9900/StealthForward-Release
+          token: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          files: |
+            scripts/install.sh
+            stealth-binaries-amd64/stealth-controller-amd64
+            stealth-binaries-amd64/stealth-agent-amd64
+            stealth-binaries-amd64/stealth-admin-amd64
+            stealth-binaries-amd64/sing-box-mod-amd64
+            stealth-binaries-amd64/license-server-amd64
+            stealth-binaries-arm64/stealth-controller-arm64
+            stealth-binaries-arm64/stealth-agent-arm64
+            stealth-binaries-arm64/stealth-admin-arm64
+            stealth-binaries-arm64/sing-box-mod-arm64
+            stealth-binaries-arm64/license-server-arm64
+            web-assets/web.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
