@@ -10,6 +10,7 @@ import (
 
 	"github.com/wangn9900/StealthForward/internal/database"
 	"github.com/wangn9900/StealthForward/internal/models"
+	"gorm.io/gorm"
 )
 
 // V2boardUser 对应 UniProxy 接口返回的用户结构
@@ -140,47 +141,53 @@ func fetchUsers(entry models.EntryNode, nodeID int, nodeType string) ([]V2boardU
 }
 
 func updateRulesForEntry(entryID uint, entryName string, targetExitID uint, v2bNodeID int, users []V2boardUser) {
-	for _, user := range users {
-		// 核心修正：使用 v2bNodeID 作为标签前缀，每个节点的用户都有独立身份
-		identityTag := fmt.Sprintf("n%d-%s", v2bNodeID, user.UUID[:8])
+	// 性能优化：使用数据库事务包裹整个节点的更新操作
+	// 这将 N 次磁盘 I/O 合并为 1 次，大幅降低 CPU 占用
+	database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, user := range users {
+			// 核心修正：使用 v2bNodeID 作为标签前缀，每个节点的用户都有独立身份
+			identityTag := fmt.Sprintf("n%d-%s", v2bNodeID, user.UUID[:8])
 
-		var rule models.ForwardingRule
-		// 用 identityTag 作为唯一标识，同一个 UUID 可以有多条规则（对应不同节点）
-		err := database.DB.Where("user_email = ? AND entry_node_id = ?", identityTag, entryID).First(&rule).Error
+			var rule models.ForwardingRule
+			// 用 identityTag 作为唯一标识，同一个 UUID 可以有多条规则（对应不同节点）
+			// 注意：在事务内部必须使用 tx 句柄
+			err := tx.Where("user_email = ? AND entry_node_id = ?", identityTag, entryID).First(&rule).Error
 
-		if err != nil {
-			newRule := models.ForwardingRule{
-				EntryNodeID: entryID,
-				ExitNodeID:  targetExitID,
-				UserID:      user.UUID,
-				V2boardUID:  user.ID,
-				UserEmail:   identityTag,
-				Enabled:     true,
-			}
-			database.DB.Create(&newRule)
-		} else {
-			updated := false
-			if rule.V2boardUID != user.ID {
-				rule.V2boardUID = user.ID
-				updated = true
-			}
-			if rule.ExitNodeID != targetExitID {
-				rule.ExitNodeID = targetExitID
-				updated = true
-			}
-			if !rule.Enabled {
-				rule.Enabled = true
-				updated = true
-			}
-			if rule.UserEmail != identityTag {
-				rule.UserEmail = identityTag
-				updated = true
-			}
-			if updated {
-				database.DB.Save(&rule)
+			if err != nil {
+				newRule := models.ForwardingRule{
+					EntryNodeID: entryID,
+					ExitNodeID:  targetExitID,
+					UserID:      user.UUID,
+					V2boardUID:  user.ID,
+					UserEmail:   identityTag,
+					Enabled:     true,
+				}
+				tx.Create(&newRule)
+			} else {
+				updated := false
+				if rule.V2boardUID != user.ID {
+					rule.V2boardUID = user.ID
+					updated = true
+				}
+				if rule.ExitNodeID != targetExitID {
+					rule.ExitNodeID = targetExitID
+					updated = true
+				}
+				if !rule.Enabled {
+					rule.Enabled = true
+					updated = true
+				}
+				if rule.UserEmail != identityTag {
+					rule.UserEmail = identityTag
+					updated = true
+				}
+				if updated {
+					tx.Save(&rule)
+				}
 			}
 		}
-	}
+		return nil
+	})
 }
 
 // GlobalSyncNow 提供给 API 调用的立即同步接口
