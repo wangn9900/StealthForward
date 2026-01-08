@@ -43,6 +43,13 @@ var (
 func InitTrafficFromDB() {
 	log.Println("[Traffic] Loading traffic stats from database...")
 
+	// 0. 数据清洗：将历史数据的 NULL 字段初始化为 0
+	// 这里的 SQL 是为了防止 "NULL + delta = NULL" 导致增量更新失效，这是流量"永远很少"的根本原因
+	database.DB.Exec("UPDATE entry_nodes SET total_upload = 0 WHERE total_upload IS NULL")
+	database.DB.Exec("UPDATE entry_nodes SET total_download = 0 WHERE total_download IS NULL")
+	database.DB.Exec("UPDATE exit_nodes SET total_upload = 0 WHERE total_upload IS NULL")
+	database.DB.Exec("UPDATE exit_nodes SET total_download = 0 WHERE total_download IS NULL")
+
 	// 仅打印日志，不需要将 DB 数据加载回内存，因为我们将采用 DB + (Mem - Synced) 的显示策略
 	var entries []models.EntryNode
 	database.DB.Find(&entries)
