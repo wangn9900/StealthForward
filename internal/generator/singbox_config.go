@@ -360,9 +360,20 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			exitOutbound["tcp_multi_path"] = true
 
 			// --- 避坑指南 (Avoid Pitfalls) ---
-			// 3. TFO: 必须关闭。虽然理论上 0-RTT，但实际上跨运营商/跨境极易导致首包丢弃，引发 i/o timeout
-			exitOutbound["tcp_fast_open"] = false
 			// 4. Multiplex: 严禁对普通 SS 节点开启。对面不识别 Smux 协议会导致连接直接重置。
+			exitOutbound["tcp_fast_open"] = false
+		}
+
+		if exit.Protocol == "socks5" {
+			exitOutbound["type"] = "socks"
+			exitOutbound["version"] = "5"
+			// 智能清洗：如果是空密码/空用户，直接移除字段，防止对免密节点造成干扰
+			if u, ok := exitOutbound["username"].(string); ok && u == "" {
+				delete(exitOutbound, "username")
+			}
+			if p, ok := exitOutbound["password"].(string); ok && p == "" {
+				delete(exitOutbound, "password")
+			}
 		}
 
 		if exitOutbound["server"] == "127.0.0.1" || exitOutbound["server"] == "localhost" {

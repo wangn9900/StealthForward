@@ -17,6 +17,7 @@ const form = ref({
   server: '',
   server_port: null,
   password: '',
+  username: '',
   method: '2022-blake3-aes-128-gcm'
 })
 
@@ -30,6 +31,7 @@ onMounted(() => {
       form.value.server = config.server
       form.value.server_port = config.server_port
       form.value.password = config.password || config.uuid
+      form.value.username = config.username || ''
       form.value.method = config.method || config.cipher || '2022-blake3-aes-128-gcm'
     } catch {}
   }
@@ -47,6 +49,9 @@ async function handleSubmit() {
   if (form.value.protocol === 'ss') {
     config.password = form.value.password
     config.cipher = form.value.method
+  } else if (form.value.protocol === 'socks5') {
+    config.username = form.value.username
+    config.password = form.value.password
   } else {
     config.uuid = form.value.password
   }
@@ -82,6 +87,7 @@ async function handleSubmit() {
             协议
             <select v-model="form.protocol">
               <option value="ss">Shadowsocks (AEAD / 2022)</option>
+              <option value="socks5">SOCKS5</option>
               <option value="vmess">VMess</option>
               <option value="vless">VLESS</option>
             </select>
@@ -98,10 +104,15 @@ async function handleSubmit() {
           </label>
         </div>
         
-        <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
-          {{ form.protocol === 'ss' ? '密码 (Password)' : 'UUID' }}
-          <input v-model="form.password" type="password" placeholder="Secret..." />
-        </label>
+          <label class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+            {{ form.protocol === 'ss' || form.protocol === 'socks5' ? '密码 (Password)' : 'UUID' }}
+            <input v-model="form.password" type="password" placeholder="Secret..." />
+          </label>
+
+          <label v-if="form.protocol === 'socks5'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
+            用户名 (Username)
+            <input v-model="form.username" placeholder="Optional..." />
+          </label>
         
         <label v-if="form.protocol === 'ss'" class="flex flex-col gap-1.5 text-[var(--text-muted)]">
           加密方法
