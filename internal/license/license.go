@@ -192,7 +192,7 @@ func Verify() error {
 	rootKey := os.Getenv("STEALTH_ROOT_KEY")
 	if rootKey != "" {
 		hash := sha256.Sum256([]byte(rootKey))
-		// Hash of "EyIT2fUt9o8VSMOZKdqG0hrsFgb6PD17"
+		// Hash Verification
 		if hex.EncodeToString(hash[:]) == "6773a3a17922899a84702f840271d0837115a3b003e672807d61b7b7c83be11e" {
 			log.Println("⚡ 已启用上帝模式 (God Mode): 顶级管理密码校验成功，永久授权")
 			licenseMu.Lock()

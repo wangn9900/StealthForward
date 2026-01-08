@@ -187,7 +187,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 	// 根据协议类型决定是否需要 fallback
 	// 只有 VLESS 和 Trojan 支持 fallback
 	// 如果开启了 Reality，回落由 Reality Handshake 接管，不需要 inbound 层的 fallback
-	if (defaultProtocolType == "vless" || defaultProtocolType == "trojan") && !entry.RealityEnabled {
+	// 重要：Fallback 只在 TCP 传输模式下生效！gRPC/WS/H2 传输层会拦截非法请求，fallback 无法触发
+	isTcpTransport := entry.Transport == "" || entry.Transport == "tcp"
+	if (defaultProtocolType == "vless" || defaultProtocolType == "trojan") && !entry.RealityEnabled && isTcpTransport {
 		defaultInbound["fallback"] = map[string]interface{}{
 			"server":      fallbackHost,
 			"server_port": fallbackPort,
@@ -289,8 +291,9 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			"tls":           tlsConfig,
 		}
 
-		// 只有在非 Reality 模式下，且协议为 VLESS 或 Trojan 时才添加本地伪装回落
-		if !entry.RealityEnabled && (inboundProtocolType == "vless" || inboundProtocolType == "trojan") {
+		// 只有在非 Reality 模式下，且协议为 VLESS 或 Trojan，且传输层为 TCP 时才添加本地伪装回落
+		// gRPC/WS/H2 传输层不支持 fallback
+		if !entry.RealityEnabled && (inboundProtocolType == "vless" || inboundProtocolType == "trojan") && isTcpTransport {
 			inbound["fallback"] = map[string]interface{}{
 				"server":      fallbackHost,
 				"server_port": fallbackPort,
@@ -349,23 +352,17 @@ func GenerateEntryConfig(entry *models.EntryNode, rules []models.ForwardingRule,
 			delete(exitOutbound, "address")
 			delete(exitOutbound, "port")
 			delete(exitOutbound, "cipher")
-			// --- 优化 1: 关闭 TFO (TCP Fast Open) ---
-			// 经过测试，在该线路环境下 TFO 导致握手被丢包，故关闭以保证连通性
-			exitOutbound["tcp_fast_open"] = false
 
-			// --- 优化 2: 注入 Multiplex (多路复用) ---
-			// 既然 MTU 问题已解决，这就重新加回来
-			exitOutbound["multiplex"] = map[string]interface{}{
-				"enabled":         true,
-				"protocol":        "smux",
-				"max_connections": 8,
-				"min_streams":     4,
-				"padding":         true,
-			}
-
-			// --- 优化 3: 移除错误的保活字段，恢复 MPTCP ---
-			// tcp_keep_alive_interval 字段不存在于 sing-box outbound 顶层，导致报错，移除之。
+			// --- 稳健优化策略 (Safe Optimization) ---
+			// 1. KeepAlive: 防止 NAT 映射在空闲时被掐断，显著改善断流问题
+			exitOutbound["tcp_keep_alive_interval"] = "15s"
+			// 2. MPTCP: 尝试多路径传输，若不支持会自动回落到普通 TCP，无副作用
 			exitOutbound["tcp_multi_path"] = true
+
+			// --- 避坑指南 (Avoid Pitfalls) ---
+			// 3. TFO: 必须关闭。虽然理论上 0-RTT，但实际上跨运营商/跨境极易导致首包丢弃，引发 i/o timeout
+			exitOutbound["tcp_fast_open"] = false
+			// 4. Multiplex: 严禁对普通 SS 节点开启。对面不识别 Smux 协议会导致连接直接重置。
 		}
 
 		if exitOutbound["server"] == "127.0.0.1" || exitOutbound["server"] == "localhost" {

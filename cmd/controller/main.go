@@ -64,6 +64,7 @@ func main() {
 	// 2. 启动 V2Board 自动同步任务与流量上报任务
 	sync.StartV2boardSync()
 	sync.StartTrafficReporting()
+	sync.InitTrafficFromDB() // 从数据库恢复流量统计
 
 	// 2. 设置 Gin 路由
 	r := gin.Default()
@@ -238,6 +239,9 @@ func main() {
 
 		// --- Traffic Stats ---
 		v1.GET("/traffic", api.GetTrafficStatsHandler)
+		v1.DELETE("/traffic/entry/:id", api.ClearEntryTrafficHandler) // 清除入口节点流量
+		v1.DELETE("/traffic/exit/:id", api.ClearExitTrafficHandler)   // 清除落地节点流量
+		v1.DELETE("/traffic/all", api.ClearAllTrafficHandler)         // 清除所有流量
 
 		// 分流映射管理 (NodeMappings)
 		v1.GET("/mappings", api.ListNodeMappingsHandler)

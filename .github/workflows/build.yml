@@ -32,15 +32,15 @@ jobs:
           go mod tidy
           
           # Use -mod=vendor to ensure our patched VLESS Vision logic is used
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} cmd/agent/main.go
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-controller-${{ matrix.goarch }} cmd/controller/main.go
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-agent-${{ matrix.goarch }} ./cmd/agent
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -mod=vendor -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o stealth-admin-${{ matrix.goarch }} cmd/admin-cli/main.go
 
       - name: Build License Server
         run: |
           cd license-server
           go mod tidy
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags="-s -w" -o ../license-server-${{ matrix.goarch }} .
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o ../license-server-${{ matrix.goarch }} .
 
       - name: Build Standalone Sing-box Mod (with VLESS Fallback)
         run: |
@@ -50,7 +50,7 @@ jobs:
           
           # This builds the raw sing-box from the cloned repo (unpatched)
           # Note: If you want the Stealth Agent to be patched, the agent binary above is enough.
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o ../StealthForward/sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath -tags "with_gvisor,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api" -ldflags="-s -w" -o ../StealthForward/sing-box-mod-${{ matrix.goarch }} ./cmd/sing-box
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
